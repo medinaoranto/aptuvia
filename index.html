@@ -1881,7 +1881,7 @@ async function loadData(){
     // ── FASE 1: datos mínimos para mostrar la UI ──
     const [unidades, examenes, perfil] = await Promise.all([
       fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id,profesor_id&order=orden.asc').catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id&order=orden.asc')).catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden&order=orden.asc')),
-      fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id&order=orden.asc').catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id&order=orden.asc')),
+      fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo&order=orden.asc').catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,material_url,material_modo&order=orden.asc')).catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id&order=orden.asc')),
       fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id,profesor_id').catch(()=>fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id')),
     ]);
 
@@ -3559,7 +3559,7 @@ async function refrescarExamenes(){
 function escHtml(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function escAttr(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
-let builder={mode:'auto',kind:'test',unidad:'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[''],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false};
+let builder={mode:'auto',kind:'test',unidad:'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline'};
 
 async function ensureTemas(unidad){
   if(!unidad) return [];
@@ -3602,7 +3602,7 @@ function temaLabelGlobal(t){
 
 async function openExamMgmt(){
   const units=unidadesParaCrearExamen();
-  builder={mode:'auto',kind:'test',unidad:units[0]||'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[''],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false};
+  builder={mode:'auto',kind:'test',unidad:units[0]||'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline'};
   showView('teacher'); window.scrollTo(0,0);
   if(builder.unidad) await ensureTemas(builder.unidad);
   renderExamMgmt();
@@ -3624,7 +3624,7 @@ function renderExamMgmt(okMsg,errMsg){
   if(errMsg) h.push(`<div class="t-note err">${errMsg}</div>`);
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button></div>`);
   if(builder.kind==='redaccion'){
-        h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label>Nivel</label><select id="ce-nivel"><option value="medio"'+(builder.nivel==='medio'?' selected':'')+'>Medio</option><option value="alto"'+(builder.nivel==='alto'?' selected':'')+'>Alto</option></select><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label></div>');
+        h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label>Nivel</label><select id="ce-nivel"><option value="medio"'+(builder.nivel==='medio'?' selected':'')+'>Medio</option><option value="alto"'+(builder.nivel==='alto'?' selected':'')+'>Alto</option></select><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><select id="ce-mat-mode" style="font-size:.78rem;padding:6px;border:1.5px solid var(--line);border-radius:8px;margin-top:6px"><option value="inline"'+(builder.examMatMode==='inline'?' selected':'')+'>Mostrar incrustado</option><option value="boton"'+(builder.examMatMode==='boton'?' selected':'')+'>Botón "Ver material"</option></select></div>');
     h.push(renderRedSection());
     h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
     h.push(listaProfHtml(units));
@@ -3719,14 +3719,33 @@ function listaProfHtml(units){
 // ---- Redacción: constructor de enunciados ----
 function setKind(k){ captureFields(); if(builder.kind==='redaccion') captureRed(); builder.kind=k; renderExamMgmt(); }
 function captureRed(){
-  const tas=$('teacher').querySelectorAll('.red-q-in');
-  if(tas.length){ builder.redItems=Array.from(tas).map(t=>t.value); }
+  const cont=$('teacher'); if(!cont) return;
+  // Material a nivel de examen
+  const ef=cont.querySelector('#ce-mat-file');
+  if(ef && ef.files && ef.files[0]){ builder.examFile=ef.files[0]; builder.examMatName=ef.files[0].name; }
+  const em=cont.querySelector('#ce-mat-mode'); if(em) builder.examMatMode=em.value||'inline';
+  // Preguntas (enunciado + material por pregunta)
+  const blocks=cont.querySelectorAll('.red-q');
+  if(blocks.length){
+    const arr=[];
+    blocks.forEach((b,i)=>{
+      const prev=builder.redItems[i]||{enun:'',file:null,matName:'',matMode:'inline'};
+      const ta=b.querySelector('.red-q-in');
+      const it={enun:ta?ta.value:'', file:prev.file, matName:prev.matName, matMode:prev.matMode};
+      const fi=b.querySelector('.red-q-file');
+      if(fi && fi.files && fi.files[0]){ it.file=fi.files[0]; it.matName=fi.files[0].name; }
+      const md=b.querySelector('.red-q-mode'); if(md) it.matMode=md.value||'inline';
+      arr.push(it);
+    });
+    builder.redItems=arr;
+  }
 }
 function renderRedSection(){
   const h=[`<div class="t-card">`];
   h.push(`<label style="margin-top:6px">Preguntas para redactar (${builder.redItems.length})</label>`);
-  builder.redItems.forEach((txt,i)=>{
-    h.push(`<div class="red-q" style="margin-bottom:10px"><div class="rq-num" style="display:flex;justify-content:space-between;align-items:center">Pregunta ${i+1}${builder.redItems.length>1?`<button class="ce-del" data-rmred="${i}" aria-label="Quitar" style="background:none">✕</button>`:''}</div><textarea class="red-q-in" rows="2" placeholder="Escribe el enunciado a redactar">${escHtml(txt)}</textarea></div>`);
+  builder.redItems.forEach((raw,i)=>{
+    const it=(raw&&typeof raw==='object')?raw:{enun:raw||'',file:null,matName:'',matMode:'inline'};
+    h.push(`<div class="red-q" style="margin-bottom:14px"><div class="rq-num" style="display:flex;justify-content:space-between;align-items:center">Pregunta ${i+1}${builder.redItems.length>1?`<button class="ce-del" data-rmred="${i}" aria-label="Quitar" style="background:none">✕</button>`:''}</div><textarea class="red-q-in" rows="2" placeholder="Escribe el enunciado a redactar">${escHtml(it.enun)}</textarea><div style="margin-top:6px"><label style="font-size:.72rem;color:var(--ink-soft)">PDF de la pregunta (opcional)${it.matName?` · <b>📎 ${escHtml(it.matName)}</b>`:''}</label><input class="red-q-file" type="file" accept="application/pdf" style="font-size:.75rem;display:block;margin-top:4px"><select class="red-q-mode" style="font-size:.78rem;padding:6px;border:1.5px solid var(--line);border-radius:8px;margin-top:6px"><option value="inline"${it.matMode==='inline'?' selected':''}>Mostrar incrustado</option><option value="boton"${it.matMode==='boton'?' selected':''}>Botón "Ver material"</option></select></div></div>`);
   });
   h.push(`<button class="btn btn-ghost" id="red-add" style="margin-top:6px">Añadir pregunta</button>`);
   h.push(`<button class="btn btn-honey" id="red-create" style="margin-top:12px">Crear examen de redacción</button>`);
@@ -3734,25 +3753,48 @@ function renderRedSection(){
   return h.join('');
 }
 function wireRed(){
-  const add=$('red-add'); if(add) add.onclick=()=>{ captureRed(); builder.redItems.push(''); renderExamMgmt(); };
+  const add=$('red-add'); if(add) add.onclick=()=>{ captureRed(); builder.redItems.push({enun:'',file:null,matName:'',matMode:'inline'}); renderExamMgmt(); };
   const cr=$('red-create'); if(cr) cr.onclick=crearRedUI;
-  $('teacher').querySelectorAll('[data-rmred]').forEach(b=> b.onclick=()=>{ captureRed(); builder.redItems.splice(+b.dataset.rmred,1); if(!builder.redItems.length) builder.redItems=['']; renderExamMgmt(); });
+  $('teacher').querySelectorAll('[data-rmred]').forEach(b=> b.onclick=()=>{ captureRed(); builder.redItems.splice(+b.dataset.rmred,1); if(!builder.redItems.length) builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}]; renderExamMgmt(); });
+}
+async function subirMaterialPDF(file, path){
+  if(!file) return null;
+  const okType=(file.type==='application/pdf')||/\.pdf$/i.test(file.name||'');
+  if(!okType) throw new Error('El material debe ser un PDF.');
+  const up=await fetch(SUPABASE_URL+'/storage/v1/object/material-examenes/'+encodeURI(path),{
+    method:'POST',
+    headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+token, 'Content-Type':'application/pdf' },
+    body:file
+  });
+  if(!up.ok){ const t=await up.text().catch(()=>''); throw new Error('Subida PDF: '+(t||up.status)); }
+  return SUPABASE_URL+'/storage/v1/object/public/material-examenes/'+encodeURI(path);
 }
 async function crearRedUI(){
   captureFields(); captureRed();
-  const enuns=builder.redItems.map(s=>(s||'').trim()).filter(Boolean);
-  if(!enuns.length){ renderExamMgmt(null,'Añade al menos una pregunta.'); return; }
-  const btn=$('red-create'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  const items=builder.redItems.map(it=>({enun:((it&&it.enun)||'').trim(), file:(it&&it.file)||null, matMode:(it&&it.matMode)||'inline'})).filter(x=>x.enun);
+  if(!items.length){ renderExamMgmt(null,'Añade al menos una pregunta.'); return; }
+  const btn=$('red-create'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
   try{
+    const folder='red/'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    let examUrl=null, examMode=null;
+    if(builder.examFile){ examUrl=await subirMaterialPDF(builder.examFile, folder+'/examen.pdf'); examMode=builder.examMatMode||'inline'; }
+    const preguntas=[];
+    for(let i=0;i<items.length;i++){
+      const it=items[i]; const q={enunciado:it.enun};
+      if(it.file){ q.material_url=await subirMaterialPDF(it.file, folder+'/p'+(i+1)+'.pdf'); q.material_modo=it.matMode||'inline'; }
+      preguntas.push(q);
+    }
     const id=await call('/rest/v1/rpc/crear_examen_redaccion',{method:'POST',body:impProf({
       p_unidad:builder.unidad, p_titulo:builder.titulo, p_nivel:builder.nivel,
-      p_preguntas:enuns.map(e=>({enunciado:e})), p_cuenta_final:builder.cuentaFinal
+      p_preguntas:preguntas, p_cuenta_final:builder.cuentaFinal,
+      p_material_url:examUrl, p_material_modo:examMode
     })});
-    const nuevo={id:(typeof id==='string'?id:(id&&id[0])||'prof-x'),unidad:builder.unidad,numero:'R',titulo:builder.titulo||'Examen de redacción',tema:'Redacción',nivel:builder.nivel,orden:8000,tipo:'redaccion'};
+    const nuevo={id:(typeof id==='string'?id:(id&&id[0])||'prof-x'),unidad:builder.unidad,numero:'R',titulo:builder.titulo||'Examen de redacción',tema:'Redacción',nivel:builder.nivel,orden:8000,tipo:'redaccion',material_url:examUrl,material_modo:examMode};
     (examsByUnit[builder.unidad]=examsByUnit[builder.unidad]||[]).push(nuevo);
-    builder.titulo=''; builder.redItems=['']; builder.cuentaFinal=false;
+    builder.titulo=''; builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}]; builder.cuentaFinal=false;
+    builder.examFile=null; builder.examMatName=''; builder.examMatMode='inline';
     renderExamMgmt('✅ Examen de redacción creado. Ya aparece para el alumnado.');
-  }catch(err){ btn.disabled=false; btn.textContent='Crear examen de redacción'; renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
+  }catch(err){ if(btn){ btn.disabled=false; btn.textContent='Crear examen de redacción'; } renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
 }
 
 function renderBuilderSection(temas){
@@ -3841,6 +3883,7 @@ async function crearAutoUI(){
     if(builder.tema) body.p_tema=builder.tema;
     await call('/rest/v1/rpc/crear_examen',{method:'POST',body:impProf(body)});
     await refrescarExamenes();
+    builder.cuentaFinal=false;
     const temaTxt=builder.tema?(' · '+builder.tema):'';
     renderExamMgmt(`Examen creado: "${builder.titulo||'Examen del profesor'}" · ${unidadesById[builder.unidad]?unidadesById[builder.unidad].codigo:builder.unidad}${temaTxt} · ${builder.n} preguntas.`);
   }catch(err){ renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
@@ -3856,7 +3899,7 @@ async function crearMedidaUI(){
     await call('/rest/v1/rpc/crear_examen_medida',{method:'POST',body:impProf({p_unidad:builder.unidad,p_titulo:builder.titulo||'Examen del profesor',p_nivel:builder.nivel,p_preguntas:payload,p_cuenta_final:builder.cuentaFinal})});
     await refrescarExamenes();
     const titulo=builder.titulo||'Examen del profesor', nq=builder.items.length;
-    builder.items=[]; builder.adding=false; builder.picking=false;
+    builder.items=[]; builder.adding=false; builder.picking=false; builder.cuentaFinal=false;
     renderExamMgmt(`Examen a medida creado: "${titulo}" · ${nq} pregunta${nq!==1?'s':''}.`);
   }catch(err){ if(btn){ btn.disabled=false; } renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
 }
@@ -4954,7 +4997,7 @@ let redCurrent=null;
 async function openRedaccion(examId){
   const all=[].concat(...Object.values(examsByUnit));
   const ex=all.find(e=>e.id===examId)||{};
-  redCurrent={examId, unitId:ex.unidad, titulo:ex.titulo||'Examen de redacción', preguntas:[]};
+  redCurrent={examId, unitId:ex.unidad, titulo:ex.titulo||'Examen de redacción', preguntas:[], material_url:ex.material_url||null, material_modo:ex.material_modo||'inline'};
   current.unit=ex.unidad;
   showView('exam'); window.scrollTo(0,0);
   $('exam').innerHTML='<div class="loader"><span class="spin"></span></div>';
@@ -4973,6 +5016,14 @@ async function openRedaccion(examId){
       <div class="bar"><button class="btn btn-ghost" onclick="backToUnit()">← Volver</button></div>`;
   }
 }
+function materialViewerHtml(url, modo, label){
+  if(!url) return '';
+  const u=escAttr(url), lbl=escHtml(label||'Ver material');
+  if(modo==='boton'){
+    return `<div style="margin:8px 0"><a class="btn btn-ghost" href="${u}" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">📄 ${lbl}</a></div>`;
+  }
+  return `<div style="margin:8px 0"><iframe src="${u}" style="width:100%;height:420px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe><div style="margin-top:4px"><a href="${u}" target="_blank" rel="noopener" style="font-size:.78rem">Abrir el PDF en una pestaña nueva</a></div></div>`;
+}
 function renderRedaccion(entrega){
   const estado = entrega ? entrega.estado : null;
   const corregido = estado==='corregido';
@@ -4981,6 +5032,7 @@ function renderRedaccion(entrega){
   const h=[`<button class="backbtn" onclick="backToUnit()">← Volver</button>`];
   h.push(`<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.3px;margin:6px 0 2px;color:var(--navy)">${escHtml(redCurrent.titulo)}</h1>`);
   h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:16px">${editable?'Escribe tus respuestas y pulsa <b>Entregar</b>. Solo puedes entregar una vez; tu profesor las corregirá y pondrá la nota.':'Examen de redacción.'}</p>`);
+  if(redCurrent.material_url){ h.push(materialViewerHtml(redCurrent.material_url, redCurrent.material_modo, 'Ver material del examen')); }
   if(corregido){
     const n=(entrega.nota!=null)?(+entrega.nota).toFixed(1):'—', pass=(+entrega.nota>=5);
     h.push(`<div class="t-note ${pass?'ok':'err'}" style="font-size:.95rem"><b>Nota: ${n} / 10</b>${entrega.comentario?`<br><span style="font-weight:500">${escHtml(entrega.comentario)}</span>`:''}</div>`);
@@ -4993,6 +5045,7 @@ function renderRedaccion(entrega){
     h.push(`<div class="red-q">
       <div class="rq-num">Pregunta ${i+1}</div>
       <div class="rq-txt">${escHtml(q.enunciado)}</div>
+      ${q.material_url?materialViewerHtml(q.material_url,q.material_modo,'Ver material de la pregunta'):''}
       <textarea class="red-a" data-pid="${q.pregunta_id}" placeholder="Escribe aquí tu respuesta…" ${editable?'':'disabled'}>${escHtml(prev[q.pregunta_id]||'')}</textarea>
     </div>`);
   });
