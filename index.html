@@ -391,6 +391,10 @@ header{position:sticky;top:0;z-index:30;background:rgba(250,246,238,.92);backdro
 .failed-card .fc-sub{font-size:.76rem;font-weight:500;color:#b45309;line-height:1.45;}
 .failed-card.empty{background:#f7f4ee;border-color:#e4dccd;color:#8a7c68;}
 .failed-card.empty .fc-sub{color:#a99a86;}
+@media(min-width:860px){
+  .repaso-zone{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .repaso-zone .failed-card{grid-column:1/-1;}
+}
 
 /* ---------- examen ---------- */
 .recup-box{background:var(--navy-tint);border:1.5px solid var(--navy-2);border-radius:12px;padding:13px 15px;margin-bottom:14px;font-size:.88rem;line-height:1.45;color:var(--ink);}
@@ -919,6 +923,9 @@ select option{color:var(--navy);padding:8px;}
 .exam-row.ef{border-left:4px solid #d92d20;}
 .ef-badge{display:inline-block;background:#fde7e7;color:#b4232a;font-weight:800;font-size:.58rem;
   text-transform:uppercase;letter-spacing:.4px;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle;}
+.al-sort{display:flex;align-items:center;gap:8px;margin:2px 2px 12px;}
+.al-sort label{font-size:.68rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
+.al-sort select{flex:1;min-width:0;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-family:inherit;font-size:.8rem;color:var(--ink);font-weight:600;}
 
 /* ---- ca1 · ca5 · aprovechar el ancho en PC en el panel del profesor ---- */
 @media(min-width:860px){ .wrap{max-width:1200px;} }
@@ -2142,7 +2149,7 @@ function renderHome(){
 // Acceso Docente — panel del profesor (resultados del alumnado)
 function fmtShort(d){const p=n=>String(n).padStart(2,'0');const m=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear()+' · '+p(d.getHours())+':'+p(d.getMinutes());}
 let teacherRows=[], teacherMode='best', teacherById={};
-let resumenRows=null, teacherView='panel', teacherAl=null, alumnosTab='listado', pendientesCount=0, teacherUnidadSel=null;
+let resumenRows=null, teacherView='panel', teacherAl=null, alumnosTab='listado', pendientesCount=0, teacherUnidadSel=null, teacherSortBy='mejor';
 async function openTeacher(){
   showView('teacher'); window.scrollTo(0,0);
   // Guard de seguridad: si no es profesor/admin, NO pintar el panel.
@@ -2968,7 +2975,7 @@ function factRenderPDF(data){
   totLinea('IVA ('+(data.iva||0)+'%)', iva.toFixed(2)+' €');
   doc.setTextColor(...NAVY); totLinea('TOTAL', total.toFixed(2)+' €', true);
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
-  doc.text('evaluatest.plataforma@gmail.com · evalua-test.netlify.app', M, 288);
+  doc.text('evaluatest.plataforma@gmail.com · aptuvia.es', M, 288);
   doc.save('Factura_'+data.numero+'_'+((data.nombreCliente||'').replace(/[^a-z0-9]/gi,'_'))+'.pdf');
   return {subtotal,desc,iva,total};
 }
@@ -3226,7 +3233,7 @@ function factResumenPDF(){
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...NAVY);
   doc.text(lista.length+' facturas', 120, y); doc.text('TOTAL: '+total.toFixed(2)+' €', 210-M, y, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
-  doc.text('evaluatest.plataforma@gmail.com · evalua-test.netlify.app', M, 288);
+  doc.text('evaluatest.plataforma@gmail.com · aptuvia.es', M, 288);
   doc.save('Facturas_'+(mesSel==='todos'?'todas':mesSel)+'_'+filtro+(cliSel!=='todos'?'_'+cliSel.replace(/[^a-z0-9]/gi,'_'):'')+'.pdf');
 }
 
@@ -4268,9 +4275,10 @@ function listadoBody(okMsg){
     })).filter(a=>a.intentos>0);
   }
 
-  // Orden fijo: ranking por nota de clase (mejor primero); empates, por nombre.
+  // Orden por la métrica elegida (mejor→peor); empates, por nombre.
+  const _keyOf=(a)=> teacherSortBy==='todos' ? a.media_todos : teacherSortBy==='final' ? a.media_final : a.media_clase;
   alum.sort((a,b)=>{
-    const na=(a.media_clase!=null)?+a.media_clase:-1, nb=(b.media_clase!=null)?+b.media_clase:-1;
+    const na=(_keyOf(a)!=null)?+_keyOf(a):-1, nb=(_keyOf(b)!=null)?+_keyOf(b):-1;
     if(nb!==na) return nb-na;
     return (a.nombre||a.alumno||'').localeCompare(b.nombre||b.alumno||'','es');
   });
@@ -4290,6 +4298,12 @@ function listadoBody(okMsg){
     </div>`);
   }
   if(!alum.length){ h.push(`<div class="center-msg">Ningún alumno tiene intentos en esta unidad todavía.</div>`); return h.join(''); }
+  h.push(`<div class="al-sort"><label>Ordenar por</label>
+    <select onchange="setAlumnosSort(this.value)">
+      <option value="mejor"${teacherSortBy==='mejor'?' selected':''}>Media exámenes con mejor nota</option>
+      <option value="todos"${teacherSortBy==='todos'?' selected':''}>Media con todos los intentos</option>
+      <option value="final"${teacherSortBy==='final'?' selected':''}>Media de exámenes oficiales</option>
+    </select></div>`);
   alum.forEach((a,i)=>{
     const email=(a.alumno||'').toLowerCase().trim();
     const mc=(a.media_clase!=null)?(+a.media_clase).toFixed(1):'—';
@@ -4299,7 +4313,7 @@ function listadoBody(okMsg){
     const ni=a.intentos||0;
     // Medalla para el top 3 (solo si tienen nota)
     let pos='';
-    if(a.media_clase!=null){
+    if(_keyOf(a)!=null){
       if(i===0) pos='🥇 '; else if(i===1) pos='🥈 '; else if(i===2) pos='🥉 ';
     }
     h.push(`<button class="al-row" data-al="${escAttr(email)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>½ Mejor int.</i><b>${mc}</b></span><span class="al-g"><i>½ todos int.</i><b>${mt}</b></span><span class="al-g"><i>½ Ex. Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
@@ -4307,6 +4321,7 @@ function listadoBody(okMsg){
   return h.join('');
 }
 function setAlumnosUnidad(u){ teacherUnidadSel=u||null; openAlumnos(); }
+function setAlumnosSort(v){ teacherSortBy=v||'mejor'; openAlumnos(); }
 async function invitarAlumnoUI(){
   const email=($('al-email').value||'').trim(), nombre=($('al-nombre').value||'').trim();
   if(!email||email.indexOf('@')<1){ appAlert('Escribe un correo válido.'); return; }
@@ -4793,13 +4808,13 @@ function openUnit(unitId){
   const list=(examsByUnit[unitId]||[]).filter(e=> staff || e.publicado).sort(_cmpEx);
   showView('unit'); window.scrollTo(0,0);
   const est=unitEstado(unitId);
+  const terminada = (est==='terminado' && !staff);
   const backLabel = (current.module && current.module.unidades.length>1) ? '← '+current.module.code : (window._activeCertId==='__aula_abierta' ? '← Materias' : '← Módulos');
   const backFn = (current.module && current.module.unidades.length>1) ? `openModule('${current.module.id}')` : (staff ? 'openModulosTeacher()' : 'goHome()');
   const head = `<button class="backbtn" onclick="${backFn}">${backLabel}</button>
     <div class="unit-head"><div class="c">${u?u.codigo:unitId.toUpperCase()}</div><div class="n">${(u&&u.titulo)?u.titulo:(UF_TITULOS[unitId]||'')}</div></div>`;
   const posterProx = `<div class="soon-screen"><div class="soon-emoji">📭</div><div class="soon-title">Aún no hay exámenes</div><div class="soon-text">Tu profesor activará los exámenes a medida que avance el temario.<br>Vuelve pronto.</div></div>`;
   if(est==='proximamente' && !staff){ $('unit').innerHTML=head+posterProx; return; }
-  if(est==='terminado' && !staff){ openMisResultados(unitId, head); return; }
   if(!list.length){ $('unit').innerHTML=head+posterProx; return; }
 
   // ── VISTA PROFESOR: media de clase por examen ──
@@ -4906,7 +4921,7 @@ function openUnit(unitId){
           <span class="arrow">›</span></button>`;
     }else{
       const numCell=e.numero||(((e.titulo||'').match(/\d+/)||[])[0])||'·';
-      html+=`<button class="exam-row${e.cuenta_final?' ef':''}" data-id="${e.id}">
+      html+=`<button class="exam-row${e.cuenta_final?' ef':''}" data-id="${e.id}"${terminada?' data-ro="1"':''}>
           <span class="cell">${numCell}</span>
           <span class="meta"><span class="et">${e.titulo}${e.cuenta_final?' <span class="ef-badge">Nota final</span>':''}</span><span class="es">${e.tema||''}</span></span>
           <span class="arrow">›</span></button>`;
@@ -4924,7 +4939,7 @@ function openUnit(unitId){
       return `<span class="rc-score ${ok?'ok':'no'}">Mejor: ${m.mejor}/${m.total} · ${p}% · ${ok?'✓ Apto':'✗ No apto'} · ${m.count} ${m.count===1?'intento':'intentos'}</span>`; };
     const mt1=attemptsByExam['repaso-'+unitId], mt2=attemptsByExam['repaso-'+unitId+'-b'];
     const nf=falladasByUnit[unitId]||0;
-    if(verMT||verFA){
+    if((verMT||verFA) && !terminada){
       html+=`<div class="repaso-zone">`;
       if(verMT) html+=`<button class="repaso-card${mt1?' done':''}" id="btn-megatest">
           <span class="rc-badge">🔁 Mega test 1 · 50 preguntas</span>
@@ -4935,7 +4950,7 @@ function openUnit(unitId){
         <button class="repaso-card${mt2?' done':''}" id="btn-megatest2">
           <span class="rc-badge">🔁 Mega test 2 · 50 preguntas</span>
           <span class="rc-title">Examen de repaso · Parte 2</span>
-          <span class="rc-sub">Otras 50 preguntas al azar. Complétalo junto a la parte 1.</span>
+          <span class="rc-sub">Otras 50 preguntas al azar.</span>
           ${mtScore('repaso-'+unitId+'-b')}
         </button>`;
       if(verFA) html+=`<button class="failed-card${nf===0?' empty':''}" id="btn-falladas">
@@ -4958,7 +4973,11 @@ function openUnit(unitId){
     html+=`</div>`;
   }
   $('unit').innerHTML=html;
-  document.querySelectorAll('.exam-row[data-id]').forEach(b=> b.onclick=()=> b.dataset.done==='1' ? verIntentoAlumno(b.dataset.id, unitId) : openExam(b.dataset.id));
+  document.querySelectorAll('.exam-row[data-id]').forEach(b=> b.onclick=()=>{
+    if(b.dataset.done==='1') return verIntentoAlumno(b.dataset.id, unitId);
+    if(b.dataset.ro==='1') return appAlert('Esta unidad está terminada: solo lectura. No puedes volver a hacer los exámenes para no alterar tu nota.');
+    openExam(b.dataset.id);
+  });
   document.querySelectorAll('.exam-row[data-red]').forEach(b=> b.onclick=()=>openRedaccion(b.dataset.red));
   if($('btn-megatest')) $('btn-megatest').onclick=()=>openMegatest(unitId,1);
   if($('btn-megatest2')) $('btn-megatest2').onclick=()=>openMegatest(unitId,2);
@@ -5606,9 +5625,11 @@ function pdfNotasGeneral(){
     y+=2;doc.setDrawColor(LIGHT[0],LIGHT[1],LIGHT[2]);doc.setLineWidth(0.3);doc.line(M,y,PW-M,y);y+=4;
   }
   function header(){
-    pdfLogo(doc,M,y-5,34);
+    const _lh=34/APTUVIA_LOGO_RATIO;
+    pdfLogo(doc,M,y,34);
     doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
-    doc.text(fmtFechaES(fecha),PW-M,y,{align:'right'}); y+=6;
+    doc.text(fmtFechaES(fecha),PW-M,y+_lh*0.55,{align:'right'});
+    y+=_lh+6;
     doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
     doc.text('Listado de notas del alumnado',M,y); y+=4;
     doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=6;
@@ -5642,9 +5663,11 @@ function pdfNotasAlumno(email){
   const PW=210,PH=297,M=16;
   const NAVY=[46,49,99],MUTED=[96,84,70],DARK=[30,26,16],HONEY=(window._activeCertId==='__aula_abierta'?[0,119,182]:[180,89,5]),GREEN=[21,128,61],RED=[192,57,43],LIGHT=[224,224,216];
   const fecha=new Date(); let y=M;
-  pdfLogo(doc,M,y-5,34);
+  const _lh=34/APTUVIA_LOGO_RATIO;
+  pdfLogo(doc,M,y,34);
   doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
-  doc.text(fmtFechaES(fecha),PW-M,y,{align:'right'}); y+=6;
+  doc.text(fmtFechaES(fecha),PW-M,y+_lh*0.55,{align:'right'});
+  y+=_lh+6;
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
   doc.text(pdfSafe(meta.nombre||email),M,y); y+=4.5;
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
@@ -5704,7 +5727,7 @@ function generarPDF(){
   function lines(arr,x,lh,size,style,color){ doc.setFont('helvetica',style);doc.setFontSize(size);doc.setTextColor(color[0],color[1],color[2]); arr.forEach(l=>{ ensure(lh); doc.text(pdfTxt(l),x,y); y+=lh; }); }
 
   // Cabecera
-  pdfLogo(doc,(PW-40)/2,y-5,40); y+=7;
+  pdfLogo(doc,(PW-40)/2,y,40); y+=40/APTUVIA_LOGO_RATIO+5;
   doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
   doc.text('Justificante de autoevaluación',PW/2,y,{align:'center'}); y+=4.5;
   doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=8;
@@ -6159,7 +6182,7 @@ $('sb-logout').onclick=logout;
     <div class="leg-body">
       <h4>1. Titular de la plataforma</h4>
       <p>En cumplimiento de la Ley 34/2002, de Servicios de la Sociedad de la Información y de Comercio Electrónico (LSSI-CE), se informa de que el titular de esta plataforma es <b>Bernardo Medina Oranto</b> (NIF a disposición de las autoridades competentes que lo requieran), responsable del desarrollo y la explotación del servicio <b>Aptuvia</b>.</p>
-      <p>Contacto: <b>evaluatest.plataforma@gmail.com</b> · evalua-test.netlify.app</p>
+      <p>Contacto: <b>evaluatest.plataforma@gmail.com</b> · aptuvia.es</p>
       <h4>2. Objeto</h4>
       <p>Aptuvia es una plataforma digital de exámenes tipo test orientada a la preparación de contenidos de Certificados de Profesionalidad. Constituye una <b>herramienta de apoyo al estudio</b> y no expide títulos ni certificaciones oficiales. El servicio se presta a academias y centros formativos en modalidad SaaS (software como servicio).</p>
       <h4>3. Contenidos publicados por el profesorado</h4>
