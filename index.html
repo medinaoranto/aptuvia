@@ -522,7 +522,7 @@ body.tema-aula-abierta .uf-chip.on{background:#0077B6;border-color:#0077B6;}
 .al-info span{font-size:.72rem;color:var(--ink-soft);}
 .al-grades{flex:0 0 auto;display:flex;gap:7px;}
 .al-g{display:flex;flex-direction:column;align-items:center;min-width:40px;background:var(--navy-tint);border-radius:9px;padding:5px 7px;}
-.al-g i{font-style:normal;font-size:.54rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft);}
+.al-g i{font-style:normal;font-size:.44rem;font-weight:700;text-transform:uppercase;letter-spacing:.2px;color:var(--ink-soft);line-height:1.05;text-align:center;}
 .al-g b{font-size:.96rem;color:var(--navy);font-weight:800;line-height:1.15;}
 .al-cards{display:flex;gap:10px;margin:4px 0 14px;}
 .nota-sticky{position:sticky;top:0;z-index:20;display:flex;gap:9px;padding:9px 0 10px;margin-bottom:6px;background:var(--cream);}
@@ -3557,7 +3557,7 @@ function openAlumnoDetalle(email){
   const mc = (mediaU!=null) ? mediaU.toFixed(1) : '—';
   const mf = (mediaF!=null) ? mediaF.toFixed(1) : '—';
   const mtF = (mediaT!=null) ? mediaT.toFixed(1) : '—';
-  const rotulo = uSel ? codigoUnidad(uSel) : 'Media Uds.';
+  const rotulo = uSel ? codigoUnidad(uSel) : '½ Mejor int.';
 
   let html=`<button class="backbtn" onclick="openAlumnos()">← Alumnos</button>
     <h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">${escHtml(nombreReal||email)}</h1>
@@ -3571,8 +3571,8 @@ function openAlumnoDetalle(email){
   }
   html+=`<div class="al-cards">
       <div class="al-card"><span>${escHtml(rotulo)}</span><b>${mc}</b></div>
-      <div class="al-card"><span>Todos</span><b>${mtF}</b></div>
-      <div class="al-card"><span>Media final</span><b>${mf}</b></div>
+      <div class="al-card"><span>½ todos int.</span><b>${mtF}</b></div>
+      <div class="al-card"><span>½ Ex. Final</span><b>${mf}</b></div>
     </div>
     <button class="btn btn-ghost" style="margin-bottom:12px" onclick="pdfNotasAlumno('${email}')">⬇ Descargar PDF de notas</button>
     <div class="t-toggle"><button class="${teacherMode==='best'?'on':''}" onclick="setTeacherMode('best')">Mejor por examen</button><button class="${teacherMode==='all'?'on':''}" onclick="setTeacherMode('all')">Todos los intentos</button></div>`;
@@ -4300,7 +4300,7 @@ function listadoBody(okMsg){
     if(a.media_clase!=null){
       if(i===0) pos='🥇 '; else if(i===1) pos='🥈 '; else if(i===2) pos='🥉 ';
     }
-    h.push(`<button class="al-row" data-al="${escAttr(email)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>Mejor</i><b>${mc}</b></span><span class="al-g"><i>Todos</i><b>${mt}</b></span><span class="al-g"><i>Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
+    h.push(`<button class="al-row" data-al="${escAttr(email)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>½ Mejor int.</i><b>${mc}</b></span><span class="al-g"><i>½ todos int.</i><b>${mt}</b></span><span class="al-g"><i>½ Ex. Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
   });
   return h.join('');
 }
@@ -4869,7 +4869,7 @@ function openUnit(unitId){
   const stickyNota = `<div class="nota-sticky">
       <div class="ns-card"><span>½ Mejor int.</span><b>${mcA}</b></div>
       <div class="ns-card"><span>½ todos int.</span><b>${mtA}</b></div>
-      <div class="ns-card"><span>Media final</span><b>${mfA}</b></div>
+      <div class="ns-card"><span>½ Ex. Final</span><b>${mfA}</b></div>
     </div>`;
   let html=head+stickyNota+`<div class="section">`;
   list.forEach(e=>{
