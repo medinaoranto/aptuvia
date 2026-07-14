@@ -457,7 +457,7 @@ header{position:sticky;top:0;z-index:30;background:rgba(250,246,238,.92);backdro
 .center-msg{text-align:center;color:var(--ink-soft);font-size:.86rem;padding:46px 20px;line-height:1.5;}
 /* ---- panel del profesor ---- */
 .t-toggle{display:flex;gap:5px;margin-bottom:16px;}
-.t-toggle button{flex:1;min-width:0;padding:10px 4px;border:1.5px solid var(--line);background:#fff;border-radius:10px;font-weight:800;font-size:.72rem;line-height:1.15;color:var(--ink-soft);font-family:inherit;white-space:nowrap;}
+.t-toggle button{flex:1;min-width:0;padding:9px 6px;border:1.5px solid var(--line);background:#fff;border-radius:10px;font-weight:800;font-size:.7rem;line-height:1.1;color:var(--ink-soft);font-family:inherit;white-space:normal;}
 .t-toggle button.on{background:var(--navy);color:#fff;border-color:var(--navy);}
 .reg-row{display:flex;flex-direction:column;gap:9px;padding:12px;border:1.5px solid var(--line);border-radius:12px;margin-bottom:9px;background:#fff;}
 .reg-info{display:flex;flex-direction:column;gap:3px;}
@@ -926,6 +926,13 @@ select option{color:var(--navy);padding:8px;}
 .al-sort{display:flex;align-items:center;gap:8px;margin:2px 2px 12px;}
 .al-sort label{font-size:.68rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
 .al-sort select{flex:1;min-width:0;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-family:inherit;font-size:.8rem;color:var(--ink);font-weight:600;}
+/* ---- ca1/ca2 · panel admin y Aula Abierta en PC: aprovechar el ancho ---- */
+@media(min-width:860px){
+  .wrap{padding:28px 32px;}
+  #app-main{background:#fbf5ea;}          /* fondo cálido (menos rosado que en algunos monitores) */
+  .sa-cards-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}
+  .sa-cards-grid > *{margin-bottom:0 !important;}
+}
 
 /* ---- ca1 · ca5 · aprovechar el ancho en PC en el panel del profesor ---- */
 @media(min-width:860px){ .wrap{max-width:1200px;} }
@@ -2390,6 +2397,7 @@ function saRenderLista(okMsg,errMsg){
     return;
   }
   h+=`<button class="btn btn-honey" id="sa-nueva" style="margin-bottom:14px">Nueva academia</button>`;
+  h+=`<div class="sa-cards-grid">`;
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
     h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" style="${rev?'opacity:.72':''}">
@@ -2398,6 +2406,7 @@ function saRenderLista(okMsg,errMsg){
       <span class="sa-open">Ver / gestionar →</span>
     </div>`;
   });
+  h+=`</div>`;
   h+=`<div id="sa-mant-box" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)"></div>`;
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
@@ -2678,9 +2687,11 @@ function saRenderFacturacionLista(){
   const sub=window._factSub||null;
   if(!sub){
     let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 14px">💶 Facturación</h2>`;
+    h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')">📊 <b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')">🏫 <b>Academias</b><span>Facturar a las academias de Aptuvia</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('aa')">🎨 <b>Aula Abierta</b><span>Facturar a los clientes de Aula Abierta</span></button>`;
+    h+=`</div>`;
     $('teacher').innerHTML=saShell(h);
     return;
   }
@@ -2975,7 +2986,7 @@ function factRenderPDF(data){
   totLinea('IVA ('+(data.iva||0)+'%)', iva.toFixed(2)+' €');
   doc.setTextColor(...NAVY); totLinea('TOTAL', total.toFixed(2)+' €', true);
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
-  doc.text('evaluatest.plataforma@gmail.com · aptuvia.es', M, 288);
+  doc.text('contacto@aptuvia.es · aptuvia.es', M, 288);
   doc.save('Factura_'+data.numero+'_'+((data.nombreCliente||'').replace(/[^a-z0-9]/gi,'_'))+'.pdf');
   return {subtotal,desc,iva,total};
 }
@@ -3027,7 +3038,7 @@ async function factEnviarCliente(){
     'Si tiene cualquier duda sobre la factura, no dude en responder a este correo.\n\n'+
     'Un cordial saludo,\n'+
     'Aptuvia\n'+
-    'evaluatest.plataforma@gmail.com';
+    'contacto@aptuvia.es';
   // Guardar destino para el envío tras confirmar/editar
   window._factMail={ email:d.email, asunto, cuerpo };
   factMostrarPlantilla();
@@ -3233,7 +3244,7 @@ function factResumenPDF(){
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...NAVY);
   doc.text(lista.length+' facturas', 120, y); doc.text('TOTAL: '+total.toFixed(2)+' €', 210-M, y, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
-  doc.text('evaluatest.plataforma@gmail.com · aptuvia.es', M, 288);
+  doc.text('contacto@aptuvia.es · aptuvia.es', M, 288);
   doc.save('Facturas_'+(mesSel==='todos'?'todas':mesSel)+'_'+filtro+(cliSel!=='todos'?'_'+cliSel.replace(/[^a-z0-9]/gi,'_'):'')+'.pdf');
 }
 
@@ -3266,7 +3277,7 @@ async function factEnviarDesdePanel(id){
     window._factMail={
       email:d.email,
       asunto:'Factura Aptuvia · '+(fc.numero||''),
-      cuerpo:'Estimado/a '+cliente+':\n\nLe adjuntamos la factura '+(fc.numero||'')+' por los servicios de Aptuvia.\n\nImporte total: '+Number(fc.total||0).toFixed(2)+' € (IVA incluido).\n\nSi tiene cualquier duda, no dude en responder a este correo.\n\nUn cordial saludo,\nAptuvia\nevaluatest.plataforma@gmail.com',
+      cuerpo:'Estimado/a '+cliente+':\n\nLe adjuntamos la factura '+(fc.numero||'')+' por los servicios de Aptuvia.\n\nImporte total: '+Number(fc.total||0).toFixed(2)+' € (IVA incluido).\n\nSi tiene cualquier duda, no dude en responder a este correo.\n\nUn cordial saludo,\nAptuvia\ncontacto@aptuvia.es',
       facturaId:id
     };
     factMostrarPlantilla();
@@ -4791,7 +4802,7 @@ async function abrirIntentoAlumno(id,unitId,titulo){
     });
     html+=`<div class="bar">
       <button class="btn btn-download" id="int-pdf">⬇ Descargar PDF del examen corregido</button>
-      ${(_ex && !_ex.cuenta_final)?`<button class="btn btn-primary" style="margin-top:9px" onclick="openExam('${String(it.examen_id).replace(/'/g,"\\'")}')">Repetir examen</button>`:''}
+      ${(_ex && !_ex.cuenta_final && unitEstado(unitId)!=='terminado')?`<button class="btn btn-primary" style="margin-top:9px" onclick="openExam('${String(it.examen_id).replace(/'/g,"\\'")}')">Repetir examen</button>`:''}
       <button class="btn btn-ghost" style="margin-top:9px" onclick="${backFn}">← Volver a exámenes</button>
     </div>`;
     $('unit').innerHTML=html;
@@ -5274,6 +5285,12 @@ async function openExam(examId){
   const at=attemptsByExam[examId];
   if(current.exam && current.exam.cuenta_final && at && at.count>0 && !isStaff()){
     renderExamenBloqueado(examId, at);
+    return;
+  }
+  // UF terminada: solo lectura. No se puede (re)hacer ningún examen para no alterar la nota.
+  if(current.exam && !isStaff() && unitEstado(current.exam.unidad)==='terminado'){
+    if(at && at.id){ verIntentoAlumno(examId, current.exam.unidad); }
+    else { appAlert('Esta unidad está terminada: solo lectura. No puedes volver a hacer los exámenes para no alterar tu nota.'); }
     return;
   }
   showView('exam'); window.scrollTo(0,0);
@@ -6182,7 +6199,7 @@ $('sb-logout').onclick=logout;
     <div class="leg-body">
       <h4>1. Titular de la plataforma</h4>
       <p>En cumplimiento de la Ley 34/2002, de Servicios de la Sociedad de la Información y de Comercio Electrónico (LSSI-CE), se informa de que el titular de esta plataforma es <b>Bernardo Medina Oranto</b> (NIF a disposición de las autoridades competentes que lo requieran), responsable del desarrollo y la explotación del servicio <b>Aptuvia</b>.</p>
-      <p>Contacto: <b>evaluatest.plataforma@gmail.com</b> · aptuvia.es</p>
+      <p>Contacto: <b>contacto@aptuvia.es</b> · aptuvia.es</p>
       <h4>2. Objeto</h4>
       <p>Aptuvia es una plataforma digital de exámenes tipo test orientada a la preparación de contenidos de Certificados de Profesionalidad. Constituye una <b>herramienta de apoyo al estudio</b> y no expide títulos ni certificaciones oficiales. El servicio se presta a academias y centros formativos en modalidad SaaS (software como servicio).</p>
       <h4>3. Contenidos publicados por el profesorado</h4>
@@ -6206,7 +6223,7 @@ $('sb-logout').onclick=logout;
     <div class="leg-body">
       <p>De acuerdo con el Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD), se informa sobre el tratamiento de los datos personales en <b>Aptuvia</b>.</p>
       <h4>1. Responsable y encargado del tratamiento</h4>
-      <p>Respecto de los datos del <b>alumnado</b>, la <b>academia o centro formativo</b> que contrata el servicio actúa como <b>responsable del tratamiento</b>, y Aptuvia (Bernardo Medina Oranto) actúa como <b>encargado del tratamiento</b>, tratando los datos únicamente conforme a las instrucciones de la academia y para prestar el servicio. Respecto de los datos de <b>contacto y facturación de las propias academias clientes</b>, Aptuvia actúa como responsable. Contacto: <b>evaluatest.plataforma@gmail.com</b>.</p>
+      <p>Respecto de los datos del <b>alumnado</b>, la <b>academia o centro formativo</b> que contrata el servicio actúa como <b>responsable del tratamiento</b>, y Aptuvia (Bernardo Medina Oranto) actúa como <b>encargado del tratamiento</b>, tratando los datos únicamente conforme a las instrucciones de la academia y para prestar el servicio. Respecto de los datos de <b>contacto y facturación de las propias academias clientes</b>, Aptuvia actúa como responsable. Contacto: <b>contacto@aptuvia.es</b>.</p>
       <h4>2. Datos que se tratan</h4>
       <p>a) <b>Profesorado y alumnado:</b> correo electrónico, nombre identificativo, resultados de los exámenes realizados y datos técnicos básicos de uso.<br>b) <b>Aula Abierta:</b> los mismos datos, referidos a profesores independientes y a su alumnado propio.<br>c) <b>Datos de facturación de academias clientes:</b> razón social, NIF/CIF, dirección fiscal, correo, teléfono y datos de contratación, a efectos de emitir facturas y gestionar la relación comercial.</p>
       <h4>3. Finalidad</h4>
@@ -6222,7 +6239,7 @@ $('sb-logout').onclick=logout;
       <h4>8. Menores de edad</h4>
       <p>La plataforma está dirigida a la formación de personas adultas. Cuando un usuario sea menor de 14 años, corresponde a la academia responsable recabar el consentimiento de sus progenitores o tutores conforme a la normativa aplicable.</p>
       <h4>9. Derechos</h4>
-      <p>El usuario puede ejercer sus derechos de <b>acceso, rectificación, supresión, oposición, limitación y portabilidad</b> escribiendo a evaluatest.plataforma@gmail.com (o, cuando corresponda, ante la academia responsable de sus datos). Asimismo, puede reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).</p>
+      <p>El usuario puede ejercer sus derechos de <b>acceso, rectificación, supresión, oposición, limitación y portabilidad</b> escribiendo a contacto@aptuvia.es (o, cuando corresponda, ante la academia responsable de sus datos). Asimismo, puede reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).</p>
       <p class="leg-upd">Última actualización: 2026.</p>
     </div>
   </div>
