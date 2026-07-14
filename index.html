@@ -528,7 +528,7 @@ body.tema-aula-abierta .uf-chip.on{background:#0077B6;border-color:#0077B6;}
 .nota-sticky{position:sticky;top:0;z-index:20;display:flex;gap:9px;padding:9px 0 10px;margin-bottom:6px;background:var(--cream);}
 body.tema-aula-abierta .nota-sticky{background:#EAF7FB;}
 .ns-card{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:7px 6px;box-shadow:0 2px 8px -4px rgba(0,0,0,.12);}
-.ns-card span{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft);}
+.ns-card span{font-size:.55rem;font-weight:700;text-transform:uppercase;letter-spacing:.2px;color:var(--ink-soft);white-space:nowrap;}
 .ns-card b{font-size:1.35rem;font-weight:800;color:var(--navy);line-height:1.1;}
 body.tema-aula-abierta .ns-card b{color:#0077B6;}
 .al-card{flex:1;background:var(--navy-tint);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:3px;align-items:center;text-align:center;}
@@ -4300,7 +4300,7 @@ function listadoBody(okMsg){
     if(a.media_clase!=null){
       if(i===0) pos='🥇 '; else if(i===1) pos='🥈 '; else if(i===2) pos='🥉 ';
     }
-    h.push(`<button class="al-row" data-al="${escAttr(email)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>Clase</i><b>${mc}</b></span><span class="al-g"><i>Todos</i><b>${mt}</b></span><span class="al-g"><i>Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
+    h.push(`<button class="al-row" data-al="${escAttr(email)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>Mejor</i><b>${mc}</b></span><span class="al-g"><i>Todos</i><b>${mt}</b></span><span class="al-g"><i>Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
   });
   return h.join('');
 }
@@ -4867,8 +4867,8 @@ function openUnit(unitId){
   const mtV = mediaMisTodos(unitId);
   const mtA = mtV!=null ? mtV.toFixed(1) : '—';
   const stickyNota = `<div class="nota-sticky">
-      <div class="ns-card"><span>Media clase</span><b>${mcA}</b></div>
-      <div class="ns-card"><span>Media · todos</span><b>${mtA}</b></div>
+      <div class="ns-card"><span>½ Mejor int.</span><b>${mcA}</b></div>
+      <div class="ns-card"><span>½ todos int.</span><b>${mtA}</b></div>
       <div class="ns-card"><span>Media final</span><b>${mfA}</b></div>
     </div>`;
   let html=head+stickyNota+`<div class="section">`;
