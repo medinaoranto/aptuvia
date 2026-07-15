@@ -953,6 +953,7 @@ select option{color:var(--navy);padding:8px;}
 /* ---- Gastos y balance ---- */
 .gx-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .gx-filtros select,.gx-filtros input{padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-size:.8rem;background:#fff;font-family:inherit;min-width:0;}
+.gx-filtros select,.gx-form select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b76' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;background-size:14px;padding-right:30px;}
 .gx-tabla-wrap{overflow-x:auto;border:1.5px solid var(--line);border-radius:12px;background:#fff;}
 .gx-tabla{width:100%;border-collapse:collapse;font-size:.78rem;}
 .gx-tabla th{background:#f6f1e6;text-align:left;padding:9px 10px;font-weight:800;color:var(--ink-soft);font-size:.7rem;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
@@ -2434,12 +2435,14 @@ async function openSuperadmin(okMsg,errMsg){
 }
 function saShell(inner){
   const ico=`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>`;
-  const st=`font-size:.66rem;padding:9px 3px`;
+  const base=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#eaf6fd,#7fc3e8);color:var(--navy)`;
+  const on=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#5aa9d6,#1d4f78);color:#fff`;
+  const st=(t)=>saMainTab===t?on:base;
   return `<div class="t-toggle" style="margin:8px 0 16px;display:flex;gap:5px;flex-wrap:nowrap">
-      <button class="${saMainTab==='ev'?'on':''}" style="${st}" onclick="saSetMain('ev')">Aptuvia</button>
-      <button class="${saMainTab==='aa'?'on':''}" style="${st}" onclick="saSetMain('aa')">Aula Abierta</button>
-      <button class="${saMainTab==='fact'?'on':''}" style="${st}" onclick="saSetMain('fact')">Facturación</button>
-      <button class="${saMainTab==='rs'?'on':''}" onclick="saSetMain('rs')" title="Redes sociales" aria-label="Redes sociales" style="flex:0 0 auto;width:40px;padding:9px 0;display:flex;align-items:center;justify-content:center">${ico}</button>
+      <button style="${st('ev')}" onclick="saSetMain('ev')">Aptuvia</button>
+      <button style="${st('aa')}" onclick="saSetMain('aa')">Aula Abierta</button>
+      <button style="${st('fact')}" onclick="saSetMain('fact')">Facturación</button>
+      <button onclick="saSetMain('rs')" title="Redes sociales" aria-label="Redes sociales" style="${st('rs')};flex:0 0 auto;width:40px;padding:9px 0;display:flex;align-items:center;justify-content:center">${ico}</button>
     </div>
     ${inner}`;
 }
@@ -2465,10 +2468,9 @@ function saRenderLista(okMsg,errMsg){
   h+=`<div class="sa-cards-grid">`;
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
-    h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" style="${rev?'opacity:.72':''}">
-      <div class="sa-card-top"><b>${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id}</span></div>
+    h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" style="background:#fff;padding:9px 12px;margin-bottom:7px;${rev?'opacity:.72':''}">
+      <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:.92rem">${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id}</span></div>
       <div class="sa-counts" style="display:none"><span>${a.n_profes} profes</span><span>${a.n_alumnos} alumnos</span><span>${a.n_examenes} exs</span></div>
-      <span class="sa-open">Ver / gestionar →</span>
     </div>`;
   });
   h+=`</div>`;
@@ -2551,13 +2553,13 @@ function saDetalle(msg){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b id="sa-nombre">${escHtml(a.nombre)}</b>${(!esAA && a.activa===false)?' <span style="color:#b4232a;font-size:.72rem;font-weight:800">🔒 REVOCADA</span>':''}
           <div class="sa-counts" style="margin-top:6px"><span>${profes.length} profesores</span><span>${alumnos.length} alumnos</span></div></div>
-        ${esAA?'':`<div class="sa-acts-acad">
+        ${esAA?`<button class="btn btn-honey" id="sa-nuevo-prof" style="flex:0 0 auto;width:48%;margin:0">Crear profesor</button>`:`<div class="sa-acts-acad">
           <button class="sa-mini" id="sa-ren" title="Renombrar">✎</button>
           <button class="sa-mini danger" id="sa-borr" title="Borrar academia">🗑</button>
           <button class="sa-mini" id="sa-acad-rev" title="${a.activa===false?'Reactivar academia':'Revocar academia'}" style="${a.activa===false?'background:#e7f6ec;color:#15803d;border-color:#bfe3cb':'background:#fff7e6;color:#b26a00;border-color:#f0d9a8'}">${a.activa===false?'↺':'🔒'}</button>
         </div>`}
       </div>
-      <button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>
+      ${esAA?'':`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>`}
     </div>
     ${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}`;
   $('teacher').innerHTML=saShell(h);
@@ -2749,36 +2751,194 @@ const TARIFAS_UNI = [
 
 /* ============ REDES SOCIALES ============ */
 const RS_REDES=[
-  {id:'linkedin', nombre:'LinkedIn',  emoji:'💼', desc:'Prioridad 1 · donde están las academias y los centros de formación',            url:'https://www.linkedin.com/'},
-  {id:'instagram',nombre:'Instagram', emoji:'📸', desc:'Marca y alumnado · reels de la plataforma en uso',                                url:'https://www.instagram.com/'},
-  {id:'facebook', nombre:'Facebook',  emoji:'👥', desc:'Grupos de academias y formación para el empleo · público 35+',                    url:'https://www.facebook.com/'},
-  {id:'youtube',  nombre:'YouTube',   emoji:'▶️', desc:'Demos y tutoriales · el vídeo que enseñas en la llamada de venta',                url:'https://www.youtube.com/'},
-  {id:'tiktok',   nombre:'TikTok',    emoji:'🎵', desc:'Opcional · alcance orgánico barato, poca conversión B2B',                         url:'https://www.tiktok.com/'}
+  {id:'linkedin', nombre:'LinkedIn',  emoji:'💼', max:3000,  desc:'Prioridad 1 · donde están las academias y los centros de formación',            url:'https://www.linkedin.com/feed/'},
+  {id:'instagram',nombre:'Instagram', emoji:'📸', max:2200,  desc:'Marca y alumnado · reels de la plataforma en uso',                                url:'https://www.instagram.com/'},
+  {id:'facebook', nombre:'Facebook',  emoji:'👥', max:5000,  desc:'Grupos de academias y formación para el empleo · público 35+',                    url:'https://www.facebook.com/'},
+  {id:'youtube',  nombre:'YouTube',   emoji:'▶️', max:5000,  desc:'Demos y tutoriales · el vídeo que enseñas en la llamada de venta',                url:'https://www.youtube.com/'},
+  {id:'tiktok',   nombre:'TikTok',    emoji:'🎵', max:2200,  desc:'Opcional · alcance orgánico barato, poca conversión B2B',                         url:'https://www.tiktok.com/'}
 ];
-function rsSub(v){ window._rsSub=v; rsRender(); }
-function rsRender(){
-  const sub=window._rsSub||null;
-  if(!sub){
-    let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 4px">Redes sociales</h2>
-      <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Todo lo de captación, desde aquí. Sin salir de Aptuvia.</p>`;
-    h+=`<div class="sa-cards-grid">`;
-    RS_REDES.forEach(r=>{
-      h+=`<button class="fact-menu" onclick="rsSub('${r.id}')"><b>${r.emoji} ${escHtml(r.nombre)}</b><span>${escHtml(r.desc)}</span></button>`;
-    });
-    h+=`</div>`;
-    $('teacher').innerHTML=saShell(h);
+let rsPosts=[], rsTab='redactor', rsEdit=null;
+function rsRed(){ return RS_REDES.find(x=>x.id===window._rsSub)||null; }
+function rsSub(v){
+  window._rsSub=v; rsTab='redactor'; rsEdit=null; rsPosts=[];
+  if(v) rsCargar(); else rsRender();
+}
+function rsSetTab(t){ rsTab=t; rsEdit=null; rsPinta(); }
+async function rsCargar(){
+  const r=rsRed(); if(!r){ rsRender(); return; }
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  try{
+    rsPosts=await call(`/rest/v1/rs_posts?select=*&red=eq.${r.id}&order=creado_en.desc`)||[];
+  }catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="rsSub(null)">← Redes sociales</button>
+      <div class="center-msg">No se pudo cargar.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de la tabla rs_posts?</small></div>`);
     return;
   }
-  const r=RS_REDES.find(x=>x.id===sub);
-  if(!r){ window._rsSub=null; rsRender(); return; }
+  rsPinta();
+}
+function rsPinta(){
+  const r=rsRed(); if(!r){ rsRender(); return; }
   let h=`<button class="backbtn" onclick="rsSub(null)" style="margin-bottom:10px">← Redes sociales</button>
-    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">${r.emoji} ${escHtml(r.nombre)}</h2>
-    <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${escHtml(r.desc)}</p>`;
-  h+=`<div style="border:1.5px dashed var(--line);border-radius:12px;padding:16px;background:#fff;text-align:center">
-      <p style="font-size:.85rem;color:var(--ink-soft);margin:0 0 10px">Módulo en construcción.</p>
-      <p style="font-size:.78rem;color:var(--ink-soft);margin:0 0 14px;line-height:1.5">Aquí irán: redactor de publicaciones, calendario de fechas, historial de lo publicado y métricas.</p>
-      <a href="${escAttr(r.url)}" target="_blank" rel="noopener" style="display:inline-block;font-size:.8rem;font-weight:700;color:var(--navy)">Abrir ${escHtml(r.nombre)} ↗</a>
-    </div>`;
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 10px">${r.emoji} ${escHtml(r.nombre)}</h2>`;
+  const tabs=[['redactor','Redactor'],['cal','Calendario'],['hist','Historial'],['met','Métricas']];
+  h+=`<div class="t-toggle" style="margin-bottom:14px">${tabs.map(([k,n])=>`<button class="${rsTab===k?'on':''}" onclick="rsSetTab('${k}')">${n}</button>`).join('')}</div>`;
+  try{
+    if(rsTab==='redactor') h+=rsTabRedactor(r);
+    else if(rsTab==='cal') h+=rsTabCal(r);
+    else if(rsTab==='hist') h+=rsTabHist(r);
+    else h+=rsTabMet(r);
+  }catch(e){ h+=`<div class="center-msg">Error al pintar: ${escHtml(e.message||String(e))}</div>`; }
+  $('teacher').innerHTML=saShell(h);
+  const t=$('rs-txt'); if(t){ t.oninput=rsContar; rsContar(); }
+}
+function rsContar(){
+  const r=rsRed(); const t=$('rs-txt'); const c=$('rs-cont');
+  if(!r||!t||!c) return;
+  const n=(t.value||'').length;
+  c.textContent=n+' / '+r.max+' caracteres';
+  c.style.color = n>r.max ? '#b4232a' : 'var(--ink-soft)';
+}
+function rsTabRedactor(r){
+  const p=rsEdit||{};
+  return `<div class="gx-form">
+    <label>Texto de la publicación</label>
+    <textarea id="rs-txt" rows="9" style="padding:10px;border:1.5px solid var(--line);border-radius:10px;font-size:.88rem;font-family:inherit;resize:vertical">${escHtml(p.texto||'')}</textarea>
+    <div id="rs-cont" style="font-size:.72rem;color:var(--ink-soft);text-align:right;margin-top:-4px"></div>
+    <label>Estado</label>
+    <select id="rs-est">
+      ${[['borrador','Borrador'],['programado','Programado'],['publicado','Publicado']].map(([k,n])=>`<option value="${k}"${(p.estado||'borrador')===k?' selected':''}>${n}</option>`).join('')}
+    </select>
+    <label>Fecha prevista / de publicación</label><input type="date" id="rs-fecha" value="${p.fecha_prog||''}">
+    <label>Enlace al post (opcional)</label><input id="rs-url" value="${escAttr(p.url||'')}" placeholder="https://…">
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+    <button class="btn btn-primary" onclick="rsGuardar()" style="flex:1 1 100%">${p.id?'Guardar cambios':'Guardar'}</button>
+    <button class="gx-mini" onclick="rsCopiar()" style="flex:1;padding:10px">📋 Copiar</button>
+    <button class="gx-mini" onclick="rsCompartir()" style="flex:1;padding:10px">📤 Compartir</button>
+    <a href="${escAttr(r.url)}" target="_blank" rel="noopener" class="gx-mini" style="flex:1;padding:10px;text-align:center;text-decoration:none;line-height:1.6">Abrir ${escHtml(r.nombre)} ↗</a>
+  </div>
+  ${p.id?`<button class="gx-mini" onclick="rsNuevo()" style="width:100%;margin-top:8px;padding:10px">✚ Nueva publicación</button>`:''}
+  <p style="font-size:.72rem;color:var(--ink-soft);margin-top:12px;line-height:1.5">Redacta y guarda aquí. Para publicar: copia o comparte el texto y pégalo en ${escHtml(r.nombre)}. Luego márcalo como publicado y anota las métricas en Historial.</p>`;
+}
+function rsTabCal(r){
+  const list=rsPosts.filter(p=>p.estado!=='publicado')
+    .sort((a,b)=>String(a.fecha_prog||'9999').localeCompare(String(b.fecha_prog||'9999')));
+  if(!list.length) return `<p class="sa-empty">Nada pendiente. Escribe algo en el Redactor.</p>`;
+  const hoy=new Date().toISOString().slice(0,10);
+  let h='';
+  list.forEach(p=>{
+    const tarde=p.fecha_prog&&p.fecha_prog<hoy;
+    h+=`<div class="gx-card">
+      <div><b>${escHtml((p.texto||'').slice(0,60))}${(p.texto||'').length>60?'…':''}</b>
+        <span>${p.fecha_prog?escHtml(p.fecha_prog):'sin fecha'} · ${escHtml(p.estado||'borrador')}${tarde?' · <b style="color:#b4232a">¡atrasado!</b>':''}</span></div>
+      <div style="white-space:nowrap">
+        <button class="gx-mini" onclick="rsEditar('${p.id}')">✏️</button>
+        <button class="gx-mini del" onclick="rsBorrar('${p.id}')">🗑</button>
+      </div></div>`;
+  });
+  return h;
+}
+function rsTabHist(r){
+  const list=rsPosts.filter(p=>p.estado==='publicado')
+    .sort((a,b)=>String(b.fecha_prog||'').localeCompare(String(a.fecha_prog||'')));
+  if(!list.length) return `<p class="sa-empty">Todavía no has marcado nada como publicado.</p>`;
+  let h=`<p style="font-size:.72rem;color:var(--ink-soft);margin:0 2px 10px">Anota las métricas a mano desde ${escHtml(r.nombre)}. Se guardan al salir de cada casilla.</p>`;
+  list.forEach(p=>{
+    h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;background:#fff">
+      <div style="font-size:.85rem;color:var(--navy);font-weight:700;margin-bottom:2px">${escHtml((p.texto||'').slice(0,70))}${(p.texto||'').length>70?'…':''}</div>
+      <div style="font-size:.72rem;color:var(--ink-soft);margin-bottom:8px">${p.fecha_prog?escHtml(p.fecha_prog):'sin fecha'}${p.url?` · <a href="${escAttr(p.url)}" target="_blank" rel="noopener">ver post ↗</a>`:''}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+        ${[['impresiones','Impres.'],['likes','Likes'],['comentarios','Coment.']].map(([k,n])=>`<div>
+          <label style="display:block;font-size:.62rem;font-weight:800;text-transform:uppercase;color:var(--ink-soft);margin:0 0 2px 2px">${n}</label>
+          <input type="number" min="0" value="${p[k]!=null?p[k]:''}" onchange="rsMetrica('${p.id}','${k}',this.value)" style="width:100%;padding:7px;border:1px solid var(--line);border-radius:8px;font-size:.8rem;font-family:inherit">
+        </div>`).join('')}
+      </div>
+      <div style="text-align:right;margin-top:8px">
+        <button class="gx-mini" onclick="rsEditar('${p.id}')">✏️</button>
+        <button class="gx-mini del" onclick="rsBorrar('${p.id}')">🗑</button>
+      </div></div>`;
+  });
+  return h;
+}
+function rsTabMet(r){
+  const pub=rsPosts.filter(p=>p.estado==='publicado');
+  if(!pub.length) return `<p class="sa-empty">Sin publicaciones todavía.</p>`;
+  const s=(k)=>pub.reduce((t,p)=>t+Number(p[k]||0),0);
+  const imp=s('impresiones'), lik=s('likes'), com=s('comentarios');
+  const eng=imp>0?Math.round(((lik+com)/imp)*1000)/10:0;
+  let h=`<div class="gx-kpis">
+    <div class="gx-kpi"><span>Publicados</span><b>${pub.length}</b></div>
+    <div class="gx-kpi"><span>Impresiones</span><b>${imp}</b></div>
+    <div class="gx-kpi"><span>Interacción</span><b>${eng}%</b></div>
+  </div>`;
+  h+=`<div class="gx-kpis" style="margin-bottom:12px">
+    <div class="gx-kpi"><span>Likes</span><b>${lik}</b></div>
+    <div class="gx-kpi"><span>Comentarios</span><b>${com}</b></div>
+    <div class="gx-kpi"><span>Media impres.</span><b>${Math.round(imp/pub.length)}</b></div>
+  </div>`;
+  const top=pub.slice().sort((a,b)=>Number(b.impresiones||0)-Number(a.impresiones||0)).slice(0,5);
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr><th>Publicación</th><th style="text-align:right">Impres.</th><th style="text-align:right">Likes</th><th style="text-align:right">Com.</th></tr></thead><tbody>`;
+  top.forEach(p=>{
+    h+=`<tr><td>${escHtml((p.texto||'').slice(0,40))}${(p.texto||'').length>40?'…':''}</td>
+      <td style="text-align:right">${p.impresiones||0}</td>
+      <td style="text-align:right">${p.likes||0}</td>
+      <td style="text-align:right">${p.comentarios||0}</td></tr>`;
+  });
+  return h+`</tbody></table></div>`;
+}
+function rsNuevo(){ rsEdit=null; rsTab='redactor'; rsPinta(); }
+function rsEditar(id){ rsEdit=rsPosts.find(p=>String(p.id)===String(id))||null; rsTab='redactor'; rsPinta(); }
+function rsTexto(){ const t=$('rs-txt'); return t?t.value.trim():''; }
+async function rsCopiar(){
+  const t=rsTexto(); if(!t){ appAlert('No hay texto que copiar.'); return; }
+  try{ await navigator.clipboard.writeText(t); appAlert('Texto copiado. Pégalo en la red.'); }
+  catch(e){ appAlert('Tu navegador no deja copiar automáticamente. Selecciona el texto y cópialo a mano.'); }
+}
+async function rsCompartir(){
+  const t=rsTexto(); if(!t){ appAlert('No hay texto que compartir.'); return; }
+  if(navigator.share){ try{ await navigator.share({text:t}); }catch(e){} return; }
+  rsCopiar();
+}
+async function rsGuardar(){
+  const r=rsRed(); if(!r) return;
+  const texto=rsTexto();
+  if(!texto){ appAlert('Escribe el texto de la publicación.'); return; }
+  if(texto.length>r.max){ appAlert('El texto supera el límite de '+r.nombre+' ('+r.max+' caracteres).'); return; }
+  const body={
+    red:r.id, texto,
+    estado:($('rs-est')||{}).value||'borrador',
+    fecha_prog:(($('rs-fecha')||{}).value||null)||null,
+    url:(($('rs-url')||{}).value||'').trim()||null
+  };
+  try{
+    if(rsEdit&&rsEdit.id) await call(`/rest/v1/rs_posts?id=eq.${rsEdit.id}`,{method:'PATCH',body});
+    else await call('/rest/v1/rs_posts',{method:'POST',body});
+    rsEdit=null; rsTab=body.estado==='publicado'?'hist':'cal';
+    await rsCargar();
+  }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); }
+}
+async function rsBorrar(id){
+  if(!await appConfirm('¿Borrar esta publicación?')) return;
+  try{ await call(`/rest/v1/rs_posts?id=eq.${id}`,{method:'DELETE'}); await rsCargar(); }
+  catch(e){ appAlert('Error: '+(e.message||'')); }
+}
+async function rsMetrica(id,campo,valor){
+  const b={}; b[campo]= valor===''?null:Number(valor);
+  try{
+    await call(`/rest/v1/rs_posts?id=eq.${id}`,{method:'PATCH',body:b});
+    const p=rsPosts.find(x=>String(x.id)===String(id)); if(p) p[campo]=b[campo];
+  }catch(e){ appAlert('No se pudo guardar la métrica: '+(e.message||'')); }
+}
+function rsRender(){
+  const sub=window._rsSub||null;
+  if(sub){ rsPinta(); return; }
+  let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 4px">Redes sociales</h2>
+    <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Todo lo de captación, desde aquí. Sin salir de Aptuvia.</p>`;
+  h+=`<div class="sa-cards-grid">`;
+  RS_REDES.forEach(r=>{
+    h+=`<button class="fact-menu" onclick="rsSub('${r.id}')"><b>${r.emoji} ${escHtml(r.nombre)}</b><span>${escHtml(r.desc)}</span></button>`;
+  });
+  h+=`</div>`;
   $('teacher').innerHTML=saShell(h);
 }
 
@@ -2848,6 +3008,12 @@ async function gxRender(){
       call('/rest/v1/gastos_recurrentes?select=*&order=dia_mes')
     ]);
     gxProvs=p||[]; gxGastos=g||[]; gxRecs=r||[];
+    // El balance necesita los ingresos: se cargan aquí para no depender de que
+    // el usuario haya abierto antes "Facturas emitidas".
+    if(!window._factTodas){
+      try{ window._factTodas=await call('/rest/v1/rpc/sa_facturas_todas',{method:'POST',body:{}})||[]; }
+      catch(e){ window._factTodas=[]; }
+    }
   }catch(e){
     $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
       <div class="center-msg">No se pudo cargar.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de gastos?</small></div>`);
@@ -3042,7 +3208,7 @@ function gxTabBalance(){
   (window._factTodas||[]).forEach(f=>{ const mk=(f.fecha||'').slice(0,7); if(mk) ing[mk]=(ing[mk]||0)+Number(f.total||0); });
   gxGastos.forEach(g=>{ const mk=(g.fecha||'').slice(0,7); if(mk) gas[mk]=(gas[mk]||0)+Number(g.importe||0); });
   const meses=[...new Set([...Object.keys(ing),...Object.keys(gas)])].sort();
-  if(!meses.length) return `<p class="sa-empty">Sin datos todavía. Abre antes "Facturas emitidas" para cargar los ingresos.</p>`;
+  if(!meses.length) return `<p class="sa-empty">Sin datos todavía: no hay ingresos ni gastos con fecha.</p>`;
   let ai=0, ag=0; const pts=meses.map(mk=>{ ai+=(ing[mk]||0); ag+=(gas[mk]||0); return {mk, i:ai, g:ag, mi:ing[mk]||0, mg:gas[mk]||0}; });
   const last=pts[pts.length-1];
   let h=`<div class="gx-kpis">
