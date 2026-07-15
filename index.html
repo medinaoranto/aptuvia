@@ -2396,7 +2396,14 @@ async function saToggleProf(profId){
   saDetalle();
 }
 function saSetTab(t){ saTab=t; saDetalle(); }
-function saSetMain(t){ if(t==='fact') window._factSub=null; saMainTab=t; saSelAcad=null; openSuperadmin(); }
+function saSetMain(t){
+  if(t==='fact') window._factSub=null;
+  saMainTab=t; saSelAcad=null;
+  // Si ya tenemos los datos cargados, pintar directo (no re-consultar: evitaba
+  // que la vista se quedara colgada en el spinner esperando a Supabase).
+  if(saAcademias && saAcademias.length){ showView('teacher'); teacherView='superadmin'; window.scrollTo(0,0); saRenderLista(); return; }
+  openSuperadmin();
+}
 async function openSuperadmin(okMsg,errMsg){
   showView('teacher'); window.scrollTo(0,0);
   teacherView='superadmin';
@@ -2412,8 +2419,16 @@ async function openSuperadmin(okMsg,errMsg){
       }
     }catch(e){}
   }
-  try{ saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||[]; }
-  catch(e){ $('teacher').innerHTML=saShell(`<div class="t-note err">${escHtml(e.message||'Error')}</div>`); return; }
+  try{
+    saAcademias=await Promise.race([
+      call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}}),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('El servidor tarda demasiado en responder.')),12000))
+    ])||[];
+  }catch(e){
+    $('teacher').innerHTML=saShell(`<div class="t-note err">${escHtml(e.message||'Error')}</div>
+      <button class="btn btn-primary" onclick="openSuperadmin()" style="margin-top:10px">🔄 Reintentar</button>`);
+    return;
+  }
   saRenderLista(okMsg,errMsg);
 }
 function saShell(inner){
