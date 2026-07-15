@@ -2786,6 +2786,16 @@ function saRenderFacturacionLista(){
 let gxTab='facturas', gxProvs=[], gxGastos=[], gxRecs=[], gxEdit=null, gxProvEdit=null, gxRecEdit=null;
 let gxFProv='todos', gxFEstado='todos', gxFDesde='', gxFHasta='', gxFCat='todas';
 
+/* mesNombre global (lo usa gxTabFacturas; antes solo existía como const local en facturas emitidas) */
+function mesNombre(mk){
+  if(!mk || mk==='—' || mk==='sin-fecha') return 'Sin fecha';
+  const [y,m]=String(mk).split('-');
+  const d=new Date(+y,+m-1,1);
+  if(isNaN(d)) return String(mk);
+  const nom=d.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  return nom.charAt(0).toUpperCase()+nom.slice(1);
+}
+
 async function gxRender(){
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   try{
@@ -2800,7 +2810,12 @@ async function gxRender(){
       <div class="center-msg">No se pudo cargar.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de gastos?</small></div>`);
     return;
   }
-  gxPintar();
+  try{
+    gxPintar();
+  }catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+      <div class="center-msg">Error al pintar la pantalla.<br><small>${escHtml(e.message||String(e))}</small></div>`);
+  }
 }
 
 function gxPintar(){
