@@ -2798,9 +2798,171 @@ function rsContar(){
   c.textContent=n+' / '+r.max+' caracteres';
   c.style.color = n>r.max ? '#b4232a' : 'var(--ink-soft)';
 }
+/* --- Nivel 1: generador de borradores (prompt listo para pegar en Claude) --- */
+const RS_CONTEXTO=`Aptuvia (aptuvia.es) es una plataforma web de exámenes para academias que imparten Certificados de Profesionalidad del SEPE en España.
+- Cliente que paga: la academia / centro de formación. Usuarios: profesores y alumnos.
+- Qué hace: bancos de preguntas por certificado y unidad formativa, creación de exámenes (tipo test y de redacción con PDF adjunto), corrección automática, medias por unidad (mejor intento y todos los intentos), exámenes que cuentan para nota final, reapertura de intentos, informes por alumno y por clase, descarga en PDF, gestión de profesores/alumnos y facturación.
+- Módulo aparte "Aula Abierta": formación libre, fuera del marco SEPE.
+- La lleva una sola persona: Bernardo Medina Oranto, profesor y desarrollador, desde Sevilla. Producto propio, código registrado en propiedad intelectual.
+- Estado real: producto nuevo, en uso con grupos reales, TODAVÍA SIN CARTERA DE CLIENTES DE PAGO.`;
+const RS_FORMATO={
+  linkedin:'Post de LinkedIn de 1.000-1.600 caracteres. Primera línea = gancho que se lea solo (sin "En este post voy a..."). Párrafos de 1-2 frases separados por línea en blanco. Nada de listas con viñetas de más de 5 puntos. Cierra con una pregunta o una invitación suave, nunca con venta agresiva. Máximo 3 hashtags al final.',
+  instagram:'Caption de Instagram de 600-1.200 caracteres. Primera línea = gancho corto. Emojis con moderación (3-6 en total). Si el tema pide vídeo, incluye antes un guion de reel de 30 segundos con los cortes marcados. Termina con 8-10 hashtags en un bloque aparte.',
+  facebook:'Post de Facebook de 600-1.200 caracteres, pensado para grupos de formadores y academias. Tono cercano y directo, cero jerga de marketing. Aporta valor primero; la mención a Aptuvia debe ser breve y al final, o ninguna si el grupo prohíbe promoción.',
+  youtube:'Devuelve: (1) tres títulos alternativos de menos de 60 caracteres, (2) descripción de 400-800 caracteres con marcas de tiempo si procede, (3) guion hablado de 60-90 segundos en lenguaje natural, sin florituras.',
+  tiktok:'Guion de TikTok de 30-45 segundos. Gancho en los 3 primeros segundos. Frases muy cortas, lenguaje hablado. Marca los cortes visuales entre corchetes. Después, el texto del pie con 4-6 hashtags.'
+};
+const RS_TEMAS={
+  linkedin:[
+    'Qué es un certificado de profesionalidad y por qué la evaluación es su punto débil',
+    'El coste oculto de corregir exámenes a mano en una academia',
+    'Cómo documentar la evaluación para una auditoría del SEPE',
+    'Trazabilidad: qué papeles te pide el SEPE sobre cada alumno',
+    'Errores típicos al diseñar un examen por unidad formativa',
+    'Banco de preguntas: por qué reutilizar preguntas no es hacer trampa',
+    'Media del mejor intento vs media de todos los intentos: qué nota refleja el aprendizaje',
+    'Cómo detectar a tiempo al alumno que va a abandonar',
+    'Qué mide de verdad un test de 25 preguntas (y qué no)',
+    'Evaluación continua vs examen final en formación para el empleo',
+    'Digitalizar una academia sin cambiar de LMS ni migrar nada',
+    'Por qué construí Aptuvia: de corregir a mano a montar la plataforma',
+    'Aula Abierta: formación libre fuera del marco del SEPE',
+    'Cuántas horas se van en tareas administrativas en una academia pequeña',
+    'Exámenes de redacción con material adjunto: mapas, textos y planos',
+    'Cómo dar una segunda oportunidad sin descuadrar las notas del grupo',
+    'Protección de datos del alumnado: qué guarda una plataforma de exámenes',
+    'Qué preguntarle a un proveedor de software antes de firmar',
+    'El profesor como cuello de botella: qué automatizar y qué no',
+    'Convertir las notas por unidad en decisiones docentes',
+    'Preparar al alumno para el examen oficial sin "enseñarle el test"',
+    'Registrar el código en propiedad intelectual: por qué lo hice y cómo fue',
+    'Construir un SaaS siendo profesor y no empresa de software',
+    'Por qué una academia no necesita una plataforma gigante para evaluar bien'
+  ],
+  instagram:[
+    'Reel: tour de 30 segundos por la plataforma',
+    'Antes / después: corregir a mano vs corrección automática',
+    'Carrusel: 5 errores al redactar un test de evaluación',
+    'Detrás de la cámara: desarrollando Aptuvia desde el móvil',
+    'Captura del panel de notas, explicada por partes',
+    'Tip rápido: crear un examen en tres toques',
+    'Reel: el alumno termina el examen y ve su nota al instante',
+    'Carrusel: glosario SEPE sin dolor (CP, MF, UF, RA)',
+    'La historia del nombre: por qué Aptuvia',
+    'Encuesta en stories: ¿todavía corriges a mano?',
+    'Carrusel: qué es un certificado de profesionalidad, en 6 pantallas',
+    'Reel: el informe de la clase en 15 segundos',
+    'Frase sobre evaluación con fondo de marca',
+    'Novedad del mes: qué se ha añadido a la plataforma',
+    'Reel: examen de redacción con PDF adjunto',
+    'Un día en la vida de un profe de academia',
+    'Carrusel: mejor intento vs todos los intentos, explicado con dibujos',
+    'Reel: cómo se reabre un examen para dar otra oportunidad'
+  ],
+  facebook:[
+    'Presentación honesta en un grupo de formadores',
+    'Pregunta abierta al grupo: ¿cómo evaluáis vosotros las UF?',
+    'Post útil: cómo estructurar un examen por unidad formativa',
+    'Explicación larga: qué pide exactamente el SEPE en materia de evaluación',
+    'Novedades de la plataforma este mes',
+    'Caso de uso: una academia con varios profesores y varios certificados',
+    'Recursos gratis para formadores de certificados de profesionalidad',
+    'Debate: test vs prueba práctica, ¿qué evalúa mejor?',
+    'Aviso: demo gratuita para academias',
+    'FAQ: ¿sirve para cualquier certificado de profesionalidad?',
+    'La historia del proyecto, contada sin humo',
+    'Comparativa honesta: Excel vs plataforma (con lo bueno de Excel)',
+    'Consejo de gestión de aula que no cuesta dinero',
+    'Encuesta: ¿qué tarea te quita más tiempo cada semana?',
+    'Cómo llevar el control de notas cuando tienes tres grupos a la vez'
+  ],
+  youtube:[
+    'Demo completa de Aptuvia en 3 minutos',
+    'Cómo crear un examen paso a paso',
+    'Cómo dar de alta profesores y alumnos',
+    'El panel de notas y las medias, explicado',
+    'Exámenes de redacción con PDF adjunto',
+    'Aula Abierta: qué es y cuándo usarlo',
+    'Del informe de clase a la decisión docente',
+    'Reabrir un examen y dar una segunda oportunidad',
+    'Preguntas frecuentes de las academias, respondidas',
+    'Qué es un certificado de profesionalidad (para quien llega de fuera)',
+    'Novedades del trimestre',
+    'Short: una función explicada en 45 segundos',
+    'Cómo se hizo: un SaaS desarrollado desde el móvil',
+    'Cómo exportar tus datos y hacer copias de seguridad'
+  ],
+  tiktok:[
+    'Hook: "corriges 30 exámenes a mano y luego los pasas a Excel..."',
+    'Crear un examen en 45 segundos',
+    'POV: eres profe de academia en junio',
+    'Mitos sobre los certificados de profesionalidad',
+    'Glosario SEPE en 30 segundos',
+    'Detrás: programar una plataforma desde el móvil',
+    'Antes / después de digitalizar la evaluación',
+    'Tres errores al hacer un test',
+    'Captura de la app + sonido en tendencia',
+    'Respuesta a un comentario típico',
+    'Novedad rápida de producto',
+    'La historia del nombre en 20 segundos'
+  ]
+};
+function rsTemas(r){ return RS_TEMAS[r.id]||[]; }
+function rsTemaIdx(r){
+  if(!window._rsTema) window._rsTema={};
+  if(window._rsTema[r.id]==null) window._rsTema[r.id]=rsPosts.length;
+  const n=rsTemas(r).length||1;
+  return ((window._rsTema[r.id]%n)+n)%n;
+}
+function rsOtroTema(){ const r=rsRed(); if(!r) return; window._rsTema[r.id]=rsTemaIdx(r)+1; rsPinta(); }
+function rsPromptTexto(){
+  const r=rsRed(); if(!r) return '';
+  const tema=rsTemas(r)[rsTemaIdx(r)]||'';
+  return `Escribe una publicación para ${r.nombre}.
+
+CONTEXTO DE LA EMPRESA
+${RS_CONTEXTO}
+
+TEMA DE HOY
+${tema}
+
+FORMATO
+${RS_FORMATO[r.id]||''}
+Máximo ${r.max} caracteres.
+
+REGLAS
+- Escribe en español de España, en primera persona del singular (lo escribe Bernardo, no una empresa).
+- No inventes datos, cifras, clientes, testimonios ni casos de éxito: Aptuvia todavía no tiene clientes de pago.
+- Nada de lenguaje de marketing hueco ("solución integral", "revolucionar", "sinergia", "disruptivo").
+- Cero promesas que el producto no cumpla. Si no estás seguro de una función, no la menciones.
+- Aporta algo útil aunque el lector no compre nunca.
+- Devuelve SOLO el texto listo para publicar, sin explicaciones ni comentarios previos.`;
+}
+async function rsCopiarPrompt(){
+  const t=rsPromptTexto(); if(!t) return;
+  try{ await navigator.clipboard.writeText(t); appAlert('Prompt copiado.\n\nPégalo en la app de Claude, revisa lo que te devuelva y trae el texto al redactor.'); }
+  catch(e){ appAlert('No se pudo copiar. Usa el botón Compartir o cópialo a mano.'); }
+}
+async function rsCompartirPrompt(){
+  const t=rsPromptTexto(); if(!t) return;
+  if(navigator.share){ try{ await navigator.share({text:t}); return; }catch(e){} }
+  rsCopiarPrompt();
+}
+
 function rsTabRedactor(r){
   const p=rsEdit||{};
-  return `<div class="gx-form">
+  const tema=rsTemas(r)[rsTemaIdx(r)]||'—';
+  let h=`<div style="border:1.5px solid var(--honey);background:var(--honey-tint);border-radius:12px;padding:12px;margin-bottom:14px">
+    <div style="font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-soft);margin-bottom:4px">Tema sugerido (${rsTemaIdx(r)+1} de ${rsTemas(r).length})</div>
+    <div style="font-size:.88rem;font-weight:700;color:var(--navy);line-height:1.35;margin-bottom:10px">${escHtml(tema)}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="gx-mini" onclick="rsOtroTema()" style="flex:1;padding:9px">🔄 Otro tema</button>
+      <button class="gx-mini" onclick="rsCopiarPrompt()" style="flex:1;padding:9px">🤖 Copiar prompt</button>
+      <button class="gx-mini" onclick="rsCompartirPrompt()" style="flex:1;padding:9px">📤 Enviar a Claude</button>
+    </div>
+    <p style="font-size:.7rem;color:var(--ink-soft);margin:9px 0 0;line-height:1.45">Copia el prompt → pégalo en Claude → revisa el texto → tráelo aquí abajo y guárdalo.</p>
+  </div>`;
+  h+=`<div class="gx-form">
     <label>Texto de la publicación</label>
     <textarea id="rs-txt" rows="9" style="padding:10px;border:1.5px solid var(--line);border-radius:10px;font-size:.88rem;font-family:inherit;resize:vertical">${escHtml(p.texto||'')}</textarea>
     <div id="rs-cont" style="font-size:.72rem;color:var(--ink-soft);text-align:right;margin-top:-4px"></div>
@@ -2818,7 +2980,8 @@ function rsTabRedactor(r){
     <a href="${escAttr(r.url)}" target="_blank" rel="noopener" class="gx-mini" style="flex:1;padding:10px;text-align:center;text-decoration:none;line-height:1.6">Abrir ${escHtml(r.nombre)} ↗</a>
   </div>
   ${p.id?`<button class="gx-mini" onclick="rsNuevo()" style="width:100%;margin-top:8px;padding:10px">✚ Nueva publicación</button>`:''}
-  <p style="font-size:.72rem;color:var(--ink-soft);margin-top:12px;line-height:1.5">Redacta y guarda aquí. Para publicar: copia o comparte el texto y pégalo en ${escHtml(r.nombre)}. Luego márcalo como publicado y anota las métricas en Historial.</p>`;
+  <p style="font-size:.72rem;color:var(--ink-soft);margin-top:12px;line-height:1.5">Para publicar: copia o comparte el texto y pégalo en ${escHtml(r.nombre)}. Luego márcalo como publicado y anota las métricas en Historial.</p>`;
+  return h;
 }
 function rsTabCal(r){
   const list=rsPosts.filter(p=>p.estado!=='publicado')
@@ -3212,7 +3375,7 @@ function gxTabBalance(){
   let ai=0, ag=0; const pts=meses.map(mk=>{ ai+=(ing[mk]||0); ag+=(gas[mk]||0); return {mk, i:ai, g:ag, mi:ing[mk]||0, mg:gas[mk]||0}; });
   const last=pts[pts.length-1];
   let h=`<div class="gx-kpis">
-    <div class="gx-kpi"><span>Ingresos acum.</span><b style="color:#15803d">${gxEur(last.i)}</b></div>
+    <div class="gx-kpi"><span>Ing. acum.</span><b style="color:#15803d">${gxEur(last.i)}</b></div>
     <div class="gx-kpi"><span>Gastos acum.</span><b style="color:#b4232a">${gxEur(last.g)}</b></div>
     <div class="gx-kpi"><span>Resultado</span><b style="color:${last.i-last.g>=0?'#15803d':'#b4232a'}">${gxEur(last.i-last.g)}</b></div>
   </div>`;
