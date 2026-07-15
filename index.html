@@ -11,7 +11,7 @@
   --honey:#E67E0E; --honey-2:#F7A823; --honey-deep:#B45905; --honey-tint:#fff4e2;
   --navy:#2e3163; --navy-2:#3c4080; --navy-tint:#e9eaf6;
   --ink:#241a10; --ink-soft:#6b5a48;
-  --cream:#faf6ee; --panel:#ffffff; --line:#ece2d2;
+  --cream:#faf8f0; --panel:#ffffff; --line:#ece2d2;
   --ok:#15803d; --ok-bg:#e7f6ec; --no:#c0392b; --no-bg:#fdeceb;
   --r:14px; --font:'Plus Jakarta Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
 }
@@ -929,7 +929,8 @@ select option{color:var(--navy);padding:8px;}
 /* ---- ca1/ca2 · panel admin y Aula Abierta en PC: aprovechar el ancho ---- */
 @media(min-width:860px){
   .wrap{padding:28px 32px;}
-  #app-main{background:#fbf5ea;}          /* fondo cálido (menos rosado que en algunos monitores) */
+  /* El panel de admin/profesor usa TODO el ancho disponible (no columna estrecha) */
+  body.teacherview .wrap{max-width:none;}
   .sa-cards-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;}
   .sa-cards-grid > *{margin-bottom:0 !important;}
 }
@@ -962,6 +963,14 @@ select option{color:var(--navy);padding:8px;}
 .gx-mini.del{background:#fdeaea;border-color:#f3c4c4;}
 .gx-cat{display:inline-block;background:#eef1f8;color:#2e3163;border-radius:6px;padding:2px 7px;font-size:.66rem;font-weight:700;white-space:nowrap;}
 .gx-nod{display:inline-block;background:#fdeaea;color:#b4232a;border-radius:6px;padding:2px 5px;font-size:.6rem;font-weight:700;}
+.gx-bars{display:flex;align-items:flex-end;gap:10px;height:190px;overflow-x:auto;padding-bottom:2px;}
+.gx-bcol{flex:1;min-width:52px;display:flex;flex-direction:column;height:100%;}
+.gx-bwrap{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:4px;border-bottom:1.5px solid var(--line);}
+.gx-bar{width:20px;border-radius:5px 5px 0 0;position:relative;min-height:0;transition:height .2s;}
+.gx-bar.ing{background:linear-gradient(#22a355,#15803d);}
+.gx-bar.gas{background:linear-gradient(#e0574f,#b4232a);}
+.gx-bar span{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:.55rem;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
+.gx-blab{text-align:center;font-size:.62rem;font-weight:700;color:var(--ink-soft);padding-top:5px;}
 .gx-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
 .gx-kpi{border:1.5px solid var(--line);border-radius:12px;padding:10px;background:#fff;text-align:center;}
 .gx-kpi span{display:block;font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-soft);}
@@ -2944,25 +2953,29 @@ function gxTabBalance(){
   if(!meses.length) return `<p class="sa-empty">Sin datos todavía. Abre antes "Facturas emitidas" para cargar los ingresos.</p>`;
   let ai=0, ag=0; const pts=meses.map(mk=>{ ai+=(ing[mk]||0); ag+=(gas[mk]||0); return {mk, i:ai, g:ag, mi:ing[mk]||0, mg:gas[mk]||0}; });
   const last=pts[pts.length-1];
-  const max=Math.max(last.i, last.g, 1);
-  const W=100, H=42;
-  const px=(idx)=> pts.length<2 ? W/2 : (idx/(pts.length-1))*W;
-  const py=(v)=> H - (v/max)*H;
-  const line=(key)=> pts.map((p,i)=>`${i?'L':'M'}${px(i).toFixed(1)},${py(p[key]).toFixed(1)}`).join(' ');
   let h=`<div class="gx-kpis">
     <div class="gx-kpi"><span>Ingresos acum.</span><b style="color:#15803d">${gxEur(last.i)}</b></div>
     <div class="gx-kpi"><span>Gastos acum.</span><b style="color:#b4232a">${gxEur(last.g)}</b></div>
     <div class="gx-kpi"><span>Resultado</span><b style="color:${last.i-last.g>=0?'#15803d':'#b4232a'}">${gxEur(last.i-last.g)}</b></div>
   </div>`;
+  const maxB=Math.max(...pts.map(p=>Math.max(p.mi,p.mg)),1);
   h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:14px;background:#fff;margin-bottom:12px">
-    <b style="font-size:.8rem;color:var(--ink-soft)">Evolución acumulada</b>
-    <svg viewBox="-2 -2 ${W+4} ${H+4}" style="width:100%;height:170px;margin-top:8px" preserveAspectRatio="none">
-      <path d="${line('i')}" fill="none" stroke="#15803d" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
-      <path d="${line('g')}" fill="none" stroke="#b4232a" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
-    </svg>
-    <div style="display:flex;gap:14px;font-size:.72rem;margin-top:4px">
-      <span style="color:#15803d">━ Ingresos</span><span style="color:#b4232a">━ Gastos</span>
-    </div></div>`;
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <b style="font-size:.8rem;color:var(--ink-soft)">Ingresos y gastos por mes</b>
+      <span style="font-size:.72rem"><span style="color:#15803d">■</span> Ingresos &nbsp; <span style="color:#b4232a">■</span> Gastos</span>
+    </div>
+    <div class="gx-bars">`;
+  pts.forEach(p=>{
+    const hi=Math.max((p.mi/maxB)*100,p.mi>0?2:0), hg=Math.max((p.mg/maxB)*100,p.mg>0?2:0);
+    h+=`<div class="gx-bcol">
+      <div class="gx-bwrap">
+        <div class="gx-bar ing" style="height:${hi}%" title="Ingresos ${gxEur(p.mi)}"><span>${p.mi?Math.round(p.mi):''}</span></div>
+        <div class="gx-bar gas" style="height:${hg}%" title="Gastos ${gxEur(p.mg)}"><span>${p.mg?Math.round(p.mg):''}</span></div>
+      </div>
+      <div class="gx-blab">${p.mk.slice(5)}/${p.mk.slice(2,4)}</div>
+    </div>`;
+  });
+  h+=`</div></div>`;
   h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr><th>Mes</th>
     <th style="text-align:right">Ingresos</th><th style="text-align:right">Gastos</th><th style="text-align:right">Result.</th></tr></thead><tbody>`;
   pts.slice().reverse().forEach(p=>{
