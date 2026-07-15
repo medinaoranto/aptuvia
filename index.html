@@ -2398,6 +2398,7 @@ async function saToggleProf(profId){
 function saSetTab(t){ saTab=t; saDetalle(); }
 function saSetMain(t){
   if(t==='fact') window._factSub=null;
+  if(t==='rs') window._rsSub=null;
   saMainTab=t; saSelAcad=null;
   // Si ya tenemos los datos cargados, pintar directo (no re-consultar: evitaba
   // que la vista se quedara colgada en el spinner esperando a Supabase).
@@ -2432,10 +2433,13 @@ async function openSuperadmin(okMsg,errMsg){
   saRenderLista(okMsg,errMsg);
 }
 function saShell(inner){
-  return `<div class="t-toggle" style="margin:8px 0 16px;display:flex;gap:6px;flex-wrap:wrap">
-      <button class="${saMainTab==='ev'?'on':''}" onclick="saSetMain('ev')">Aptuvia</button>
-      <button class="${saMainTab==='aa'?'on':''}" onclick="saSetMain('aa')">Aula Abierta</button>
-      <button class="${saMainTab==='fact'?'on':''}" onclick="saSetMain('fact')">Facturación</button>
+  const ico=`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>`;
+  const st=`font-size:.66rem;padding:9px 3px`;
+  return `<div class="t-toggle" style="margin:8px 0 16px;display:flex;gap:5px;flex-wrap:nowrap">
+      <button class="${saMainTab==='ev'?'on':''}" style="${st}" onclick="saSetMain('ev')">Aptuvia</button>
+      <button class="${saMainTab==='aa'?'on':''}" style="${st}" onclick="saSetMain('aa')">Aula Abierta</button>
+      <button class="${saMainTab==='fact'?'on':''}" style="${st}" onclick="saSetMain('fact')">Facturación</button>
+      <button class="${saMainTab==='rs'?'on':''}" onclick="saSetMain('rs')" title="Redes sociales" aria-label="Redes sociales" style="flex:0 0 auto;width:40px;padding:9px 0;display:flex;align-items:center;justify-content:center">${ico}</button>
     </div>
     ${inner}`;
 }
@@ -2451,6 +2455,10 @@ function saRenderLista(okMsg,errMsg){
   }
   if(saMainTab==='fact'){
     saRenderFacturacionLista();
+    return;
+  }
+  if(saMainTab==='rs'){
+    rsRender();
     return;
   }
   h+=`<button class="btn btn-honey" id="sa-nueva" style="margin-bottom:14px">Nueva academia</button>`;
@@ -2738,6 +2746,41 @@ const TARIFAS_UNI = [
   {k:'banco', nombre:'Banco de preguntas a medida', precio:198},
   {k:'curso', nombre:'Curso o tema personalizado', precio:95},
 ];
+
+/* ============ REDES SOCIALES ============ */
+const RS_REDES=[
+  {id:'linkedin', nombre:'LinkedIn',  emoji:'💼', desc:'Prioridad 1 · donde están las academias y los centros de formación',            url:'https://www.linkedin.com/'},
+  {id:'instagram',nombre:'Instagram', emoji:'📸', desc:'Marca y alumnado · reels de la plataforma en uso',                                url:'https://www.instagram.com/'},
+  {id:'facebook', nombre:'Facebook',  emoji:'👥', desc:'Grupos de academias y formación para el empleo · público 35+',                    url:'https://www.facebook.com/'},
+  {id:'youtube',  nombre:'YouTube',   emoji:'▶️', desc:'Demos y tutoriales · el vídeo que enseñas en la llamada de venta',                url:'https://www.youtube.com/'},
+  {id:'tiktok',   nombre:'TikTok',    emoji:'🎵', desc:'Opcional · alcance orgánico barato, poca conversión B2B',                         url:'https://www.tiktok.com/'}
+];
+function rsSub(v){ window._rsSub=v; rsRender(); }
+function rsRender(){
+  const sub=window._rsSub||null;
+  if(!sub){
+    let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 4px">Redes sociales</h2>
+      <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Todo lo de captación, desde aquí. Sin salir de Aptuvia.</p>`;
+    h+=`<div class="sa-cards-grid">`;
+    RS_REDES.forEach(r=>{
+      h+=`<button class="fact-menu" onclick="rsSub('${r.id}')"><b>${r.emoji} ${escHtml(r.nombre)}</b><span>${escHtml(r.desc)}</span></button>`;
+    });
+    h+=`</div>`;
+    $('teacher').innerHTML=saShell(h);
+    return;
+  }
+  const r=RS_REDES.find(x=>x.id===sub);
+  if(!r){ window._rsSub=null; rsRender(); return; }
+  let h=`<button class="backbtn" onclick="rsSub(null)" style="margin-bottom:10px">← Redes sociales</button>
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">${r.emoji} ${escHtml(r.nombre)}</h2>
+    <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${escHtml(r.desc)}</p>`;
+  h+=`<div style="border:1.5px dashed var(--line);border-radius:12px;padding:16px;background:#fff;text-align:center">
+      <p style="font-size:.85rem;color:var(--ink-soft);margin:0 0 10px">Módulo en construcción.</p>
+      <p style="font-size:.78rem;color:var(--ink-soft);margin:0 0 14px;line-height:1.5">Aquí irán: redactor de publicaciones, calendario de fechas, historial de lo publicado y métricas.</p>
+      <a href="${escAttr(r.url)}" target="_blank" rel="noopener" style="display:inline-block;font-size:.8rem;font-weight:700;color:var(--navy)">Abrir ${escHtml(r.nombre)} ↗</a>
+    </div>`;
+  $('teacher').innerHTML=saShell(h);
+}
 
 function saRenderFacturacionLista(){
   // Menú principal de Facturación: 3 accesos.
