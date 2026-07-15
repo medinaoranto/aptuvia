@@ -2892,8 +2892,8 @@ function gxTabFacturas(){
       <option value="pagadas"${gxFEstado==='pagadas'?' selected':''}>Pagadas</option>
       <option value="pendientes"${gxFEstado==='pendientes'?' selected':''}>Pendientes</option>
     </select>
-    <input type="date" id="gx-f-desde" value="${gxFDesde}" title="Desde">
-    <input type="date" id="gx-f-hasta" value="${gxFHasta}" title="Hasta">
+    <div><label style="display:block;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-soft);margin:0 0 3px 2px">Desde</label><input type="date" id="gx-f-desde" value="${gxFDesde}" style="width:100%"></div>
+    <div><label style="display:block;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-soft);margin:0 0 3px 2px">Hasta</label><input type="date" id="gx-f-hasta" value="${gxFHasta}" style="width:100%"></div>
     <select id="gx-f-cat"><option value="todas">Todas las categorías</option>
       ${cats.map(c=>`<option value="${escAttr(c)}"${gxFCat===c?' selected':''}>${escHtml(c)}</option>`).join('')}</select>
   </div>`;
@@ -2941,6 +2941,7 @@ function gxTabFacturas(){
           <button class="gx-mini ${g.pagada?'ok':''}" onclick="gxTogglePagada('${g.id}',${g.pagada?'false':'true'})">${g.pagada?'✅':'○'}</button>
           ${g.pdf_url?`<button class="gx-mini" onclick="gxVerPDF('${escAttr(g.pdf_url)}')">📄</button>`:''}
           <button class="gx-mini" onclick="gxEditar('${g.id}')">✏️</button>
+          <button class="gx-mini" onclick="gxDuplicar('${g.id}')" title="Duplicar">⧉</button>
           <button class="gx-mini del" onclick="gxBorrar('${g.id}')">🗑</button>
         </td></tr>`;
     });
@@ -2983,7 +2984,7 @@ function gxTabProvs(){
     const n=gxGastos.filter(g=>String(g.proveedor_id)===String(p.id));
     const tot=n.reduce((t,g)=>t+Number(g.importe||0),0);
     h+=`<div class="gx-card">
-      <div><b>${escHtml(p.nombre)}</b><span>${escHtml(p.nif||'')}${p.email?' · '+escHtml(p.email):''} · ${n.length} factura${n.length===1?'':'s'} · ${gxEur(tot)}</span></div>
+      <div><b>${escHtml(p.nombre)}</b><span>${n.length} factura${n.length===1?'':'s'} · ${gxEur(tot)}</span></div>
       <div style="white-space:nowrap">
         <button class="gx-mini" onclick="gxProvEditar('${p.id}')">✏️</button>
         <button class="gx-mini del" onclick="gxProvBorrar('${p.id}')">🗑</button>
@@ -3048,6 +3049,25 @@ function gxWire(){
 /* --- Alta / edición de gasto --- */
 function gxNuevo(){ gxEdit={}; gxForm(); }
 function gxEditar(id){ gxEdit=gxGastos.find(g=>String(g.id)===String(id))||{}; gxForm(); }
+function gxDuplicar(id){
+  const o=gxGastos.find(g=>String(g.id)===String(id));
+  if(!o){ appAlert('No se encontró la factura.'); return; }
+  gxEdit={
+    fecha:new Date().toISOString().slice(0,10),
+    proveedor_id:o.proveedor_id||null,
+    numero:'',
+    concepto:o.concepto||'',
+    base:o.base,
+    iva:o.iva,
+    iva_pct:o.iva_pct,
+    importe:o.importe,
+    categoria:o.categoria||'Otros',
+    deducible:o.deducible,
+    vencimiento:null,
+    pagada:false
+  };
+  gxForm();
+}
 function gxForm(){
   const g=gxEdit||{};
   const hoy=new Date().toISOString().slice(0,10);
@@ -3075,8 +3095,9 @@ function gxForm(){
     <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="gf-ded" ${g.deducible===false?'':'checked'}> IVA deducible</label>
     <label>Vencimiento (opcional)</label><input type="date" id="gf-venc" value="${g.vencimiento||''}">
     <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="gf-pag" ${g.pagada?'checked':''}> Pagada</label>
-    <label>Factura en PDF (opcional)</label><input type="file" id="gf-pdf" accept="application/pdf">
-    ${g.pdf_url?`<div style="font-size:.75rem;margin-top:4px"><a href="#" onclick="gxVerPDF('${escAttr(g.pdf_url)}');return false;">📄 Ver PDF actual</a></div>`:''}
+    <label>Factura en PDF (opcional)</label><input type="file" id="gf-pdf" accept="application/pdf" onchange="gxAutoPDF(this)">
+    <div id="gf-auto" style="font-size:.75rem;margin-top:4px;color:var(--ink-soft)"></div>
+    ${g.pdf_url?`<div style="font-size:.75rem;margin-top:4px;display:flex;gap:14px;align-items:center"><a href="#" onclick="gxVerPDF('${escAttr(g.pdf_url)}');return false;">📄 Ver PDF actual</a><a href="#" style="color:#b4232a" onclick="gxBorrarPDF();return false;">🗑 Eliminar PDF</a></div>`:''}
   </div>
   <button class="btn btn-primary" onclick="gxGuardar()" style="margin-top:14px">Guardar</button>`;
   $('teacher').innerHTML=saShell(h);
@@ -3097,6 +3118,108 @@ function gxCalcDesdeTotal(){
   if($('gf-base')) $('gf-base').value=base.toFixed(2);
   if($('gf-iva')) $('gf-iva').value=(t-base).toFixed(2);
 }
+/* --- Lectura automática de la factura en PDF (pdf.js + patrones por proveedor) --- */
+function gxCargarPdfJs(){
+  return new Promise((res,rej)=>{
+    if(window.pdfjsLib){ res(window.pdfjsLib); return; }
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=()=>{ try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }catch(e){} res(window.pdfjsLib); };
+    s.onerror=()=>rej(new Error('No se pudo cargar el lector de PDF.'));
+    document.head.appendChild(s);
+  });
+}
+async function gxTextoPDF(file){
+  const lib=await gxCargarPdfJs();
+  const buf=await file.arrayBuffer();
+  const doc=await lib.getDocument({data:buf}).promise;
+  let out='';
+  const n=Math.min(doc.numPages,3);
+  for(let i=1;i<=n;i++){
+    const pg=await doc.getPage(i);
+    const tc=await pg.getTextContent();
+    out+=' '+tc.items.map(it=>it.str).join(' ');
+  }
+  return out;
+}
+function gxNum(s,dec){
+  if(s==null) return null;
+  let t=String(s).trim();
+  if(dec==='es'){ t=t.replace(/\./g,'').replace(',','.'); } else { t=t.replace(/,/g,''); }
+  const n=parseFloat(t); return isNaN(n)?null:n;
+}
+const GX_MES_ES={ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
+const GX_MES_EN={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+function gxISO(y,m,d){ return String(y)+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+function gxParseFactura(raw){
+  const t=String(raw||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+  const low=t.toLowerCase();
+  const r={ok:false, aviso:''};
+  if(low.includes('dondominio')||low.includes('soluciones corporativas ip')){
+    r.prov='dondominio'; r.categoria='Hosting y dominios'; r.ok=true;
+    let m=t.match(/\b(DD\d{4}-\d{4,})\b/); if(m) r.numero=m[1];
+    m=t.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/); if(m) r.fecha=gxISO(m[3],m[2],m[1]);
+    m=t.match(/Subtotal\s*([\d.,]+)\s*€/i); if(m) r.base=gxNum(m[1],'es');
+    m=t.match(/Cuota IVA\s*\(\s*([\d.,]+)\s*%\s*\)\s*([\d.,]+)\s*€/i); if(m){ r.iva_pct=gxNum(m[1],'es'); r.iva=gxNum(m[2],'es'); }
+    m=t.match(/\bTotal\s*([\d.,]+)\s*€/i); if(m) r.importe=gxNum(m[1],'es');
+    m=t.match(/CONCEPTO\s+CANTIDAD\s+IMPORTE\s+(.+?)\s+\d+\s*a[nñ]o\/s/i); if(m) r.concepto=m[1].trim().slice(0,70);
+    return r;
+  }
+  if(low.includes('netlify')){
+    r.prov='netlify'; r.categoria='Hosting y dominios'; r.ok=true; r.concepto='Suscripción Netlify';
+    let m=t.match(/Invoice number\s*([A-Z0-9]+-[0-9]+)/i); if(m) r.numero=m[1];
+    m=t.match(/Invoice date\s*([A-Za-z]{3})[a-z]*\s+(\d{1,2}),?\s*(\d{4})/i);
+    if(m){ const mm=GX_MES_EN[m[1].toLowerCase()]; if(mm) r.fecha=gxISO(m[3],mm,m[2]); }
+    m=t.match(/Amount due\s*\$?\s*([\d.,]+)/i); if(m){ r.importe=gxNum(m[1],'en'); r.base=r.importe; }
+    r.iva_pct=0; r.iva=0; r.deducible=false;
+    if(/\$/.test(t)) r.aviso='Factura en USD: pon el importe real en € que te cobró el banco.';
+    return r;
+  }
+  if(low.includes('google play')||low.includes('google commerce')){
+    r.prov='google'; r.categoria='Software y suscripciones'; r.ok=true;
+    let m=t.match(/N[úu]mero de pedido:\s*(\S+)/i); if(m) r.numero=m[1];
+    m=t.match(/Fecha del pedido:\s*(\d{1,2})\s+([a-zé]{3})[a-zé]*\.?\s+(\d{4})/i);
+    if(m){ const mm=GX_MES_ES[m[2].toLowerCase()]; if(mm) r.fecha=gxISO(m[3],mm,m[1]); }
+    m=t.match(/Total:\s*([\d.,]+)\s*€/i); if(m) r.importe=gxNum(m[1],'es');
+    m=t.match(/Incluye\s*([\d.,]+)\s*€\s*de IVA/i); if(m) r.iva=gxNum(m[1],'es');
+    if(r.importe!=null&&r.iva!=null){
+      r.base=Math.round((r.importe-r.iva)*100)/100;
+      if(r.base>0){ const p=Math.round((r.iva/r.base)*100); r.iva_pct=[21,10,4,0].indexOf(p)>=0?p:21; }
+    }
+    m=t.match(/Art[íi]culo\s+Precio\s+(.+?)\s+\d+,\d{2}\s*€/i); if(m) r.concepto=m[1].replace(/\s+/g,' ').trim().slice(0,70);
+    return r;
+  }
+  r.aviso='No reconozco el proveedor de este PDF. Rellena los datos a mano.';
+  return r;
+}
+const GX_PROV_CLAVES={ dondominio:['dondominio','soluciones corporativas'], netlify:['netli'], google:['google'] };
+function gxProvIdPorClave(prov){
+  const cl=GX_PROV_CLAVES[prov]||[];
+  const p=gxProvs.find(x=>cl.some(c=>String(x.nombre||'').toLowerCase().includes(c)));
+  return p?p.id:null;
+}
+async function gxAutoPDF(inp){
+  const av=$('gf-auto');
+  const file=inp&&inp.files&&inp.files[0];
+  if(!file){ if(av) av.textContent=''; return; }
+  if(av) av.textContent='Leyendo el PDF…';
+  let d;
+  try{ d=gxParseFactura(await gxTextoPDF(file)); }
+  catch(e){ if(av) av.textContent='No se pudo leer el PDF ('+(e.message||'')+'). Rellena a mano.'; return; }
+  if(!d.ok){ if(av) av.textContent='⚠️ '+(d.aviso||'No se pudo interpretar el PDF.'); return; }
+  const set=(id,v)=>{ const e=$(id); if(e&&v!=null&&v!=='') e.value=v; };
+  set('gf-fecha',d.fecha); set('gf-num',d.numero); set('gf-con',d.concepto);
+  set('gf-base',d.base!=null?Number(d.base).toFixed(2):null);
+  set('gf-iva',d.iva!=null?Number(d.iva).toFixed(2):null);
+  set('gf-imp',d.importe!=null?Number(d.importe).toFixed(2):null);
+  if(d.iva_pct!=null&&$('gf-ivap')) $('gf-ivap').value=String(d.iva_pct);
+  if(d.categoria&&$('gf-cat')) $('gf-cat').value=d.categoria;
+  if(d.deducible===false&&$('gf-ded')) $('gf-ded').checked=false;
+  const pid=gxProvIdPorClave(d.prov);
+  if(pid&&$('gf-prov')) $('gf-prov').value=String(pid);
+  if(av) av.innerHTML='✅ Datos leídos del PDF — <b>revísalos antes de guardar</b>.'+(d.aviso?'<br>⚠️ '+escHtml(d.aviso):'')+(pid?'':'<br>⚠️ El proveedor no está dado de alta: selecciónalo o créalo.');
+}
+
 async function gxGuardar(){
   const val=(id)=>{ const e=$(id); return e?e.value.trim():''; };
   const body={
@@ -3149,13 +3272,29 @@ async function gxBorrar(id){
 }
 async function gxVerPDF(path){
   try{
-    const r=await fetch(`${SUPABASE_URL}/storage/v1/object/sign/facturas-gastos/${path}`,{
+    const r=await fetch(SUPABASE_URL+'/storage/v1/object/sign/facturas-gastos/'+encodeURI(path),{
       method:'POST', headers:{apikey:SUPABASE_KEY, Authorization:'Bearer '+token, 'Content-Type':'application/json'},
       body:JSON.stringify({expiresIn:3600})});
     const d=await r.json();
     if(d&&d.signedURL) window.open(`${SUPABASE_URL}/storage/v1${d.signedURL}`,'_blank');
     else throw new Error('sin URL');
   }catch(e){ appAlert('No se pudo abrir el PDF.'); }
+}
+async function gxBorrarPDF(){
+  const g=gxEdit||{};
+  if(!g.pdf_url){ return; }
+  if(!await appConfirm('¿Eliminar el PDF de esta factura de gasto?')) return;
+  const path=g.pdf_url;
+  try{
+    await fetch(SUPABASE_URL+'/storage/v1/object/facturas-gastos/'+encodeURI(path),{
+      method:'DELETE', headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+token }});
+    if(g.id){
+      await call(`/rest/v1/gastos?id=eq.${g.id}`,{method:'PATCH',body:{pdf_url:null}});
+      const ref=gxGastos.find(x=>String(x.id)===String(g.id)); if(ref) ref.pdf_url=null;
+    }
+    gxEdit.pdf_url=null;
+    gxForm();
+  }catch(e){ appAlert('No se pudo eliminar: '+(e.message||'')); }
 }
 function gxCSV(){
   let list=gxGastos.slice();
