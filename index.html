@@ -947,6 +947,37 @@ select option{color:var(--navy);padding:8px;}
   .exam-right .qgrid .gc{font-size:.74rem;border-radius:7px;}
   .exam-right .bar{position:static;background:none;padding:0;margin-top:14px;}
 }
+
+/* ---- Gastos y balance ---- */
+.gx-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.gx-filtros select,.gx-filtros input{padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-size:.8rem;background:#fff;font-family:inherit;min-width:0;}
+.gx-tabla-wrap{overflow-x:auto;border:1.5px solid var(--line);border-radius:12px;background:#fff;}
+.gx-tabla{width:100%;border-collapse:collapse;font-size:.78rem;}
+.gx-tabla th{background:#f6f1e6;text-align:left;padding:9px 10px;font-weight:800;color:var(--ink-soft);font-size:.7rem;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
+.gx-tabla td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:middle;}
+.gx-tabla tbody tr:hover{background:#faf7f1;}
+.gx-tabla tfoot td{border-top:2px solid var(--navy);padding:10px;background:#f6f1e6;}
+.gx-mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 7px;cursor:pointer;font-size:.75rem;margin-left:3px;font-family:inherit;}
+.gx-mini.ok{background:#dcfce7;border-color:#15803d;}
+.gx-mini.del{background:#fdeaea;border-color:#f3c4c4;}
+.gx-cat{display:inline-block;background:#eef1f8;color:#2e3163;border-radius:6px;padding:2px 7px;font-size:.66rem;font-weight:700;white-space:nowrap;}
+.gx-nod{display:inline-block;background:#fdeaea;color:#b4232a;border-radius:6px;padding:2px 5px;font-size:.6rem;font-weight:700;}
+.gx-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.gx-kpi{border:1.5px solid var(--line);border-radius:12px;padding:10px;background:#fff;text-align:center;}
+.gx-kpi span{display:block;font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-soft);}
+.gx-kpi b{font-size:1rem;color:var(--navy);}
+.gx-card{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;background:#fff;}
+.gx-card.off{opacity:.5;}
+.gx-card b{font-size:.86rem;display:block;}
+.gx-card span{font-size:.73rem;color:var(--ink-soft);}
+.gx-form{display:flex;flex-direction:column;gap:4px;}
+.gx-form label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-soft);margin-top:8px;}
+.gx-form input,.gx-form select{padding:10px;border:1.5px solid var(--line);border-radius:10px;font-size:.88rem;background:#fff;font-family:inherit;}
+@media(min-width:860px){
+  .gx-filtros{grid-template-columns:repeat(4,1fr);}
+  .gx-form{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:center;}
+  .gx-form label{margin-top:0;text-align:right;}
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -2036,6 +2067,7 @@ async function loadData(){
     // y si el profesor ya está viendo una UF dentro de "Módulos" no queremos sacarlo de ahí.
     if(!isStaff()){ renderHome(); } // Re-renderizar con datos completos
     else if(current.unit && teacherView==='unit'){ openUnit(current.unit); }
+    if(userEmail==='admin@evaluatest.com') gxAvisoInicio();
 
   }catch(err){
     $('home').innerHTML=`<div class="center-msg">No se pudieron cargar los contenidos.<br><small>${err.message}</small><br><br><button class="btn btn-primary" onclick="loadData()" style="background:var(--navy);border:none;padding:10px 24px;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">🔄 Reintentar</button></div>`;
@@ -2689,6 +2721,7 @@ function saRenderFacturacionLista(){
     let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 14px">💶 Facturación</h2>`;
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')">📊 <b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
+    h+=`<button class="fact-menu" onclick="saFactSub('gastos')">🧾 <b>Gastos y balance</b><span>Facturas de proveedores, gastos previstos y evolución del negocio</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')">🏫 <b>Academias</b><span>Facturar a las academias de Aptuvia</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('aa')">🎨 <b>Aula Abierta</b><span>Facturar a los clientes de Aula Abierta</span></button>`;
     h+=`</div>`;
@@ -2696,6 +2729,7 @@ function saRenderFacturacionLista(){
     return;
   }
   if(sub==='emitidas'){ saRenderFacturasEmitidas(); return; }
+  if(sub==='gastos'){ gxRender(); return; }
   if(sub==='academias'){
     let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Facturación</button>
       <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🏫 Academias</h2>`;
@@ -2721,6 +2755,458 @@ function saRenderFacturacionLista(){
     saCargarClientesAA();
     return;
   }
+}
+
+/* ═══════════════ GASTOS Y BALANCE ═══════════════ */
+let gxTab='facturas', gxProvs=[], gxGastos=[], gxRecs=[], gxEdit=null, gxProvEdit=null, gxRecEdit=null;
+let gxFProv='todos', gxFEstado='todos', gxFDesde='', gxFHasta='', gxFCat='todas';
+
+async function gxRender(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  try{
+    const [p,g,r]=await Promise.all([
+      call('/rest/v1/proveedores?select=*&order=nombre'),
+      call('/rest/v1/gastos?select=*&order=fecha.desc'),
+      call('/rest/v1/gastos_recurrentes?select=*&order=dia_mes')
+    ]);
+    gxProvs=p||[]; gxGastos=g||[]; gxRecs=r||[];
+  }catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+      <div class="center-msg">No se pudo cargar.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de gastos?</small></div>`);
+    return;
+  }
+  gxPintar();
+}
+
+function gxPintar(){
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Facturación</button>
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🧾 Gastos y balance</h2>`;
+  h+=`<div class="t-toggle" style="margin-bottom:14px">
+    ${[['facturas','Facturas'],['prev','Previstos'],['provs','Proveedores'],['balance','Balance']]
+      .map(([k,l])=>`<button class="${gxTab===k?'on':''}" onclick="gxSetTab('${k}')">${l}</button>`).join('')}
+  </div>`;
+  h+=gxAvisos();
+  if(gxTab==='facturas') h+=gxTabFacturas();
+  else if(gxTab==='prev') h+=gxTabPrev();
+  else if(gxTab==='provs') h+=gxTabProvs();
+  else h+=gxTabBalance();
+  $('teacher').innerHTML=saShell(h);
+  gxWire();
+}
+function gxSetTab(t){ gxTab=t; gxEdit=null; gxProvEdit=null; gxRecEdit=null; gxPintar(); }
+function gxProvNombre(id){ const p=gxProvs.find(x=>String(x.id)===String(id)); return p?p.nombre:'—'; }
+function gxEur(n){ return (Number(n)||0).toFixed(2)+' €'; }
+
+/* --- Avisos (pagos próximos / contratos que vencen) --- */
+function gxCalcAvisos(){
+  const out=[]; const hoy=new Date(); const dia=hoy.getDate();
+  gxRecs.filter(r=>r.activo!==false && r.periodicidad==='mensual').forEach(r=>{
+    const d=Number(r.dia_mes||1); const falta=d-dia;
+    if(falta>=0 && falta<=7) out.push({t:'pago', txt:`${r.concepto} · ${gxEur(r.importe)} · vence el día ${d}${falta===0?' (HOY)':` (en ${falta} d.)`}`});
+  });
+  gxRecs.filter(r=>r.activo!==false && r.periodicidad==='anual' && r.proxima_fecha).forEach(r=>{
+    const f=new Date(r.proxima_fecha); const dd=Math.ceil((f-hoy)/86400000);
+    if(dd>=0 && dd<=30) out.push({t:'pago', txt:`${r.concepto} · ${gxEur(r.importe)} · renovación ${r.proxima_fecha}${dd===0?' (HOY)':` (en ${dd} d.)`}`});
+  });
+  gxGastos.filter(g=>g.pagada!==true && g.vencimiento).forEach(g=>{
+    const f=new Date(g.vencimiento); const dd=Math.ceil((f-hoy)/86400000);
+    if(dd<0) out.push({t:'vencida', txt:`VENCIDA: ${g.numero||g.concepto} · ${gxEur(g.importe)} · venció ${g.vencimiento}`});
+    else if(dd<=7) out.push({t:'pago', txt:`${g.numero||g.concepto} · ${gxEur(g.importe)} · vence ${g.vencimiento}${dd===0?' (HOY)':` (en ${dd} d.)`}`});
+  });
+  (window._saContratos||[]).forEach(c=>{
+    if(!c.fin) return; const f=new Date(c.fin); const dd=Math.ceil((f-new Date())/86400000);
+    if(dd>=0 && dd<=30) out.push({t:'contrato', txt:`Contrato de ${c.nombre} finaliza el ${c.fin} (en ${dd} d.)`});
+  });
+  return out;
+}
+function gxAvisos(){
+  const av=gxCalcAvisos();
+  if(!av.length) return '';
+  let h=`<div style="border:1.5px solid var(--honey);background:var(--honey-tint);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+    <b style="font-size:.82rem;color:var(--honey-deep)">🔔 Avisos (${av.length})</b>`;
+  av.forEach(a=>{ h+=`<div style="font-size:.78rem;margin-top:6px;color:${a.t==='vencida'?'#b4232a':'var(--ink)'}">${a.t==='vencida'?'⚠️':'•'} ${escHtml(a.txt)}</div>`; });
+  return h+`</div>`;
+}
+
+/* --- Tabla de facturas de gasto --- */
+function gxTabFacturas(){
+  let list=gxGastos.slice();
+  if(gxFProv!=='todos') list=list.filter(g=>String(g.proveedor_id)===String(gxFProv));
+  if(gxFEstado==='pagadas') list=list.filter(g=>g.pagada===true);
+  if(gxFEstado==='pendientes') list=list.filter(g=>g.pagada!==true);
+  if(gxFDesde) list=list.filter(g=>(g.fecha||'')>=gxFDesde);
+  if(gxFHasta) list=list.filter(g=>(g.fecha||'')<=gxFHasta);
+  if(gxFCat!=='todas') list=list.filter(g=>(g.categoria||'Otros')===gxFCat);
+  const total=list.reduce((t,g)=>t+Number(g.importe||0),0);
+  const totBase=list.reduce((t,g)=>t+Number(g.base||0),0);
+  const totIvaDed=list.filter(g=>g.deducible!==false).reduce((t,g)=>t+Number(g.iva||0),0);
+  const cats=[...new Set(gxGastos.map(g=>g.categoria||'Otros'))].sort();
+
+  let h=`<button class="btn btn-honey" onclick="gxNuevo()" style="margin-bottom:12px">+ Nueva factura de gasto</button>`;
+  h+=`<div class="gx-filtros">
+    <select id="gx-f-prov"><option value="todos">Todos los proveedores</option>
+      ${gxProvs.map(p=>`<option value="${p.id}"${String(gxFProv)===String(p.id)?' selected':''}>${escHtml(p.nombre)}</option>`).join('')}</select>
+    <select id="gx-f-est">
+      <option value="todos"${gxFEstado==='todos'?' selected':''}>Todas</option>
+      <option value="pagadas"${gxFEstado==='pagadas'?' selected':''}>Pagadas</option>
+      <option value="pendientes"${gxFEstado==='pendientes'?' selected':''}>Pendientes</option>
+    </select>
+    <input type="date" id="gx-f-desde" value="${gxFDesde}" title="Desde">
+    <input type="date" id="gx-f-hasta" value="${gxFHasta}" title="Hasta">
+    <select id="gx-f-cat"><option value="todas">Todas las categorías</option>
+      ${cats.map(c=>`<option value="${escAttr(c)}"${gxFCat===c?' selected':''}>${escHtml(c)}</option>`).join('')}</select>
+  </div>`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:.85rem">${list.length} factura${list.length===1?'':'s'} de gasto</span>
+    <b style="font-size:1.1rem">${gxEur(total)}</b></div>`;
+  h+=`<div class="gx-kpis" style="margin-bottom:10px">
+    <div class="gx-kpi"><span>Base imponible</span><b>${gxEur(totBase)}</b></div>
+    <div class="gx-kpi"><span>IVA deducible</span><b style="color:#15803d">${gxEur(totIvaDed)}</b></div>
+    <div class="gx-kpi"><span>Total con IVA</span><b>${gxEur(total)}</b></div>
+  </div>`;
+  h+=`<button onclick="gxCSV()" style="width:100%;margin-bottom:12px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.88rem">↓ CSV (Excel)</button>`;
+  if(!list.length) return h+`<p class="sa-empty">No hay gastos con este filtro.</p>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla">
+    <thead><tr><th>Fecha</th><th>Proveedor</th><th>Nº factura</th><th>Concepto</th><th>Categoría</th><th style="text-align:right">Base</th><th style="text-align:right">IVA</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody>`;
+  list.forEach(g=>{
+    h+=`<tr>
+      <td>${escHtml(g.fecha||'')}</td>
+      <td>${escHtml(gxProvNombre(g.proveedor_id))}</td>
+      <td>${escHtml(g.numero||'—')}</td>
+      <td>${escHtml(g.concepto||'')}</td>
+      <td><span class="gx-cat">${escHtml(g.categoria||'Otros')}</span>${g.deducible===false?' <span class="gx-nod" title="IVA no deducible">no ded.</span>':''}</td>
+      <td style="text-align:right;white-space:nowrap">${g.base!=null?gxEur(g.base):'—'}</td>
+      <td style="text-align:right;white-space:nowrap;color:${g.deducible===false?'var(--ink-soft)':'#15803d'}">${g.iva!=null?gxEur(g.iva):'—'}</td>
+      <td style="text-align:right;font-weight:700;white-space:nowrap">${gxEur(g.importe)}</td>
+      <td style="white-space:nowrap;text-align:right">
+        <button class="gx-mini ${g.pagada?'ok':''}" onclick="gxTogglePagada('${g.id}',${g.pagada?'false':'true'})">${g.pagada?'✅':'○'}</button>
+        ${g.pdf_url?`<button class="gx-mini" onclick="gxVerPDF('${escAttr(g.pdf_url)}')">📄</button>`:''}
+        <button class="gx-mini" onclick="gxEditar('${g.id}')">✏️</button>
+        <button class="gx-mini del" onclick="gxBorrar('${g.id}')">🗑</button>
+      </td></tr>`;
+  });
+  h+=`</tbody><tfoot><tr><td colspan="5" style="text-align:right;font-weight:800">TOTAL</td>
+    <td style="text-align:right;font-weight:800">${gxEur(totBase)}</td>
+    <td style="text-align:right;font-weight:800;color:#15803d">${gxEur(totIvaDed)}</td>
+    <td style="text-align:right;font-weight:800;color:var(--navy)">${gxEur(total)}</td><td></td></tr></tfoot></table></div>`;
+  return h;
+}
+
+/* --- Gastos previstos (recurrentes) --- */
+function gxTabPrev(){
+  const act=gxRecs.filter(r=>r.activo!==false);
+  const mens=act.filter(r=>r.periodicidad==='mensual').reduce((t,r)=>t+Number(r.importe||0),0);
+  const anu=act.filter(r=>r.periodicidad==='anual').reduce((t,r)=>t+Number(r.importe||0),0);
+  const totalAnual=mens*12+anu;
+  let h=`<div class="gx-kpis">
+    <div class="gx-kpi"><span>Previsto / mes</span><b>${gxEur(mens)}</b></div>
+    <div class="gx-kpi"><span>Anuales</span><b>${gxEur(anu)}</b></div>
+    <div class="gx-kpi"><span>Total año</span><b>${gxEur(totalAnual)}</b></div>
+  </div>`;
+  h+=`<button class="btn btn-honey" onclick="gxRecNuevo()" style="margin-bottom:12px">+ Nuevo gasto previsto</button>`;
+  if(!act.length && !gxRecs.length) return h+`<p class="sa-empty">Sin gastos previstos. Añade los fijos (Netlify, dominios, Supabase, Claude…).</p>`;
+  gxRecs.forEach(r=>{
+    const per = r.periodicidad==='mensual' ? `cada mes · día ${r.dia_mes||1}` : `anual${r.proxima_fecha?' · '+r.proxima_fecha:''}`;
+    h+=`<div class="gx-card${r.activo===false?' off':''}">
+      <div><b>${escHtml(r.concepto)}</b><span>${escHtml(gxProvNombre(r.proveedor_id))} · ${per}</span></div>
+      <div style="text-align:right;white-space:nowrap">
+        <b style="color:var(--navy)">${gxEur(r.importe)}</b><br>
+        <button class="gx-mini" onclick="gxRecEditar('${r.id}')">✏️</button>
+        <button class="gx-mini del" onclick="gxRecBorrar('${r.id}')">🗑</button>
+      </div></div>`;
+  });
+  return h;
+}
+
+/* --- Proveedores --- */
+function gxTabProvs(){
+  let h=`<button class="btn btn-honey" onclick="gxProvNuevo()" style="margin-bottom:12px">+ Nuevo proveedor</button>`;
+  if(!gxProvs.length) return h+`<p class="sa-empty">Sin proveedores todavía.</p>`;
+  gxProvs.forEach(p=>{
+    const n=gxGastos.filter(g=>String(g.proveedor_id)===String(p.id));
+    const tot=n.reduce((t,g)=>t+Number(g.importe||0),0);
+    h+=`<div class="gx-card">
+      <div><b>${escHtml(p.nombre)}</b><span>${escHtml(p.nif||'')}${p.email?' · '+escHtml(p.email):''} · ${n.length} factura${n.length===1?'':'s'} · ${gxEur(tot)}</span></div>
+      <div style="white-space:nowrap">
+        <button class="gx-mini" onclick="gxProvEditar('${p.id}')">✏️</button>
+        <button class="gx-mini del" onclick="gxProvBorrar('${p.id}')">🗑</button>
+      </div></div>`;
+  });
+  return h;
+}
+
+/* --- Balance --- */
+function gxTabBalance(){
+  const ing={}, gas={};
+  (window._factTodas||[]).forEach(f=>{ const mk=(f.fecha||'').slice(0,7); if(mk) ing[mk]=(ing[mk]||0)+Number(f.total||0); });
+  gxGastos.forEach(g=>{ const mk=(g.fecha||'').slice(0,7); if(mk) gas[mk]=(gas[mk]||0)+Number(g.importe||0); });
+  const meses=[...new Set([...Object.keys(ing),...Object.keys(gas)])].sort();
+  if(!meses.length) return `<p class="sa-empty">Sin datos todavía. Abre antes "Facturas emitidas" para cargar los ingresos.</p>`;
+  let ai=0, ag=0; const pts=meses.map(mk=>{ ai+=(ing[mk]||0); ag+=(gas[mk]||0); return {mk, i:ai, g:ag, mi:ing[mk]||0, mg:gas[mk]||0}; });
+  const last=pts[pts.length-1];
+  const max=Math.max(last.i, last.g, 1);
+  const W=100, H=42;
+  const px=(idx)=> pts.length<2 ? W/2 : (idx/(pts.length-1))*W;
+  const py=(v)=> H - (v/max)*H;
+  const line=(key)=> pts.map((p,i)=>`${i?'L':'M'}${px(i).toFixed(1)},${py(p[key]).toFixed(1)}`).join(' ');
+  let h=`<div class="gx-kpis">
+    <div class="gx-kpi"><span>Ingresos acum.</span><b style="color:#15803d">${gxEur(last.i)}</b></div>
+    <div class="gx-kpi"><span>Gastos acum.</span><b style="color:#b4232a">${gxEur(last.g)}</b></div>
+    <div class="gx-kpi"><span>Resultado</span><b style="color:${last.i-last.g>=0?'#15803d':'#b4232a'}">${gxEur(last.i-last.g)}</b></div>
+  </div>`;
+  h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:14px;background:#fff;margin-bottom:12px">
+    <b style="font-size:.8rem;color:var(--ink-soft)">Evolución acumulada</b>
+    <svg viewBox="-2 -2 ${W+4} ${H+4}" style="width:100%;height:170px;margin-top:8px" preserveAspectRatio="none">
+      <path d="${line('i')}" fill="none" stroke="#15803d" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+      <path d="${line('g')}" fill="none" stroke="#b4232a" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div style="display:flex;gap:14px;font-size:.72rem;margin-top:4px">
+      <span style="color:#15803d">━ Ingresos</span><span style="color:#b4232a">━ Gastos</span>
+    </div></div>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr><th>Mes</th>
+    <th style="text-align:right">Ingresos</th><th style="text-align:right">Gastos</th><th style="text-align:right">Result.</th></tr></thead><tbody>`;
+  pts.slice().reverse().forEach(p=>{
+    const r=p.mi-p.mg;
+    h+=`<tr><td>${p.mk}</td><td style="text-align:right">${gxEur(p.mi)}</td>
+      <td style="text-align:right">${gxEur(p.mg)}</td>
+      <td style="text-align:right;font-weight:700;color:${r>=0?'#15803d':'#b4232a'}">${gxEur(r)}</td></tr>`;
+  });
+  return h+`</tbody></table></div>`;
+}
+
+/* --- Wiring de filtros --- */
+function gxWire(){
+  const s=(id,fn)=>{ const e=$(id); if(e) e.onchange=fn; };
+  s('gx-f-prov',(e)=>{ gxFProv=e.target.value; gxPintar(); });
+  s('gx-f-est',(e)=>{ gxFEstado=e.target.value; gxPintar(); });
+  s('gx-f-desde',(e)=>{ gxFDesde=e.target.value; gxPintar(); });
+  s('gx-f-hasta',(e)=>{ gxFHasta=e.target.value; gxPintar(); });
+  s('gx-f-cat',(e)=>{ gxFCat=e.target.value; gxPintar(); });
+}
+
+/* --- Alta / edición de gasto --- */
+function gxNuevo(){ gxEdit={}; gxForm(); }
+function gxEditar(id){ gxEdit=gxGastos.find(g=>String(g.id)===String(id))||{}; gxForm(); }
+function gxForm(){
+  const g=gxEdit||{};
+  const hoy=new Date().toISOString().slice(0,10);
+  let h=`<button class="backbtn" onclick="gxSetTab('facturas')" style="margin-bottom:10px">← Gastos</button>
+    <h2 style="font-size:1rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">${g.id?'Editar':'Nueva'} factura de gasto</h2>`;
+  h+=`<div class="gx-form">
+    <label>Fecha</label><input type="date" id="gf-fecha" value="${g.fecha||hoy}">
+    <label>Proveedor</label>
+    <select id="gf-prov"><option value="">— Selecciona —</option>
+      ${gxProvs.map(p=>`<option value="${p.id}"${String(g.proveedor_id)===String(p.id)?' selected':''}>${escHtml(p.nombre)}</option>`).join('')}</select>
+    <label>Nº de factura</label><input id="gf-num" value="${escAttr(g.numero||'')}" placeholder="Ej.: A-2026/014">
+    <label>Concepto</label><input id="gf-con" value="${escAttr(g.concepto||'')}" placeholder="Ej.: Dominio aptuvia.es">
+    <label>Base imponible (€)</label><input type="number" step="0.01" id="gf-base" value="${g.base!=null?g.base:''}" oninput="gxCalcTotal()">
+    <label>IVA (%)</label>
+    <select id="gf-ivap" onchange="gxCalcTotal()">
+      ${[21,10,4,0].map(v=>`<option value="${v}"${Number(g.iva_pct!=null?g.iva_pct:21)===v?' selected':''}>${v}%</option>`).join('')}
+    </select>
+    <label>Cuota IVA (€)</label><input type="number" step="0.01" id="gf-iva" value="${g.iva!=null?g.iva:''}" readonly style="background:#f6f1e6">
+    <label>Total (€) *</label><input type="number" step="0.01" id="gf-imp" value="${g.importe||''}" oninput="gxCalcDesdeTotal()">
+    <label>Categoría</label>
+    <select id="gf-cat">
+      ${['Hosting y dominios','Software y suscripciones','Servicios profesionales','Tasas e impuestos','Marketing','Material','Otros']
+        .map(c=>`<option value="${escAttr(c)}"${(g.categoria||'Otros')===c?' selected':''}>${escHtml(c)}</option>`).join('')}
+    </select>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="gf-ded" ${g.deducible===false?'':'checked'}> IVA deducible</label>
+    <label>Vencimiento (opcional)</label><input type="date" id="gf-venc" value="${g.vencimiento||''}">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="gf-pag" ${g.pagada?'checked':''}> Pagada</label>
+    <label>Factura en PDF (opcional)</label><input type="file" id="gf-pdf" accept="application/pdf">
+    ${g.pdf_url?`<div style="font-size:.75rem;margin-top:4px"><a href="#" onclick="gxVerPDF('${escAttr(g.pdf_url)}');return false;">📄 Ver PDF actual</a></div>`:''}
+  </div>
+  <button class="btn btn-primary" onclick="gxGuardar()" style="margin-top:14px">Guardar</button>`;
+  $('teacher').innerHTML=saShell(h);
+}
+function gxCalcTotal(){
+  const b=parseFloat(($('gf-base')||{}).value)||0;
+  const p=parseFloat(($('gf-ivap')||{}).value)||0;
+  if(!b){ return; }
+  const cuota=Math.round(b*p)/100;
+  if($('gf-iva')) $('gf-iva').value=cuota.toFixed(2);
+  if($('gf-imp')) $('gf-imp').value=(b+cuota).toFixed(2);
+}
+function gxCalcDesdeTotal(){
+  const t=parseFloat(($('gf-imp')||{}).value)||0;
+  const p=parseFloat(($('gf-ivap')||{}).value)||0;
+  if(!t) return;
+  const base=t/(1+p/100);
+  if($('gf-base')) $('gf-base').value=base.toFixed(2);
+  if($('gf-iva')) $('gf-iva').value=(t-base).toFixed(2);
+}
+async function gxGuardar(){
+  const val=(id)=>{ const e=$(id); return e?e.value.trim():''; };
+  const body={
+    fecha: val('gf-fecha')||null,
+    proveedor_id: val('gf-prov')||null,
+    numero: val('gf-num')||null,
+    concepto: val('gf-con')||null,
+    importe: Number(val('gf-imp')||0),
+    base: val('gf-base')!=='' ? Number(val('gf-base')) : null,
+    iva: val('gf-iva')!=='' ? Number(val('gf-iva')) : null,
+    iva_pct: val('gf-ivap')!=='' ? Number(val('gf-ivap')) : null,
+    categoria: val('gf-cat')||'Otros',
+    deducible: !!($('gf-ded')&&$('gf-ded').checked),
+    vencimiento: val('gf-venc')||null,
+    pagada: !!($('gf-pag')&&$('gf-pag').checked)
+  };
+  if(!body.fecha||!body.concepto||!body.importe){ appAlert('Fecha, concepto e importe son obligatorios.'); return; }
+  try{
+    const f=$('gf-pdf'); const file=f&&f.files&&f.files[0];
+    if(file){
+      const path=`gastos/${Date.now()}_${file.name.replace(/[^\w.\-]/g,'_')}`;
+      const up=await fetch(`${SUPA}/storage/v1/object/facturas-gastos/${path}`,{
+        method:'POST', headers:{apikey:ANON, Authorization:'Bearer '+token, 'Content-Type':'application/pdf'}, body:file});
+      if(!up.ok) throw new Error('No se pudo subir el PDF ('+up.status+'). ¿Creaste el bucket facturas-gastos?');
+      body.pdf_url=path;
+    }
+    if(gxEdit&&gxEdit.id){
+      await call(`/rest/v1/gastos?id=eq.${gxEdit.id}`,{method:'PATCH',body});
+    }else{
+      await call('/rest/v1/gastos',{method:'POST',body});
+    }
+    gxEdit=null; gxTab='facturas'; await gxRender();
+  }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); }
+}
+async function gxTogglePagada(id,v){
+  try{ await call(`/rest/v1/gastos?id=eq.${id}`,{method:'PATCH',body:{pagada:v==='true'||v===true}}); await gxRender(); }
+  catch(e){ appAlert('Error: '+(e.message||'')); }
+}
+async function gxBorrar(id){
+  if(!await appConfirm('¿Borrar esta factura de gasto?')) return;
+  try{ await call(`/rest/v1/gastos?id=eq.${id}`,{method:'DELETE'}); await gxRender(); }
+  catch(e){ appAlert('Error: '+(e.message||'')); }
+}
+async function gxVerPDF(path){
+  try{
+    const r=await fetch(`${SUPA}/storage/v1/object/sign/facturas-gastos/${path}`,{
+      method:'POST', headers:{apikey:ANON, Authorization:'Bearer '+token, 'Content-Type':'application/json'},
+      body:JSON.stringify({expiresIn:3600})});
+    const d=await r.json();
+    if(d&&d.signedURL) window.open(`${SUPA}/storage/v1${d.signedURL}`,'_blank');
+    else throw new Error('sin URL');
+  }catch(e){ appAlert('No se pudo abrir el PDF.'); }
+}
+function gxCSV(){
+  let list=gxGastos.slice();
+  if(gxFProv!=='todos') list=list.filter(g=>String(g.proveedor_id)===String(gxFProv));
+  if(gxFEstado==='pagadas') list=list.filter(g=>g.pagada===true);
+  if(gxFEstado==='pendientes') list=list.filter(g=>g.pagada!==true);
+  if(gxFDesde) list=list.filter(g=>(g.fecha||'')>=gxFDesde);
+  if(gxFHasta) list=list.filter(g=>(g.fecha||'')<=gxFHasta);
+  if(gxFCat!=='todas') list=list.filter(g=>(g.categoria||'Otros')===gxFCat);
+  const esc=(s)=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  let csv='Fecha;Proveedor;Numero;Concepto;Categoria;Base;IVA_pct;IVA;Total;Deducible;Pagada\n';
+  list.forEach(g=>{ csv+=[g.fecha||'',gxProvNombre(g.proveedor_id),g.numero||'',g.concepto||'',g.categoria||'Otros',
+    (g.base!=null?Number(g.base).toFixed(2):''),(g.iva_pct!=null?g.iva_pct:''),(g.iva!=null?Number(g.iva).toFixed(2):''),
+    (Number(g.importe)||0).toFixed(2), g.deducible===false?'No':'Si', g.pagada?'Si':'No'].map(esc).join(';')+'\n'; });
+  const tB=list.reduce((t,g)=>t+Number(g.base||0),0), tI=list.filter(g=>g.deducible!==false).reduce((t,g)=>t+Number(g.iva||0),0), tT=list.reduce((t,g)=>t+Number(g.importe||0),0);
+  csv+=[ '','','','TOTAL','',tB.toFixed(2),'',tI.toFixed(2),tT.toFixed(2),'',''].map(esc).join(';')+'\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download='aptuvia_gastos.csv'; a.click();
+}
+
+/* --- Proveedores CRUD --- */
+function gxProvNuevo(){ gxProvEdit={}; gxProvForm(); }
+function gxProvEditar(id){ gxProvEdit=gxProvs.find(p=>String(p.id)===String(id))||{}; gxProvForm(); }
+function gxProvForm(){
+  const p=gxProvEdit||{};
+  let h=`<button class="backbtn" onclick="gxSetTab('provs')" style="margin-bottom:10px">← Proveedores</button>
+    <h2 style="font-size:1rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">${p.id?'Editar':'Nuevo'} proveedor</h2>
+    <div class="gx-form">
+      <label>Nombre *</label><input id="pf-nom" value="${escAttr(p.nombre||'')}">
+      <label>NIF / CIF</label><input id="pf-nif" value="${escAttr(p.nif||'')}">
+      <label>Email</label><input id="pf-mail" value="${escAttr(p.email||'')}">
+      <label>Teléfono</label><input id="pf-tel" value="${escAttr(p.telefono||'')}">
+      <label>Dirección</label><input id="pf-dir" value="${escAttr(p.direccion||'')}">
+      <label>Notas</label><input id="pf-not" value="${escAttr(p.notas||'')}">
+    </div>
+    <button class="btn btn-primary" onclick="gxProvGuardar()" style="margin-top:14px">Guardar</button>`;
+  $('teacher').innerHTML=saShell(h);
+}
+async function gxProvGuardar(){
+  const v=(id)=>{ const e=$(id); return e?e.value.trim():''; };
+  const body={nombre:v('pf-nom'),nif:v('pf-nif')||null,email:v('pf-mail')||null,telefono:v('pf-tel')||null,direccion:v('pf-dir')||null,notas:v('pf-not')||null};
+  if(!body.nombre){ appAlert('El nombre es obligatorio.'); return; }
+  try{
+    if(gxProvEdit&&gxProvEdit.id) await call(`/rest/v1/proveedores?id=eq.${gxProvEdit.id}`,{method:'PATCH',body});
+    else await call('/rest/v1/proveedores',{method:'POST',body});
+    gxProvEdit=null; gxTab='provs'; await gxRender();
+  }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); }
+}
+async function gxProvBorrar(id){
+  if(!await appConfirm('¿Borrar este proveedor? Sus facturas quedarán sin proveedor asignado.')) return;
+  try{ await call(`/rest/v1/proveedores?id=eq.${id}`,{method:'DELETE'}); await gxRender(); }
+  catch(e){ appAlert('Error: '+(e.message||'')); }
+}
+
+/* --- Gastos previstos CRUD --- */
+function gxRecNuevo(){ gxRecEdit={}; gxRecForm(); }
+function gxRecEditar(id){ gxRecEdit=gxRecs.find(r=>String(r.id)===String(id))||{}; gxRecForm(); }
+function gxRecForm(){
+  const r=gxRecEdit||{};
+  let h=`<button class="backbtn" onclick="gxSetTab('prev')" style="margin-bottom:10px">← Previstos</button>
+    <h2 style="font-size:1rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">${r.id?'Editar':'Nuevo'} gasto previsto</h2>
+    <div class="gx-form">
+      <label>Concepto *</label><input id="rf-con" value="${escAttr(r.concepto||'')}" placeholder="Ej.: Supabase Pro">
+      <label>Proveedor</label>
+      <select id="rf-prov"><option value="">— Selecciona —</option>
+        ${gxProvs.map(p=>`<option value="${p.id}"${String(r.proveedor_id)===String(p.id)?' selected':''}>${escHtml(p.nombre)}</option>`).join('')}</select>
+      <label>Importe (€) *</label><input type="number" step="0.01" id="rf-imp" value="${r.importe||''}">
+      <label>Periodicidad</label>
+      <select id="rf-per">
+        <option value="mensual"${r.periodicidad!=='anual'?' selected':''}>Mensual</option>
+        <option value="anual"${r.periodicidad==='anual'?' selected':''}>Anual</option>
+      </select>
+      <label>Día del mes (si es mensual)</label><input type="number" min="1" max="31" id="rf-dia" value="${r.dia_mes||1}">
+      <label>Próxima fecha (si es anual)</label><input type="date" id="rf-prox" value="${r.proxima_fecha||''}">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="rf-act" ${r.activo===false?'':'checked'}> Activo</label>
+    </div>
+    <button class="btn btn-primary" onclick="gxRecGuardar()" style="margin-top:14px">Guardar</button>`;
+  $('teacher').innerHTML=saShell(h);
+}
+async function gxRecGuardar(){
+  const v=(id)=>{ const e=$(id); return e?e.value.trim():''; };
+  const body={concepto:v('rf-con'), proveedor_id:v('rf-prov')||null, importe:Number(v('rf-imp')||0),
+    periodicidad:v('rf-per')||'mensual', dia_mes:Number(v('rf-dia')||1), proxima_fecha:v('rf-prox')||null,
+    activo: !!($('rf-act')&&$('rf-act').checked)};
+  if(!body.concepto||!body.importe){ appAlert('Concepto e importe son obligatorios.'); return; }
+  try{
+    if(gxRecEdit&&gxRecEdit.id) await call(`/rest/v1/gastos_recurrentes?id=eq.${gxRecEdit.id}`,{method:'PATCH',body});
+    else await call('/rest/v1/gastos_recurrentes',{method:'POST',body});
+    gxRecEdit=null; gxTab='prev'; await gxRender();
+  }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); }
+}
+async function gxRecBorrar(id){
+  if(!await appConfirm('¿Borrar este gasto previsto?')) return;
+  try{ await call(`/rest/v1/gastos_recurrentes?id=eq.${id}`,{method:'DELETE'}); await gxRender(); }
+  catch(e){ appAlert('Error: '+(e.message||'')); }
+}
+
+/* --- Aviso al abrir la app (solo admin, 1 vez al día) --- */
+async function gxAvisoInicio(){
+  try{
+    const hoy=new Date().toISOString().slice(0,10);
+    if(localStorage.getItem('gx_aviso_visto')===hoy) return;
+    const [g,r]=await Promise.all([
+      call('/rest/v1/gastos?select=id,numero,concepto,importe,vencimiento,pagada'),
+      call('/rest/v1/gastos_recurrentes?select=*')
+    ]);
+    gxGastos=g||[]; gxRecs=r||[];
+    const av=gxCalcAvisos();
+    if(!av.length) return;
+    localStorage.setItem('gx_aviso_visto',hoy);
+    appAlert('🔔 Avisos de facturación:\n\n'+av.map(a=>'• '+a.txt).join('\n'));
+  }catch(e){}
+}
+
+function saToggleMes(mk){
+  window._factMesAbierto = window._factMesAbierto || {__init:true};
+  window._factMesAbierto[mk] = !window._factMesAbierto[mk];
+  saPintarFacturasEmitidas();
 }
 function saFactSub(v){ window._factSub=v; saRenderFacturacionLista(); }
 
@@ -3173,13 +3659,22 @@ function saPintarFacturasEmitidas(){
     const nom=new Date(+y,+m-1,1).toLocaleDateString('es-ES',{month:'long',year:'numeric'});
     return nom.charAt(0).toUpperCase()+nom.slice(1);
   };
-  Object.keys(meses).sort().reverse().forEach(mk=>{
+  window._factMesAbierto = window._factMesAbierto || {};
+  const _mkAll=Object.keys(meses).sort().reverse();
+  if(window._factMesAbierto.__init!==true){ window._factMesAbierto={__init:true}; if(_mkAll[0]) window._factMesAbierto[_mkAll[0]]=true; }
+  _mkAll.forEach(mk=>{
     const arr=meses[mk];
     const totMes=arr.reduce((t,f)=>t+Number(f.total||0),0);
-    h+=`<div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 2px 6px">
-      <h3 style="font-size:.82rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-soft)">${mesNombre(mk)}</h3>
+    const abierto = window._factMesAbierto[mk]===true;
+    h+=`<button onclick="saToggleMes('${mk}')" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;margin:14px 0 6px;background:none;border:none;border-bottom:1px solid var(--line);padding:0 2px 6px;cursor:pointer;font-family:inherit">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:.7rem;color:var(--ink-soft);transform:rotate(${abierto?'90':'0'}deg);display:inline-block;transition:transform .15s">▶</span>
+        <span style="font-size:.82rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-soft)">${mesNombre(mk)}</span>
+        <span style="font-size:.7rem;color:var(--ink-soft)">(${arr.length})</span>
+      </span>
       <b style="font-size:.85rem;color:var(--navy)">${totMes.toFixed(2)} €</b>
-    </div>`;
+    </button>`;
+    if(!abierto) return;
     arr.forEach(f=>{
       h+=`<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
