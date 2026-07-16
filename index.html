@@ -5315,28 +5315,53 @@ async function crCompartirPrompt(){
   if(navigator.share){ try{ await navigator.share({text:t}); return; }catch(e){} }
   crCopiarPrompt();
 }
+// Pinta una corrección: el texto del alumno en negro y lo que va entre [[ ]]
+// en rojo con letra manuscrita. La usan la vista previa del profesor y el alumno.
+function pintarCorreccion(txt, nota){
+  let t=String(txt||'');
+  const m=t.match(/NOTA:\s*([\d.,]+)\s*\/\s*10/i);
+  if(m) t=t.replace(m[0],'').trim();
+  let html=escHtml(t).replace(/\[\[([\s\S]*?)\]\]/g,'<span class="ia-corr">$1</span>');
+  if(nota!=null&&nota!==''&&!isNaN(nota)) html+=`<span class="ia-nota">${nota}/10</span>`;
+  return html;
+}
+function crNotaIA(){
+  const t=(($('cr-ia-out')||{}).value||'');
+  const m=t.match(/NOTA:\s*([\d.,]+)\s*\/\s*10/i);
+  if(!m) return null;
+  const n=parseFloat(String(m[1]).replace(',','.'));
+  return isNaN(n)?null:n;
+}
 function crPreview(){
   const out=$('cr-ia-out'); const box=$('cr-ia-prev'); if(!out||!box) return;
   let t=out.value||'';
-  let nota=null;
   const m=t.match(/NOTA:\s*([\d.,]+)\s*\/\s*10/i);
-  if(m){ nota=parseFloat(String(m[1]).replace(',','.')); t=t.replace(m[0],'').trim(); }
-  let html=escHtml(t).replace(/\[\[([\s\S]*?)\]\]/g,'<span class="ia-corr">$1</span>');
-  if(nota!=null&&!isNaN(nota)) html+=`<span class="ia-nota">${nota}/10</span>`;
-  box.innerHTML=html||'<i style="color:var(--ink-soft)">Pega aquí arriba lo que te devuelva la IA y lo verás corregido.</i>';
-  const n=$('cr-ia-nota'); if(n) n.textContent=(nota!=null&&!isNaN(nota))?('Nota detectada: '+nota):'';
+  if(m) t=t.replace(m[0],'').trim();
+  // La nota grande en rojo es SIEMPRE la del profesor, no la de la IA.
+  const campo=$('cr-ia-notaprof');
+  const nv=campo?String(campo.value).replace(',','.').trim():'';
+  const nota=nv===''?null:parseFloat(nv);
+  const html=pintarCorreccion(out.value||'', nota);
+  box.innerHTML=(String(t).trim()?html:'')||'<i style="color:var(--ink-soft)">Pega aquí arriba lo que te devuelva la IA y lo verás corregido.</i>';
+  const n=$('cr-ia-nota'); const ia=crNotaIA();
+  if(n) n.textContent = ia!=null ? ('La IA propone: '+ia+'/10 — decides tú') : '';
+}
+function crUsarNotaIA(){
+  const ia=crNotaIA();
+  if(ia==null){ appAlert('No encuentro ninguna línea "NOTA: X/10" en lo que ha devuelto la IA.'); return; }
+  const c=$('cr-ia-notaprof'); if(c){ c.value=ia; crPreview(); }
 }
 function crPasarANota(){
   const out=(($('cr-ia-out')||{}).value||'').trim();
   if(!out){ appAlert('Primero pega la corrección que te devuelva la IA.'); return; }
   const m=out.match(/NOTA:\s*([\d.,]+)\s*\/\s*10/i);
-  const nota=m?parseFloat(String(m[1]).replace(',','.')):null;
   let com=out; if(m) com=com.replace(m[0],'').trim();
-  com=com.replace(/\[\[([\s\S]*?)\]\]/g,'$1');
+  // Los [[ ]] se conservan: el alumno los verá en rojo y a mano, igual que aquí.
+  const nv=(($('cr-ia-notaprof')||{}).value||'').replace(',','.').trim();
   crTab='manual'; renderEntrega(crEnt);
-  if(nota!=null&&!isNaN(nota)&&$('cr-nota')) $('cr-nota').value=nota;
+  if(nv!==''&&$('cr-nota')) $('cr-nota').value=nv;
   if($('cr-com')) $('cr-com').value=com;
-  appAlert('Pasado a la pestaña Manual. Revísalo antes de guardar: la nota la pones tú.');
+  appAlert('Pasado a la pestaña Manual. Revísalo antes de guardar.');
 }
 function crTabIA(e){
   return `<div class="t-card">
@@ -5354,10 +5379,15 @@ function crTabIA(e){
     <label style="margin-top:16px">Pega aquí la corrección de la IA</label>
     <textarea id="cr-ia-out" rows="7" placeholder="El texto del alumno con las correcciones entre [[ ]] y la última línea NOTA: X/10"></textarea>
     <div id="cr-ia-nota" style="font-size:.75rem;color:var(--ink-soft);text-align:right;margin-top:-2px"></div>
+    <label style="margin-top:10px">Nota final — la pones TÚ (0 a 10)</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="cr-ia-notaprof" type="number" min="0" max="10" step="0.1" inputmode="decimal" placeholder="Ej.: 7.5" style="flex:1" value="${e.nota!=null?(+e.nota):''}">
+      <button class="gx-mini" onclick="crUsarNotaIA()" style="padding:10px;white-space:nowrap">Usar la de la IA</button>
+    </div>
     <label style="margin-top:10px">Cómo lo verá el alumno</label>
     <div id="cr-ia-prev" class="ia-prev"></div>
     <button class="btn btn-honey" onclick="crPasarANota()" style="margin-top:16px">Pasar a nota y comentario →</button>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:10px 0 0;line-height:1.5">La IA propone; la nota la decides y la guardas tú en la pestaña Manual. Nada se guarda desde aquí.</p>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:10px 0 0;line-height:1.5">La nota grande en rojo es la tuya, no la de la IA. La IA solo propone. Nada se guarda desde aquí.</p>
   </div>`;
 }
 function renderEntrega(e){
@@ -5376,12 +5406,14 @@ function renderEntrega(e){
   </div>`);
   if(crTab==='ia'){ h.push(crTabIA(e)); }
   else{
-    h.push(`<div class="t-card"><label style="margin-top:6px">Nota (0 a 10)</label><input id="cr-nota" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="${e.nota!=null?(+e.nota):''}" placeholder="Ej.: 7.5"><label>Comentario para el alumno (opcional)</label><textarea id="cr-com" rows="3" placeholder="Observaciones, correcciones…">${escHtml(e.comentario||'')}</textarea><button class="btn btn-honey" id="cr-save" style="margin-top:16px">${e.estado==='corregido'?'Actualizar nota':'Guardar nota'}</button>${e.estado==='reabierto'?'':`<button class="btn btn-ghost" id="cr-reopen" style="margin-top:10px">↻ Permitir repetir al alumno</button>`}</div>`);
+    h.push(`<div class="t-card"><label style="margin-top:6px">Nota (0 a 10)</label><input id="cr-nota" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="${e.nota!=null?(+e.nota):''}" placeholder="Ej.: 7.5"><label>Comentario para el alumno (opcional)</label><p style="font-size:.7rem;color:var(--ink-soft);margin:0 0 6px">Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá en rojo y con letra manuscrita.</p><textarea id="cr-com" rows="6" placeholder="Observaciones, correcciones…">${escHtml(e.comentario||'')}</textarea><button class="btn btn-honey" id="cr-save" style="margin-top:16px">${e.estado==='corregido'?'Actualizar nota':'Guardar nota'}</button>${e.estado==='reabierto'?'':`<button class="btn btn-ghost" id="cr-reopen" style="margin-top:10px">↻ Permitir repetir al alumno</button>`}</div>`);
   }
   $('teacher').innerHTML=h.join('');
   if($('cr-save')) $('cr-save').onclick=()=>guardarNotaUI(e.id);
   if($('cr-reopen')) $('cr-reopen').onclick=()=>reabrirEntregaUI(e.id);
-  if($('cr-ia-out')){ $('cr-ia-out').oninput=crPreview; crPreview(); }
+  if($('cr-ia-out')){ $('cr-ia-out').oninput=crPreview; }
+  if($('cr-ia-notaprof')) $('cr-ia-notaprof').oninput=crPreview;
+  if($('cr-ia-prev')) crPreview();
 }
 async function reabrirEntregaUI(id){
   if(!await appConfirm('¿Permitir que el alumno repita este examen? Se borrará la nota actual y podrá volver a entregar.')) return;
@@ -6446,7 +6478,8 @@ function renderRedaccion(entrega){
   if(redCurrent.material_url){ h.push(materialViewerHtml(redCurrent.material_url, redCurrent.material_modo, 'Ver material del examen')); }
   if(corregido){
     const n=(entrega.nota!=null)?(+entrega.nota).toFixed(1):'—', pass=(+entrega.nota>=5);
-    h.push(`<div class="t-note ${pass?'ok':'err'}" style="font-size:.95rem"><b>Nota: ${n} / 10</b>${entrega.comentario?`<br><span style="font-weight:500">${escHtml(entrega.comentario)}</span>`:''}</div>`);
+    h.push(`<div class="t-note ${pass?'ok':'err'}" style="font-size:.95rem"><b>Nota: ${n} / 10</b></div>`);
+    if(entrega.comentario) h.push(`<div class="ia-prev" style="margin-top:10px">${pintarCorreccion(entrega.comentario, n)}</div>`);
   }else if(estado==='pendiente'){
     h.push(`<div class="t-note" style="background:var(--honey-tint);color:var(--honey-deep);border-color:#f0d9b3">⏳ Entregado. Pendiente de corrección. No puedes volver a entregar hasta que tu profesor lo reabra.</div>`);
   }else if(estado==='reabierto'){
@@ -6479,6 +6512,9 @@ async function entregarRedaccionUI(){
   });
   if(vacias===redCurrent.preguntas.length){ appAlert('Escribe al menos una respuesta antes de entregar.'); return; }
   if(vacias>0 && !await appConfirm('Hay '+vacias+' pregunta(s) sin responder. ¿Entregar igualmente?')) return;
+  // Doble confirmación: la entrega es única y no se puede deshacer.
+  if(!await appConfirm('¿Seguro que quieres ENTREGAR?\n\nSolo se puede entregar una vez. Después ya no podrás cambiar tus respuestas.')) return;
+  if(!await appConfirm('Última comprobación: se enviará al profesor tal y como está.\n\n¿Entregar definitivamente?')) return;
   const btn=$('red-send'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
   try{
     await call('/rest/v1/rpc/entregar_redaccion',{method:'POST',body:{p_examen_id:redCurrent.examId, p_respuestas:respuestas}});
