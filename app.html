@@ -3159,7 +3159,18 @@ function rsRender(){
     h+=`<button class="fact-menu" onclick="rsSub('${r.id}')"><b>${r.emoji} ${escHtml(r.nombre)}</b><span>${escHtml(r.desc)}</span></button>`;
   });
   h+=`</div>`;
+  h+=`<h3 style="font-size:.78rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft);margin:22px 2px 8px">Medir</h3>`;
+  h+=`<div class="sa-cards-grid">
+    <button class="fact-menu" onclick="abrirFuera('https://search.google.com/search-console?resource_id=sc-domain%3Aaptuvia.es')"><b>🔎 Google Search Console</b><span>Qué busca la gente para llegar a aptuvia.es, posición y páginas indexadas</span></button>
+    <button class="fact-menu" onclick="abrirFuera('https://search.google.com/search-console/performance/search-analytics?resource_id=sc-domain%3Aaptuvia.es')"><b>📈 Rendimiento en Google</b><span>Clics, impresiones y consultas de los últimos 3 meses</span></button>
+  </div>`;
+  h+=`<p style="font-size:.72rem;color:var(--ink-soft);background:#f6f1e6;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:12px 2px 0;line-height:1.6">Se abre en otra pestaña y pide la cuenta de Google. La propiedad está a nombre de <b>aptuvia@gmail.com</b>.</p>`;
   $('teacher').innerHTML=saShell(h);
+}
+
+function abrirFuera(url){
+  try{ window.open(url,'_blank','noopener'); }
+  catch(e){ location.href=url; }
 }
 
 function saRenderFacturacionLista(){
