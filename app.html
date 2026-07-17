@@ -1028,7 +1028,7 @@ select option{color:var(--navy);padding:8px;}
     </div>
     <input type="hidden" id="portal-select" value="">
     <button class="btn btn-primary btn-portal" id="portal-btn" onclick="portalEntrar()">Acceder</button>
-    <button class="btn btn-ghost btn-portal" id="portal-demo" onclick="demoPortal()" style="margin-top:10px">Ver demo sin registrarse</button>
+    <button class="btn btn-portal" id="portal-demo" onclick="demoPortal()" style="margin-top:10px;background:#fff;border:2px solid var(--navy);color:var(--navy);font-weight:800">Ver demo sin registrarse</button>
     <p class="portal-msg" id="portal-msg"></p>
   </div>
   <div class="foot-legal">
@@ -1246,8 +1246,11 @@ function volverPortal(){
 
 // Arrancar el portal al cargar la página (y restaurar sesión si la había)
 window.addEventListener('DOMContentLoaded', async ()=>{
+  // Si llegan desde la landing con /app.html#demo, abrir la demo directamente.
+  const pideDemo = (location.hash||'').toLowerCase().indexOf('demo')>=0;
   let hasSess=false; try{ hasSess=!!JSON.parse(localStorage.getItem(_SESS_KEY)||'null'); }catch(e){}
   await loadPortal();
+  if(pideDemo){ try{ demoPortal(); }catch(e){} return; }
   if(hasSess){
     $('portal').classList.add('hidden');
     const ok=await restaurarSesion();
@@ -7645,7 +7648,7 @@ function demoPortal(){
     <button class="btn btn-portal" onclick="demoEntrar('alumno')"    style="background:linear-gradient(to right,#fdf1dd,#f3cf8e);border:1.5px solid var(--honey);color:var(--navy);font-weight:800;margin-bottom:8px">Alumno · Aptuvia</button>
     <button class="btn btn-portal" onclick="demoEntrar('aa-prof')"   style="background:linear-gradient(to right,#eaf6fd,#7fc3e8);border:1.5px solid var(--honey);color:var(--navy);font-weight:800;margin-bottom:8px">Profesor · Aula Abierta</button>
     <button class="btn btn-portal" onclick="demoEntrar('aa-alumno')" style="background:linear-gradient(to right,#eaf6fd,#7fc3e8);border:1.5px solid var(--honey);color:var(--navy);font-weight:800;margin-bottom:8px">Alumno · Aula Abierta</button>
-    <button class="btn btn-ghost btn-portal" onclick="location.reload()">← Volver</button>
+    <button class="btn btn-ghost btn-portal" onclick="location.href='/'">← Volver</button>
     <p style="font-size:.75rem;color:var(--ink-soft);margin-top:12px">¿Prefieres verlo con tu certificado y tus contenidos? Escríbenos a contacto@aptuvia.es</p>
   </div>`;
   const cont=document.querySelector('#portal .portal-card');
