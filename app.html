@@ -3213,7 +3213,7 @@ function saRenderFacturacionLista(){
    Por eso lleva: emisor con NIF, cliente identificado, nº, fecha, validez,
    desglose, condiciones y hueco de firma. */
 
-let pxLista=[], pxEdit=null;
+let pxLista=[], pxEdit=null, pxAA=[];
 
 const PX_ESTADOS={
   borrador:{lab:'Borrador', col:'#6e6e78', bg:'#f1f1f4'},
@@ -3251,6 +3251,8 @@ async function pxRender(){
       <div class="center-msg">No se pudieron cargar los presupuestos.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de presupuestos?</small></div>`);
     return;
   }
+  try{ const all=await call('/rest/v1/rpc/sa_aa_usuarios',{method:'POST',body:{}})||[]; pxAA=all.filter(u=>u.rol==='profesor'); }
+  catch(e){ pxAA=[]; }
   try{ pxPintar(); }
   catch(e){
     $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
@@ -3350,9 +3352,10 @@ function pxForm(){
         const [k,lab]=par.split(':');
         return `<input data-pc="${k}" placeholder="${lab}" value="${escAttr(c[k]||'')}" style="font-size:.85rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px">`;
       }).join('')}
-      ${(saAcademias&&saAcademias.length)?`<select onchange="pxCargarAcademia(this.value)" style="font-size:.82rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff">
-        <option value="">— O copiar los datos de una academia ya dada de alta —</option>
-        ${saAcademias.map(a=>`<option value="${a.academia_id}">${escHtml(a.nombre)}</option>`).join('')}
+      ${((saAcademias&&saAcademias.length)||pxAA.length)?`<select onchange="pxCargarCliente(this.value)" style="font-size:.82rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff">
+        <option value="">— O copiar los datos de un cliente ya dado de alta —</option>
+        ${(saAcademias&&saAcademias.length)?`<optgroup label="Aptuvia · academias">${saAcademias.map(a=>`<option value="ac:${a.academia_id}">${escHtml(a.nombre)}</option>`).join('')}</optgroup>`:''}
+        ${pxAA.length?`<optgroup label="Aula Abierta">${pxAA.map(u=>`<option value="aa:${u.id}">${escHtml(u.nombre||u.email)}</option>`).join('')}</optgroup>`:''}
       </select>`:''}
     </div>
   </details>`;
@@ -3387,7 +3390,7 @@ function pxForm(){
     <textarea data-px="notas" rows="4" style="width:100%;font-size:.84rem;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;resize:vertical;box-sizing:border-box">${escHtml(p.notas||'')}</textarea>`;
 
   h+=`<button class="btn btn-primary" onclick="pxGuardar()" style="margin-top:14px">Guardar presupuesto</button>`;
-  h+=`<button onclick="pxGuardarYPDF()" style="margin-top:10px;width:100%;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;font-size:.9rem">📄 Guardar y descargar PDF</button>`;
+  h+=`<button onclick="pxGuardarYPDF()" style="margin-top:10px;width:100%;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;font-size:.9rem">📄 Descargar PDF</button>`;
 
   $('teacher').innerHTML=saShell(h);
   pxRecalc();
@@ -3395,16 +3398,25 @@ function pxForm(){
 
 function pxCancelar(){ pxEdit=null; pxPintar(); }
 
-function pxCargarAcademia(id){
-  if(!id) return;
+function pxCargarCliente(v){
+  if(!v) return;
   pxLeerDOM();
-  call('/rest/v1/datos_facturacion?academia_id=eq.'+id).then(d=>{
-    const a=(saAcademias||[]).find(x=>String(x.academia_id)===String(id));
+  const [tipo,id]=String(v).split(':');
+  const url = tipo==='aa'
+    ? '/rest/v1/datos_facturacion?profesor_id=eq.'+id
+    : '/rest/v1/datos_facturacion?academia_id=eq.'+id;
+  const nomFallback = tipo==='aa'
+    ? (()=>{ const u=pxAA.find(x=>String(x.id)===String(id)); return u?(u.nombre||u.email||''):''; })()
+    : (()=>{ const a=(saAcademias||[]).find(x=>String(x.academia_id)===String(id)); return a?a.nombre:''; })();
+  const mailFallback = tipo==='aa'
+    ? (()=>{ const u=pxAA.find(x=>String(x.id)===String(id)); return u?(u.email||''):''; })()
+    : '';
+  call(url).then(d=>{
     const src=(d&&d[0])||{};
     pxEdit.cliente={
-      razon_social:src.razon_social||(a?a.nombre:''), nif:src.nif||'', direccion:src.direccion||'',
+      razon_social:src.razon_social||nomFallback, nif:src.nif||'', direccion:src.direccion||'',
       cp:src.cp||'', poblacion:src.poblacion||'', provincia:src.provincia||'',
-      email:src.email||'', telefono:src.telefono||'', contacto:pxEdit.cliente.contacto||''
+      email:src.email||mailFallback, telefono:src.telefono||'', contacto:pxEdit.cliente.contacto||''
     };
     pxForm();
   }).catch(()=>{});
