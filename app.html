@@ -3160,11 +3160,12 @@ function rsRender(){
 }
 
 function saRenderFacturacionLista(){
-  // Menú principal de Facturación: 3 accesos.
+  // Menú principal de Facturación.
   const sub=window._factSub||null;
   if(!sub){
     let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 14px">Facturación</h2>`;
     h+=`<div class="sa-cards-grid">`;
+    h+=`<button class="fact-menu" onclick="saFactSub('conta')" style="background:#eef8fe"><b>🧾 Contabilidad</b><span>Libros, IVA (303), IRPF (130) y resúmenes anuales (390, 347)</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('gastos')"><b>Gastos y balance</b><span>Facturas de proveedores, gastos previstos y evolución del negocio</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Academias</b><span>Facturar a las academias de Aptuvia</span></button>`;
@@ -3173,6 +3174,7 @@ function saRenderFacturacionLista(){
     $('teacher').innerHTML=saShell(h);
     return;
   }
+  if(sub==='conta'){ ctRender(); return; }
   if(sub==='emitidas'){ saRenderFacturasEmitidas(); return; }
   if(sub==='gastos'){ gxRender(); return; }
   if(sub==='academias'){
@@ -3200,6 +3202,355 @@ function saRenderFacturacionLista(){
     saCargarClientesAA();
     return;
   }
+}
+
+/* ═══════════════ CONTABILIDAD ═══════════════ */
+let ctTab='emitidas';
+let ctYear=new Date().getFullYear();
+let ctTri=Math.floor(new Date().getMonth()/3)+1;
+
+const CT_UMBRAL_347=3005.06;
+const CT_PCT_130=20;
+
+function ctTrimDe(fecha){ const m=+String(fecha||'').slice(5,7); return m?Math.floor((m-1)/3)+1:0; }
+function ctAnioDe(fecha){ return +String(fecha||'').slice(0,4)||0; }
+
+/* Facturas emitidas normalizadas: base = subtotal menos descuento; cuota = total - base */
+function ctEmitidas(){
+  return (window._factTodas||[]).map(f=>{
+    const sub=Number(f.subtotal||0);
+    const desc=Number(f.descuento_pct||0);
+    const base=Math.round((sub-sub*desc/100)*100)/100;
+    const total=Number(f.total||0);
+    const cuota=Math.round((total-base)*100)/100;
+    const cli=(f.cliente&&typeof f.cliente==='object')?f.cliente:{};
+    return {
+      numero:f.numero||'—', fecha:f.fecha||'',
+      cliente:cli.razon_social||f.academia_nombre||'—',
+      nif:cli.nif||'', base, iva_pct:Number(f.iva_pct||0), cuota, total,
+      anio:ctAnioDe(f.fecha), tri:ctTrimDe(f.fecha)
+    };
+  }).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+}
+
+/* Facturas recibidas (gastos) normalizadas */
+function ctRecibidas(){
+  return (gxGastos||[]).map(g=>{
+    const base=g.base!=null?Number(g.base):Math.round((Number(g.importe||0)/(1+Number(g.iva_pct||0)/100))*100)/100;
+    const cuota=g.iva!=null?Number(g.iva):Math.round((Number(g.importe||0)-base)*100)/100;
+    const prov=gxProvs.find(p=>String(p.id)===String(g.proveedor_id));
+    return {
+      id:g.id, numero:g.numero||'—', fecha:g.fecha||'',
+      proveedor:prov?prov.nombre:'—', prov_id:g.proveedor_id||null, nif:prov?(prov.nif||''):'',
+      concepto:g.concepto||'', categoria:g.categoria||'Otros',
+      base, iva_pct:Number(g.iva_pct||0), cuota, total:Number(g.importe||0),
+      deducible:g.deducible!==false, inversion:g.inversion===true,
+      anio:ctAnioDe(g.fecha), tri:ctTrimDe(g.fecha)
+    };
+  }).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+}
+
+function ctAnios(){
+  const s=new Set();
+  ctEmitidas().forEach(f=>{ if(f.anio) s.add(f.anio); });
+  ctRecibidas().forEach(g=>{ if(g.anio) s.add(g.anio); });
+  s.add(new Date().getFullYear());
+  return [...s].sort((a,b)=>b-a);
+}
+
+function ctSet(k,v){
+  if(k==='tab') ctTab=v;
+  if(k==='year') ctYear=+v;
+  if(k==='tri') ctTri=+v;
+  ctPintar();
+}
+
+async function ctRender(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  try{
+    const [p,g]=await Promise.all([
+      call('/rest/v1/proveedores?select=*&order=nombre'),
+      call('/rest/v1/gastos?select=*&order=fecha.desc')
+    ]);
+    gxProvs=p||[]; gxGastos=g||[];
+    if(!window._factTodas){
+      try{ window._factTodas=await call('/rest/v1/rpc/sa_facturas_todas',{method:'POST',body:{}})||[]; }
+      catch(e){ window._factTodas=[]; }
+    }
+  }catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+      <div class="center-msg">No se pudieron cargar los datos.<br><small>${escHtml(e.message||'')}</small></div>`);
+    return;
+  }
+  try{ ctPintar(); }
+  catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+      <div class="center-msg">Error al pintar la pantalla.<br><small>${escHtml(e.message||String(e))}</small></div>`);
+  }
+}
+
+function ctPintar(){
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Facturación</button>
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🧾 Contabilidad</h2>
+    <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">Todo se calcula solo, a partir de las facturas emitidas y de los gastos. Los importes los valida tu gestoría.</p>`;
+
+  h+=`<div class="gx-filtros">
+    <select id="ct-year">${ctAnios().map(y=>`<option value="${y}"${y===ctYear?' selected':''}>Ejercicio ${y}</option>`).join('')}</select>
+    <select id="ct-tri">${[1,2,3,4].map(t=>`<option value="${t}"${t===ctTri?' selected':''}>${t}T · ${['Ene–Mar','Abr–Jun','Jul–Sep','Oct–Dic'][t-1]}</option>`).join('')}</select>
+  </div>`;
+
+  h+=`<div class="t-toggle" style="margin-bottom:14px;flex-wrap:wrap">
+    ${[['emitidas','Expedidas'],['recibidas','Recibidas'],['inversion','Inversión'],['303','303 IVA'],['130','130 IRPF'],['anual','Anual']]
+      .map(([k,l])=>`<button class="${ctTab===k?'on':''}" onclick="ctSet('tab','${k}')" style="font-size:.68rem;padding:8px 6px">${l}</button>`).join('')}
+  </div>`;
+
+  if(ctTab==='emitidas') h+=ctLibroEmitidas();
+  else if(ctTab==='recibidas') h+=ctLibroRecibidas();
+  else if(ctTab==='inversion') h+=ctLibroInversion();
+  else if(ctTab==='303') h+=ct303();
+  else if(ctTab==='130') h+=ct130();
+  else h+=ctAnual();
+
+  $('teacher').innerHTML=saShell(h);
+  if($('ct-year')) $('ct-year').onchange=(e)=>ctSet('year',e.target.value);
+  if($('ct-tri')) $('ct-tri').onchange=(e)=>ctSet('tri',e.target.value);
+}
+
+function ctAviso(txt){
+  return `<p style="font-size:.72rem;color:var(--ink-soft);background:#f6f1e6;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:12px 0 0;line-height:1.6">${txt}</p>`;
+}
+
+/* ── Libro registro de facturas expedidas ── */
+function ctLibroEmitidas(){
+  const list=ctEmitidas().filter(f=>f.anio===ctYear && f.tri===ctTri);
+  const tB=list.reduce((t,f)=>t+f.base,0), tC=list.reduce((t,f)=>t+f.cuota,0), tT=list.reduce((t,f)=>t+f.total,0);
+  let h=`<h3 style="font-size:.86rem;font-weight:800;color:var(--navy);margin:0 2px 8px">Libro registro de facturas expedidas · ${ctTri}T ${ctYear}</h3>`;
+  h+=`<div class="gx-kpis"><div class="gx-kpi"><span>Base</span><b>${gxEur(tB)}</b></div>
+    <div class="gx-kpi"><span>IVA repercutido</span><b style="color:#15803d">${gxEur(tC)}</b></div>
+    <div class="gx-kpi"><span>Total</span><b>${gxEur(tT)}</b></div></div>`;
+  if(!list.length) return h+`<p class="sa-empty">No hay facturas emitidas en este trimestre.</p>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr>
+    <th>Fecha</th><th>Nº</th><th>Cliente</th><th>NIF</th><th style="text-align:right">Base</th><th style="text-align:right">%</th><th style="text-align:right">Cuota</th><th style="text-align:right">Total</th></tr></thead><tbody>`;
+  list.forEach(f=>{
+    h+=`<tr><td style="white-space:nowrap">${escHtml(f.fecha)}</td><td>${escHtml(f.numero)}</td>
+      <td>${escHtml(f.cliente)}</td><td>${escHtml(f.nif||'—')}</td>
+      <td style="text-align:right;white-space:nowrap">${gxEur(f.base)}</td>
+      <td style="text-align:right">${f.iva_pct}%</td>
+      <td style="text-align:right;white-space:nowrap">${gxEur(f.cuota)}</td>
+      <td style="text-align:right;white-space:nowrap"><b>${gxEur(f.total)}</b></td></tr>`;
+  });
+  h+=`</tbody><tfoot><tr><td colspan="4"><b>TOTAL</b></td>
+    <td style="text-align:right"><b>${gxEur(tB)}</b></td><td></td>
+    <td style="text-align:right"><b>${gxEur(tC)}</b></td>
+    <td style="text-align:right"><b>${gxEur(tT)}</b></td></tr></tfoot></table></div>`;
+  h+=`<button onclick="ctCSV('emitidas')" style="width:100%;margin-top:12px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.85rem">⬇ Descargar CSV del libro</button>`;
+  return h;
+}
+
+/* ── Libro registro de facturas recibidas ── */
+function ctLibroRecibidas(){
+  const list=ctRecibidas().filter(g=>g.anio===ctYear && g.tri===ctTri && !g.inversion);
+  const tB=list.reduce((t,g)=>t+g.base,0);
+  const tC=list.filter(g=>g.deducible).reduce((t,g)=>t+g.cuota,0);
+  const tT=list.reduce((t,g)=>t+g.total,0);
+  let h=`<h3 style="font-size:.86rem;font-weight:800;color:var(--navy);margin:0 2px 8px">Libro registro de facturas recibidas · ${ctTri}T ${ctYear}</h3>`;
+  h+=`<div class="gx-kpis"><div class="gx-kpi"><span>Base</span><b>${gxEur(tB)}</b></div>
+    <div class="gx-kpi"><span>IVA deducible</span><b style="color:#b4232a">${gxEur(tC)}</b></div>
+    <div class="gx-kpi"><span>Total</span><b>${gxEur(tT)}</b></div></div>`;
+  if(!list.length) return h+`<p class="sa-empty">No hay facturas de gasto en este trimestre.</p>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr>
+    <th>Fecha</th><th>Nº</th><th>Proveedor</th><th>NIF</th><th>Concepto</th><th style="text-align:right">Base</th><th style="text-align:right">%</th><th style="text-align:right">Cuota</th><th style="text-align:right">Total</th></tr></thead><tbody>`;
+  list.forEach(g=>{
+    h+=`<tr><td style="white-space:nowrap">${escHtml(g.fecha)}</td><td>${escHtml(g.numero)}</td>
+      <td>${escHtml(g.proveedor)}</td><td>${escHtml(g.nif||'—')}</td>
+      <td>${escHtml(g.concepto)}${g.deducible?'':' <span class="gx-nod">no ded.</span>'}</td>
+      <td style="text-align:right;white-space:nowrap">${gxEur(g.base)}</td>
+      <td style="text-align:right">${g.iva_pct}%</td>
+      <td style="text-align:right;white-space:nowrap;color:${g.deducible?'#b4232a':'var(--ink-soft)'}">${gxEur(g.cuota)}</td>
+      <td style="text-align:right;white-space:nowrap"><b>${gxEur(g.total)}</b></td></tr>`;
+  });
+  h+=`</tbody><tfoot><tr><td colspan="5"><b>TOTAL</b></td>
+    <td style="text-align:right"><b>${gxEur(tB)}</b></td><td></td>
+    <td style="text-align:right"><b>${gxEur(tC)}</b></td>
+    <td style="text-align:right"><b>${gxEur(tT)}</b></td></tr></tfoot></table></div>`;
+  h+=`<button onclick="ctCSV('recibidas')" style="width:100%;margin-top:12px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.85rem">⬇ Descargar CSV del libro</button>`;
+  h+=ctAviso('Los gastos marcados como <b>bien de inversión</b> no salen aquí: van en su propio libro.');
+  return h;
+}
+
+/* ── Libro de bienes de inversión ── */
+function ctLibroInversion(){
+  const list=ctRecibidas().filter(g=>g.inversion && g.anio<=ctYear);
+  let h=`<h3 style="font-size:.86rem;font-weight:800;color:var(--navy);margin:0 2px 8px">Libro de bienes de inversión · hasta ${ctYear}</h3>`;
+  if(!list.length){
+    h+=`<p class="sa-empty">No hay bienes de inversión registrados.</p>`;
+    h+=ctAviso('Un <b>bien de inversión</b> es un elemento del inmovilizado que dura más de un año y cuesta 3.005,06 € o más (ordenador, mobiliario…). Se marca con la casilla «Bien de inversión» al crear o editar la factura de gasto.');
+    return h;
+  }
+  const tB=list.reduce((t,g)=>t+g.base,0), tC=list.filter(g=>g.deducible).reduce((t,g)=>t+g.cuota,0);
+  h+=`<div class="gx-kpis"><div class="gx-kpi"><span>Bienes</span><b>${list.length}</b></div>
+    <div class="gx-kpi"><span>Base total</span><b>${gxEur(tB)}</b></div>
+    <div class="gx-kpi"><span>IVA deducido</span><b>${gxEur(tC)}</b></div></div>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr>
+    <th>Alta</th><th>Nº</th><th>Proveedor</th><th>Descripción</th><th style="text-align:right">Base</th><th style="text-align:right">Cuota</th><th style="text-align:right">Amort. anual</th><th style="text-align:right">Pendiente</th></tr></thead><tbody>`;
+  list.forEach(g=>{
+    const anual=Math.round((g.base/5)*100)/100;
+    const anios=Math.max(0, Math.min(5, ctYear-g.anio+1));
+    const pend=Math.max(0, Math.round((g.base-anual*anios)*100)/100);
+    h+=`<tr><td style="white-space:nowrap">${escHtml(g.fecha)}</td><td>${escHtml(g.numero)}</td>
+      <td>${escHtml(g.proveedor)}</td><td>${escHtml(g.concepto)}</td>
+      <td style="text-align:right;white-space:nowrap">${gxEur(g.base)}</td>
+      <td style="text-align:right;white-space:nowrap">${gxEur(g.cuota)}</td>
+      <td style="text-align:right;white-space:nowrap">${gxEur(anual)}</td>
+      <td style="text-align:right;white-space:nowrap"><b>${gxEur(pend)}</b></td></tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  h+=ctAviso('La amortización se muestra a <b>5 años lineales</b> como orientación. El coeficiente real depende del tipo de bien y lo fija la tabla de amortización de Hacienda: confírmalo con tu gestoría.');
+  return h;
+}
+
+/* ── Modelo 303 (IVA trimestral) ── */
+function ct303(){
+  const em=ctEmitidas().filter(f=>f.anio===ctYear && f.tri===ctTri);
+  const re=ctRecibidas().filter(g=>g.anio===ctYear && g.tri===ctTri && g.deducible);
+  const reCorr=re.filter(g=>!g.inversion), reInv=re.filter(g=>g.inversion);
+  const baseDev=em.reduce((t,f)=>t+f.base,0), ivaDev=em.reduce((t,f)=>t+f.cuota,0);
+  const baseCorr=reCorr.reduce((t,g)=>t+g.base,0), ivaCorr=reCorr.reduce((t,g)=>t+g.cuota,0);
+  const baseInv=reInv.reduce((t,g)=>t+g.base,0), ivaInv=reInv.reduce((t,g)=>t+g.cuota,0);
+  const ivaSop=ivaCorr+ivaInv;
+  const res=Math.round((ivaDev-ivaSop)*100)/100;
+
+  let h=`<h3 style="font-size:.86rem;font-weight:800;color:var(--navy);margin:0 2px 10px">Modelo 303 · IVA ${ctTri}T ${ctYear}</h3>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr><th>Casilla</th><th>Concepto</th><th style="text-align:right">Base</th><th style="text-align:right">Cuota</th></tr></thead><tbody>`;
+  const fila=(c,txt,b,q)=>`<tr><td style="color:var(--ink-soft)">${c}</td><td>${txt}</td>
+    <td style="text-align:right;white-space:nowrap">${b==null?'—':gxEur(b)}</td>
+    <td style="text-align:right;white-space:nowrap">${q==null?'—':gxEur(q)}</td></tr>`;
+  h+=`<tr><td colspan="4" style="background:#f6f1e6;font-weight:800;color:var(--navy)">IVA devengado</td></tr>`;
+  h+=fila('01–03','Régimen general (repercutido)',baseDev,ivaDev);
+  h+=fila('27','Total cuota devengada',null,ivaDev);
+  h+=`<tr><td colspan="4" style="background:#f6f1e6;font-weight:800;color:var(--navy)">IVA deducible</td></tr>`;
+  h+=fila('28–29','Operaciones interiores corrientes',baseCorr,ivaCorr);
+  h+=fila('30–31','Operaciones interiores · bienes de inversión',baseInv,ivaInv);
+  h+=fila('45','Total a deducir',null,ivaSop);
+  h+=`</tbody><tfoot><tr><td>46 / 71</td><td><b>Resultado</b></td><td></td>
+    <td style="text-align:right;white-space:nowrap"><b style="color:${res>=0?'#b4232a':'#15803d'};font-size:.95rem">${gxEur(res)}</b></td></tr></tfoot></table></div>`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:12px 14px;margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:.85rem">${res>=0?'A ingresar en Hacienda':'A compensar / devolver'}</span>
+    <b style="font-size:1.1rem">${gxEur(Math.abs(res))}</b></div>`;
+  h+=ctAviso('Plazo de presentación: <b>del 1 al 20</b> del mes siguiente al fin del trimestre (el 4T, hasta el 30 de enero). Solo se cuentan los gastos marcados como <b>IVA deducible</b>.');
+  return h;
+}
+
+/* ── Modelo 130 (IRPF, pago fraccionado) ── */
+function ct130(){
+  const hastaTri=(x)=>x.anio===ctYear && x.tri>0 && x.tri<=ctTri;
+  const em=ctEmitidas().filter(hastaTri);
+  const re=ctRecibidas().filter(hastaTri);
+  const ing=em.reduce((t,f)=>t+f.base,0);
+  const gas=re.filter(g=>!g.inversion).reduce((t,g)=>t+g.base,0);
+  const amort=ctRecibidas().filter(g=>g.inversion && g.anio<=ctYear)
+    .reduce((t,g)=>t+(g.base/5)*(ctTri/4),0);
+  const gastoTot=Math.round((gas+amort)*100)/100;
+  const rend=Math.round((ing-gastoTot)*100)/100;
+  const pago=Math.round(rend*CT_PCT_130)/100;
+
+  // Lo ya pagado en trimestres anteriores del mismo año (mismo cálculo acumulado)
+  let previo=0;
+  for(let t=1;t<ctTri;t++){
+    const iT=ctEmitidas().filter(x=>x.anio===ctYear&&x.tri>0&&x.tri<=t).reduce((s,f)=>s+f.base,0);
+    const gT=ctRecibidas().filter(x=>x.anio===ctYear&&x.tri>0&&x.tri<=t&&!x.inversion).reduce((s,g)=>s+g.base,0);
+    const aT=ctRecibidas().filter(x=>x.inversion&&x.anio<=ctYear).reduce((s,g)=>s+(g.base/5)*(t/4),0);
+    previo+=Math.max(0, Math.round((iT-gT-aT)*CT_PCT_130)/100);
+  }
+  previo=Math.round(previo*100)/100;
+  const aIngresar=Math.round(Math.max(0,pago-previo)*100)/100;
+
+  let h=`<h3 style="font-size:.86rem;font-weight:800;color:var(--navy);margin:0 2px 10px">Modelo 130 · IRPF ${ctTri}T ${ctYear} <span style="font-weight:600;color:var(--ink-soft);font-size:.74rem">(acumulado del año)</span></h3>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr><th>Casilla</th><th>Concepto</th><th style="text-align:right">Importe</th></tr></thead><tbody>`;
+  const f=(c,txt,v,col)=>`<tr><td style="color:var(--ink-soft)">${c}</td><td>${txt}</td>
+    <td style="text-align:right;white-space:nowrap${col?';color:'+col:''}">${gxEur(v)}</td></tr>`;
+  h+=f('01','Ingresos computables (bases facturadas)',ing,'#15803d');
+  h+=f('02','Gastos deducibles',gastoTot,'#b4232a');
+  h+=`<tr><td style="color:var(--ink-soft)">—</td><td style="padding-left:22px;color:var(--ink-soft);font-size:.74rem">de los cuales, amortizaciones</td>
+    <td style="text-align:right;white-space:nowrap;color:var(--ink-soft)">${gxEur(amort)}</td></tr>`;
+  h+=f('03','Rendimiento neto',rend);
+  h+=f('04',`${CT_PCT_130}% del rendimiento`,pago);
+  h+=f('05','Pagos fraccionados de trimestres anteriores',previo);
+  h+=`</tbody><tfoot><tr><td>19</td><td><b>A ingresar</b></td>
+    <td style="text-align:right;white-space:nowrap"><b style="color:#b4232a;font-size:.95rem">${gxEur(aIngresar)}</b></td></tr></tfoot></table></div>`;
+  h+=ctAviso('Cálculo orientativo en <b>estimación directa simplificada</b>, sin retenciones ni el 5% de gastos de difícil justificación. Si el rendimiento es negativo, el 130 se presenta a cero. Plazo: del 1 al 20 del mes siguiente al trimestre (4T, hasta el 30 de enero).');
+  return h;
+}
+
+/* ── Resumen anual: 390 y 347 ── */
+function ctAnual(){
+  const em=ctEmitidas().filter(f=>f.anio===ctYear);
+  const re=ctRecibidas().filter(g=>g.anio===ctYear);
+  let h=`<h3 style="font-size:.86rem;font-weight:800;color:var(--navy);margin:0 2px 8px">Modelo 390 · resumen anual de IVA ${ctYear}</h3>`;
+  h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr>
+    <th>Trim.</th><th style="text-align:right">Devengado</th><th style="text-align:right">Deducible</th><th style="text-align:right">Resultado</th></tr></thead><tbody>`;
+  let tD=0,tS=0;
+  [1,2,3,4].forEach(t=>{
+    const d=em.filter(f=>f.tri===t).reduce((s,f)=>s+f.cuota,0);
+    const s=re.filter(g=>g.tri===t&&g.deducible).reduce((a,g)=>a+g.cuota,0);
+    tD+=d; tS+=s;
+    const r=Math.round((d-s)*100)/100;
+    h+=`<tr><td><b>${t}T</b></td>
+      <td style="text-align:right;white-space:nowrap;color:#15803d">${gxEur(d)}</td>
+      <td style="text-align:right;white-space:nowrap;color:#b4232a">${gxEur(s)}</td>
+      <td style="text-align:right;white-space:nowrap"><b>${gxEur(r)}</b></td></tr>`;
+  });
+  const tR=Math.round((tD-tS)*100)/100;
+  h+=`</tbody><tfoot><tr><td><b>AÑO</b></td>
+    <td style="text-align:right"><b>${gxEur(tD)}</b></td>
+    <td style="text-align:right"><b>${gxEur(tS)}</b></td>
+    <td style="text-align:right"><b>${gxEur(tR)}</b></td></tr></tfoot></table></div>`;
+  h+=ctAviso('El 390 se presenta <b>en enero</b>, junto con el 4T. Es informativo: resume los cuatro 303 del año.');
+
+  // 347
+  h+=`<h3 style="font-size:.86rem;font-weight:800;color:var(--navy);margin:20px 2px 8px">Modelo 347 · operaciones con terceros ${ctYear}</h3>`;
+  const cli={}, prov={};
+  em.forEach(f=>{ const k=f.cliente||'—'; cli[k]=cli[k]||{nif:f.nif,total:0}; cli[k].total+=f.total; if(!cli[k].nif&&f.nif) cli[k].nif=f.nif; });
+  re.forEach(g=>{ const k=g.proveedor||'—'; prov[k]=prov[k]||{nif:g.nif,total:0}; prov[k].total+=g.total; if(!prov[k].nif&&g.nif) prov[k].nif=g.nif; });
+  const supera=(o)=>Object.entries(o).filter(([,v])=>v.total>CT_UMBRAL_347).sort((a,b)=>b[1].total-a[1].total);
+  const cl=supera(cli), pr=supera(prov);
+  if(!cl.length && !pr.length){
+    h+=`<p class="sa-empty">Nadie supera los ${CT_UMBRAL_347.toFixed(2)} € este año. <b>No hay que presentar el 347.</b></p>`;
+  }else{
+    h+=`<div class="gx-tabla-wrap"><table class="gx-tabla"><thead><tr>
+      <th>Clave</th><th>Nombre</th><th>NIF</th><th style="text-align:right">Importe año</th></tr></thead><tbody>`;
+    cl.forEach(([n,v])=>{ h+=`<tr><td><span class="gx-cat">B · cliente</span></td><td>${escHtml(n)}</td><td>${escHtml(v.nif||'—')}</td>
+      <td style="text-align:right;white-space:nowrap"><b>${gxEur(v.total)}</b></td></tr>`; });
+    pr.forEach(([n,v])=>{ h+=`<tr><td><span class="gx-cat">A · proveedor</span></td><td>${escHtml(n)}</td><td>${escHtml(v.nif||'—')}</td>
+      <td style="text-align:right;white-space:nowrap"><b>${gxEur(v.total)}</b></td></tr>`; });
+    h+=`</tbody></table></div>`;
+  }
+  h+=ctAviso(`Se declara a quien supere <b>${CT_UMBRAL_347.toFixed(2)} €</b> (IVA incluido) en el año natural. Se presenta <b>en febrero</b> del año siguiente. Necesitas el NIF de cada uno: rellénalo en los datos fiscales del cliente y en la ficha del proveedor.`);
+  return h;
+}
+
+/* ── Exportar CSV de los libros ── */
+function ctCSV(cual){
+  const esc=(s)=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  let csv='', nom='';
+  if(cual==='emitidas'){
+    const list=ctEmitidas().filter(f=>f.anio===ctYear && f.tri===ctTri);
+    csv='Fecha;Numero;Cliente;NIF;Base;IVA_pct;Cuota;Total\n';
+    list.forEach(f=>{ csv+=[f.fecha,f.numero,f.cliente,f.nif,f.base.toFixed(2),f.iva_pct,f.cuota.toFixed(2),f.total.toFixed(2)].map(esc).join(';')+'\n'; });
+    const tB=list.reduce((t,f)=>t+f.base,0), tC=list.reduce((t,f)=>t+f.cuota,0), tT=list.reduce((t,f)=>t+f.total,0);
+    csv+=['','','TOTAL','',tB.toFixed(2),'',tC.toFixed(2),tT.toFixed(2)].map(esc).join(';')+'\n';
+    nom=`aptuvia_libro_expedidas_${ctYear}_${ctTri}T.csv`;
+  }else{
+    const list=ctRecibidas().filter(g=>g.anio===ctYear && g.tri===ctTri && !g.inversion);
+    csv='Fecha;Numero;Proveedor;NIF;Concepto;Base;IVA_pct;Cuota;Total;Deducible\n';
+    list.forEach(g=>{ csv+=[g.fecha,g.numero,g.proveedor,g.nif,g.concepto,g.base.toFixed(2),g.iva_pct,g.cuota.toFixed(2),g.total.toFixed(2),g.deducible?'Si':'No'].map(esc).join(';')+'\n'; });
+    const tB=list.reduce((t,g)=>t+g.base,0), tC=list.filter(g=>g.deducible).reduce((t,g)=>t+g.cuota,0), tT=list.reduce((t,g)=>t+g.total,0);
+    csv+=['','','TOTAL','','',tB.toFixed(2),'',tC.toFixed(2),tT.toFixed(2),''].map(esc).join(';')+'\n';
+    nom=`aptuvia_libro_recibidas_${ctYear}_${ctTri}T.csv`;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=nom; a.click();
 }
 
 /* ═══════════════ GASTOS Y BALANCE ═══════════════ */
@@ -3489,6 +3840,7 @@ function gxDuplicar(id){
     importe:o.importe,
     categoria:o.categoria||'Otros',
     deducible:o.deducible,
+    inversion:o.inversion===true,
     vencimiento:null,
     pagada:false
   };
@@ -3519,6 +3871,7 @@ function gxForm(){
         .map(c=>`<option value="${escAttr(c)}"${(g.categoria||'Otros')===c?' selected':''}>${escHtml(c)}</option>`).join('')}
     </select>
     <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="gf-ded" ${g.deducible===false?'':'checked'}> IVA deducible</label>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="gf-inv" ${g.inversion===true?'checked':''}> Bien de inversión (dura +1 año, va al libro de inversión)</label>
     <label>Vencimiento (opcional)</label><input type="date" id="gf-venc" value="${g.vencimiento||''}">
     <label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="gf-pag" ${g.pagada?'checked':''}> Pagada</label>
     <label>Factura en PDF (opcional)</label><input type="file" id="gf-pdf" accept="application/pdf" onchange="gxAutoPDF(this)">
@@ -3528,6 +3881,7 @@ function gxForm(){
   <button class="btn btn-primary" onclick="gxGuardar()" style="margin-top:14px">Guardar</button>`;
   $('teacher').innerHTML=saShell(h);
 }
+
 function gxCalcTotal(){
   const b=parseFloat(($('gf-base')||{}).value)||0;
   const p=parseFloat(($('gf-ivap')||{}).value)||0;
@@ -3659,6 +4013,7 @@ async function gxGuardar(){
     iva_pct: val('gf-ivap')!=='' ? Number(val('gf-ivap')) : null,
     categoria: val('gf-cat')||'Otros',
     deducible: !!($('gf-ded')&&$('gf-ded').checked),
+    inversion: !!($('gf-inv')&&$('gf-inv').checked),
     vencimiento: val('gf-venc')||null,
     pagada: !!($('gf-pag')&&$('gf-pag').checked)
   };
