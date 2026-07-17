@@ -238,7 +238,7 @@ input:focus{outline:none;border-color:var(--honey);}
 .btn-primary{background:linear-gradient(135deg,var(--honey-2),var(--honey));color:#fff;margin-top:20px;}
 .btn-primary:hover{filter:brightness(1.04);} .btn-primary:disabled{filter:grayscale(.3);cursor:default;}
 .btn-ghost{background:transparent;color:var(--ink-soft);border:1.5px solid var(--line);}
-.fact-menu{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:14px;padding:16px 18px;margin-bottom:12px;cursor:pointer;font-family:inherit;}
+.fact-menu{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:#eef8fe;border:1.5px solid var(--honey);border-radius:14px;padding:16px 18px;margin-bottom:12px;cursor:pointer;font-family:inherit;}
 .fact-menu b{font-size:1rem;color:var(--navy);}
 .fact-menu span{font-size:.78rem;color:var(--ink-soft);}
 .btn-download{background:var(--navy);color:#fff;} .btn-download:hover{background:var(--navy-2);} .btn-download:disabled{filter:grayscale(.3);cursor:default;}
@@ -2439,7 +2439,7 @@ async function saToggleProf(profId){
 }
 function saSetTab(t){ saTab=t; saDetalle(); }
 function saSetMain(t){
-  if(t==='fact') window._factSub=null;
+  if(t==='fact'){ window._factSub=null; pxEdit=null; }
   if(t==='rs') window._rsSub=null;
   saMainTab=t; saSelAcad=null; guardarPanel();
   // Si ya tenemos los datos cargados, pintar directo (no re-consultar: evitaba
@@ -2491,7 +2491,7 @@ function saShell(inner){
   return `<div class="t-toggle" style="margin:8px 0 16px;display:flex;gap:5px;flex-wrap:nowrap">
       <button style="${st('ev')}" onclick="saSetMain('ev')">Aptuvia</button>
       <button style="${st('aa')}" onclick="saSetMain('aa')">Aula Abierta</button>
-      <button style="${st('fact')}" onclick="saSetMain('fact')">Facturación</button>
+      <button style="${st('fact')}" onclick="saSetMain('fact')">Gestión</button>
       <button onclick="saSetMain('rs')" title="Redes sociales" aria-label="Redes sociales" style="${st('rs')};flex:0 0 auto;width:40px;padding:9px 0;display:flex;align-items:center;justify-content:center">${ico}</button>
     </div>
     ${inner}`;
@@ -3153,7 +3153,7 @@ function rsRender(){
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Todo lo de captación, desde aquí. Sin salir de Aptuvia.</p>`;
   h+=`<div class="sa-cards-grid">`;
   RS_REDES.forEach(r=>{
-    h+=`<button class="fact-menu" onclick="rsSub('${r.id}')" style="background:#eef8fe;border-color:var(--honey)"><b>${r.emoji} ${escHtml(r.nombre)}</b><span>${escHtml(r.desc)}</span></button>`;
+    h+=`<button class="fact-menu" onclick="rsSub('${r.id}')"><b>${r.emoji} ${escHtml(r.nombre)}</b><span>${escHtml(r.desc)}</span></button>`;
   });
   h+=`</div>`;
   $('teacher').innerHTML=saShell(h);
@@ -3163,23 +3163,25 @@ function saRenderFacturacionLista(){
   // Menú principal de Facturación.
   const sub=window._factSub||null;
   if(!sub){
-    let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 14px">Facturación</h2>`;
+    let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 14px">Gestión</h2>`;
     h+=`<div class="sa-cards-grid">`;
-    h+=`<button class="fact-menu" onclick="saFactSub('conta')" style="background:#eef8fe"><b>🧾 Contabilidad</b><span>Libros, IVA (303), IRPF (130) y resúmenes anuales (390, 347)</span></button>`;
+    h+=`<button class="fact-menu" onclick="saFactSub('presu')"><b>📝 Presupuestos</b><span>Preparar, enviar y aceptar presupuestos. El aceptado y firmado es el contrato</span></button>`;
+    h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
+    h+=`<button class="fact-menu" onclick="saFactSub('aa')"><b>Facturar Aula Abierta</b><span>Emitir factura a los clientes de Aula Abierta</span></button>`;
+    h+=`<button class="fact-menu" onclick="saFactSub('conta')"><b>🧾 Contabilidad</b><span>Libros, IVA (303), IRPF (130) y resúmenes anuales (390, 347)</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('gastos')"><b>Gastos y balance</b><span>Facturas de proveedores, gastos previstos y evolución del negocio</span></button>`;
-    h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Academias</b><span>Facturar a las academias de Aptuvia</span></button>`;
-    h+=`<button class="fact-menu" onclick="saFactSub('aa')"><b>Aula Abierta</b><span>Facturar a los clientes de Aula Abierta</span></button>`;
     h+=`</div>`;
     $('teacher').innerHTML=saShell(h);
     return;
   }
+  if(sub==='presu'){ pxRender(); return; }
   if(sub==='conta'){ ctRender(); return; }
   if(sub==='emitidas'){ saRenderFacturasEmitidas(); return; }
   if(sub==='gastos'){ gxRender(); return; }
   if(sub==='academias'){
-    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Facturación</button>
-      <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🏫 Academias</h2>`;
+    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
+      <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🏫 Facturar Aptuvia</h2>`;
     const acs = (saAcademias||[]).slice().sort((x,y)=>((y.activa!==false)-(x.activa!==false)) || x.academia_id-y.academia_id);
     if(!acs.length) h+=`<p class="sa-empty">No hay academias.</p>`;
     acs.forEach(a=>{
@@ -3195,13 +3197,469 @@ function saRenderFacturacionLista(){
     return;
   }
   if(sub==='aa'){
-    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Facturación</button>
+    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
       <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🎨 Aula Abierta · clientes</h2>
       <div id="fact-aa-lista"><p class="sa-empty" style="font-size:.82rem">Cargando…</p></div>`;
     $('teacher').innerHTML=saShell(h);
     saCargarClientesAA();
     return;
   }
+}
+
+/* ═══════════════ PRESUPUESTOS ═══════════════ */
+/* Un presupuesto no tiene requisitos fiscales como la factura: no se registra en
+   ningún libro ni se declara. Lo que le da valor jurídico es la ACEPTACIÓN del
+   cliente: un presupuesto aceptado y firmado es un contrato (art. 1258 CC).
+   Por eso lleva: emisor con NIF, cliente identificado, nº, fecha, validez,
+   desglose, condiciones y hueco de firma. */
+
+let pxLista=[], pxEdit=null;
+
+const PX_ESTADOS={
+  borrador:{lab:'Borrador', col:'#6e6e78', bg:'#f1f1f4'},
+  enviado:{lab:'Enviado', col:'#2563a8', bg:'#dbeafe'},
+  aceptado:{lab:'Aceptado', col:'#15803d', bg:'#dcfce7'},
+  rechazado:{lab:'Rechazado', col:'#b4232a', bg:'#fdeaea'},
+  caducado:{lab:'Caducado', col:'#92600a', bg:'#fdf0d5'}
+};
+
+function pxEstadoReal(p){
+  if(p.estado==='aceptado'||p.estado==='rechazado') return p.estado;
+  const cad=pxCaducidad(p);
+  if(cad && cad < new Date().toISOString().slice(0,10)) return 'caducado';
+  return p.estado||'borrador';
+}
+function pxCaducidad(p){
+  if(!p.fecha) return '';
+  const d=new Date(p.fecha); d.setDate(d.getDate()+(Number(p.validez_dias)||30));
+  return d.toISOString().slice(0,10);
+}
+
+function pxNuevoNumero(){
+  const y=new Date().getFullYear();
+  const n=pxLista.filter(p=>String(p.numero||'').startsWith('P-'+y+'-'))
+    .map(p=>parseInt(String(p.numero).split('-')[2],10)||0);
+  const sig=(n.length?Math.max(...n):0)+1;
+  return 'P-'+y+'-'+String(sig).padStart(4,'0');
+}
+
+async function pxRender(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  try{ pxLista=await call('/rest/v1/presupuestos?select=*&order=fecha.desc,creado_en.desc')||[]; }
+  catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
+      <div class="center-msg">No se pudieron cargar los presupuestos.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de presupuestos?</small></div>`);
+    return;
+  }
+  try{ pxPintar(); }
+  catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
+      <div class="center-msg">Error al pintar la pantalla.<br><small>${escHtml(e.message||String(e))}</small></div>`);
+  }
+}
+
+function pxPintar(){
+  if(pxEdit){ pxForm(); return; }
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Presupuestos</h2>
+    <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">El presupuesto aceptado y firmado por el cliente <b>es el contrato</b>. Sin él, ante un impago no hay nada que reclamar.</p>`;
+
+  h+=`<button class="btn btn-honey" onclick="pxNuevo()" style="margin-bottom:14px">+ Nuevo presupuesto</button>`;
+
+  if(!pxLista.length) return void($('teacher').innerHTML=saShell(h+`<p class="sa-empty">Todavía no hay presupuestos.</p>`));
+
+  const acep=pxLista.filter(p=>pxEstadoReal(p)==='aceptado');
+  const pend=pxLista.filter(p=>['borrador','enviado'].includes(pxEstadoReal(p)));
+  h+=`<div class="gx-kpis"><div class="gx-kpi"><span>Total</span><b>${pxLista.length}</b></div>
+    <div class="gx-kpi"><span>Pendientes</span><b>${pend.length}</b></div>
+    <div class="gx-kpi"><span>Aceptados</span><b style="color:#15803d">${gxEur(acep.reduce((t,p)=>t+Number(p.total||0),0))}</b></div></div>`;
+
+  pxLista.forEach(p=>{
+    const est=pxEstadoReal(p), e=PX_ESTADOS[est]||PX_ESTADOS.borrador;
+    const cli=(p.cliente&&p.cliente.razon_social)||'—';
+    h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b>
+          <span style="font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;color:${e.col};background:${e.bg}">${e.lab}</span><br>
+          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span></div>
+        <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
+        <button onclick="pxPDF('${p.id}')" class="gx-mini">📄 PDF</button>
+        <button onclick="pxAbrir('${p.id}')" class="gx-mini">✏️ Editar</button>
+        <button onclick="pxEnviar('${p.id}')" class="gx-mini">✉️ Enviar</button>
+        <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="padding:3px 5px">
+          ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
+        </select>
+        ${est==='aceptado'?`<button onclick="pxAFactura('${p.id}')" class="gx-mini ok">→ Facturar</button>`:''}
+        <button onclick="pxBorrar('${p.id}')" class="gx-mini del" style="margin-left:auto">🗑</button>
+      </div>
+    </div>`;
+  });
+  $('teacher').innerHTML=saShell(h);
+}
+
+function pxNuevo(){
+  pxEdit={
+    numero:pxNuevoNumero(),
+    fecha:new Date().toISOString().slice(0,10),
+    validez_dias:30,
+    cliente:{},
+    lineas:{rec:[],uni:[]},
+    descuento_pct:0, iva_pct:21,
+    notas:'Forma de pago: transferencia a 15 días desde la fecha de factura.\nPlazo de puesta en marcha: 7 días laborables desde la aceptación.\nLa cuota mensual se factura por profesor dado de alta.',
+    estado:'borrador'
+  };
+  pxPintar();
+}
+
+async function pxAbrir(id){
+  const p=pxLista.find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  pxEdit=JSON.parse(JSON.stringify(p));
+  pxEdit.lineas=pxEdit.lineas||{rec:[],uni:[]};
+  pxEdit.cliente=pxEdit.cliente||{};
+  pxPintar();
+}
+
+function pxLineHtml(tipo,i,l){
+  return `<div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
+    <button onclick="pxDelLinea('${tipo}',${i})" title="Quitar" style="background:#fdeaea;border:1px solid #f3c4c4;border-radius:7px;padding:3px 6px;font-size:.75rem;line-height:1;cursor:pointer">🗑</button>
+    <input data-pl="${tipo}-${i}-nombre" value="${escAttr(l.nombre||'')}" style="font-size:.82rem;padding:6px 8px;border:1px solid var(--line);border-radius:8px;min-width:0">
+    <input data-pl="${tipo}-${i}-precio" type="number" step="0.01" value="${l.precio||0}" style="width:60px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:right" oninput="pxRecalc()">
+    <input data-pl="${tipo}-${i}-cant" type="number" step="1" value="${l.cant||1}" style="width:46px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:center" oninput="pxRecalc()">
+  </div>`;
+}
+
+function pxForm(){
+  const p=pxEdit; const c=p.cliente||{};
+  let h=`<button class="backbtn" onclick="pxCancelar()" style="margin-bottom:10px">← Presupuestos</button>
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">${p.id?'Editar':'Nuevo'} presupuesto · ${escHtml(p.numero)}</h2>`;
+
+  h+=`<div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="flex:1"><label style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-soft)">Fecha</label>
+      <input data-px="fecha" type="date" value="${escAttr(p.fecha)}" style="width:100%;padding:8px;border:1.5px solid var(--line);border-radius:9px;font-size:.85rem;box-sizing:border-box;font-family:inherit"></div>
+    <div style="flex:1"><label style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-soft)">Validez (días)</label>
+      <input data-px="validez_dias" type="number" step="1" value="${p.validez_dias||30}" style="width:100%;padding:8px;border:1.5px solid var(--line);border-radius:9px;font-size:.85rem;box-sizing:border-box;font-family:inherit"></div>
+  </div>`;
+
+  h+=`<details open style="margin:10px 0;border:1.5px solid var(--honey);border-radius:12px;padding:10px 12px;background:var(--honey-tint)">
+    <summary style="font-weight:700;color:var(--navy);cursor:pointer">🏫 Datos del cliente</summary>
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+      ${['razon_social:Razón social *','nif:NIF / CIF *','direccion:Dirección','cp:C.P.','poblacion:Población','provincia:Provincia','email:Email','telefono:Teléfono','contacto:Persona de contacto'].map(par=>{
+        const [k,lab]=par.split(':');
+        return `<input data-pc="${k}" placeholder="${lab}" value="${escAttr(c[k]||'')}" style="font-size:.85rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px">`;
+      }).join('')}
+      ${(saAcademias&&saAcademias.length)?`<select onchange="pxCargarAcademia(this.value)" style="font-size:.82rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff">
+        <option value="">— O copiar los datos de una academia ya dada de alta —</option>
+        ${saAcademias.map(a=>`<option value="${a.academia_id}">${escHtml(a.nombre)}</option>`).join('')}
+      </select>`:''}
+    </div>
+  </details>`;
+
+  h+=`<h3 style="font-size:.82rem;font-weight:800;letter-spacing:.5px;color:var(--navy);margin:16px 2px 8px">Cuota mensual</h3>
+    <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;font-size:.68rem;color:var(--ink-soft);padding:0 2px"><span>Concepto</span><span>Precio</span><span>Cant.</span><span></span></div>`;
+  (p.lineas.rec||[]).forEach((l,i)=> h+=pxLineHtml('rec',i,l));
+  h+=`<details style="margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
+    <summary style="font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer">Añadir partida mensual</summary>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${TARIFAS_REC.map(t=>`<button onclick="pxAddPreset('rec','${t.k}')" style="font-size:.72rem;padding:5px 9px;border:1px dashed var(--navy);border-radius:16px;background:#fff;color:var(--navy);cursor:pointer;font-family:inherit">+ ${escHtml(t.nombre)} (${t.precio}€)</button>`).join('')}<button onclick="pxAddLibre('rec')" style="font-size:.72rem;padding:5px 9px;border:1px dashed var(--honey);border-radius:16px;background:var(--honey-tint);color:var(--navy);cursor:pointer;font-weight:700;font-family:inherit">✏️ Línea libre</button></div>
+  </details>`;
+
+  h+=`<h3 style="font-size:.82rem;font-weight:800;letter-spacing:.5px;color:var(--navy);margin:18px 2px 8px">Pago único</h3>
+    <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;font-size:.68rem;color:var(--ink-soft);padding:0 2px"><span>Concepto</span><span>Precio</span><span>Cant.</span><span></span></div>`;
+  (p.lineas.uni||[]).forEach((l,i)=> h+=pxLineHtml('uni',i,l));
+  h+=`<details style="margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
+    <summary style="font-size:.8rem;font-weight:700;color:var(--navy);cursor:pointer">Añadir pago único</summary>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${TARIFAS_UNI.map(t=>`<button onclick="pxAddPreset('uni','${t.k}')" style="font-size:.72rem;padding:5px 9px;border:1px dashed var(--navy);border-radius:16px;background:#fff;color:var(--navy);cursor:pointer;font-family:inherit">+ ${escHtml(t.nombre)} (${t.precio}€)</button>`).join('')}<button onclick="pxAddLibre('uni')" style="font-size:.72rem;padding:5px 9px;border:1px dashed var(--honey);border-radius:16px;background:var(--honey-tint);color:var(--navy);cursor:pointer;font-weight:700;font-family:inherit">✏️ Línea libre</button></div>
+  </details>`;
+
+  h+=`<div style="margin-top:18px;padding-top:12px;border-top:2px solid var(--line)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="font-size:.85rem">Descuento %</span>
+      <input data-px="descuento_pct" type="number" step="0.01" value="${p.descuento_pct||0}" style="width:70px;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:right" oninput="pxRecalc()">
+      <span style="font-size:.85rem;margin-left:auto">IVA %</span>
+      <input data-px="iva_pct" type="number" step="0.01" value="${p.iva_pct!=null?p.iva_pct:21}" style="width:70px;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:right" oninput="pxRecalc()">
+    </div>
+    <div id="px-totales" style="font-size:.9rem;line-height:1.9"></div>
+  </div>`;
+
+  h+=`<label style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-soft);display:block;margin:14px 2px 4px">Condiciones (salen en el PDF)</label>
+    <textarea data-px="notas" rows="4" style="width:100%;font-size:.84rem;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;resize:vertical;box-sizing:border-box">${escHtml(p.notas||'')}</textarea>`;
+
+  h+=`<button class="btn btn-primary" onclick="pxGuardar()" style="margin-top:14px">Guardar presupuesto</button>`;
+  h+=`<button onclick="pxGuardarYPDF()" style="margin-top:10px;width:100%;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;font-size:.9rem">📄 Guardar y descargar PDF</button>`;
+
+  $('teacher').innerHTML=saShell(h);
+  pxRecalc();
+}
+
+function pxCancelar(){ pxEdit=null; pxPintar(); }
+
+function pxCargarAcademia(id){
+  if(!id) return;
+  pxLeerDOM();
+  call('/rest/v1/datos_facturacion?academia_id=eq.'+id).then(d=>{
+    const a=(saAcademias||[]).find(x=>String(x.academia_id)===String(id));
+    const src=(d&&d[0])||{};
+    pxEdit.cliente={
+      razon_social:src.razon_social||(a?a.nombre:''), nif:src.nif||'', direccion:src.direccion||'',
+      cp:src.cp||'', poblacion:src.poblacion||'', provincia:src.provincia||'',
+      email:src.email||'', telefono:src.telefono||'', contacto:pxEdit.cliente.contacto||''
+    };
+    pxForm();
+  }).catch(()=>{});
+}
+
+function pxLeerDOM(){
+  const p=pxEdit; if(!p) return;
+  ['rec','uni'].forEach(t=>{
+    (p.lineas[t]||[]).forEach((l,i)=>{
+      const n=document.querySelector(`[data-pl="${t}-${i}-nombre"]`);
+      const pr=document.querySelector(`[data-pl="${t}-${i}-precio"]`);
+      const c=document.querySelector(`[data-pl="${t}-${i}-cant"]`);
+      if(n) l.nombre=n.value;
+      if(pr) l.precio=parseFloat(pr.value)||0;
+      if(c) l.cant=parseFloat(c.value)||0;
+    });
+  });
+  document.querySelectorAll('[data-px]').forEach(e=>{
+    const k=e.dataset.px;
+    p[k]=(k==='validez_dias'||k==='descuento_pct'||k==='iva_pct')?(parseFloat(e.value)||0):e.value;
+  });
+  p.cliente=p.cliente||{};
+  document.querySelectorAll('[data-pc]').forEach(e=>{ p.cliente[e.dataset.pc]=e.value.trim(); });
+}
+
+function pxCalc(){
+  const p=pxEdit;
+  const sum=arr=>(arr||[]).reduce((t,l)=>t+((Number(l.precio)||0)*(Number(l.cant)||0)),0);
+  const subtotal=sum(p.lineas.rec)+sum(p.lineas.uni);
+  const desc=subtotal*((Number(p.descuento_pct)||0)/100);
+  const base=subtotal-desc;
+  const iva=base*((Number(p.iva_pct)||0)/100);
+  return {subtotal,desc,base,iva,total:base+iva};
+}
+
+function pxRecalc(){
+  pxLeerDOM();
+  const t=pxCalc(), p=pxEdit;
+  const box=$('px-totales'); if(!box) return;
+  let h=`<div style="display:flex;justify-content:space-between"><span>Subtotal</span><b>${t.subtotal.toFixed(2)} €</b></div>`;
+  if((p.descuento_pct||0)>0) h+=`<div style="display:flex;justify-content:space-between;color:#b4232a"><span>Descuento (${p.descuento_pct}%)</span><b>-${t.desc.toFixed(2)} €</b></div>`;
+  h+=`<div style="display:flex;justify-content:space-between"><span>IVA (${p.iva_pct||0}%)</span><b>${t.iva.toFixed(2)} €</b></div>`;
+  h+=`<div style="display:flex;justify-content:space-between;font-size:1.05rem;border-top:1px solid var(--line);margin-top:4px;padding-top:4px"><span><b>TOTAL</b></span><b style="color:var(--navy)">${t.total.toFixed(2)} €</b></div>`;
+  box.innerHTML=h;
+}
+
+function pxAddPreset(tipo,k){
+  pxLeerDOM();
+  const src=(tipo==='rec'?TARIFAS_REC:TARIFAS_UNI).find(t=>t.k===k);
+  if(!src) return;
+  pxEdit.lineas[tipo]=pxEdit.lineas[tipo]||[];
+  pxEdit.lineas[tipo].push({nombre:src.nombre,precio:src.precio,cant:1});
+  pxForm();
+}
+function pxAddLibre(tipo){
+  pxLeerDOM();
+  pxEdit.lineas[tipo]=pxEdit.lineas[tipo]||[];
+  pxEdit.lineas[tipo].push({nombre:'',precio:0,cant:1});
+  pxForm();
+}
+function pxDelLinea(tipo,i){
+  pxLeerDOM();
+  pxEdit.lineas[tipo].splice(i,1);
+  pxForm();
+}
+
+async function pxGuardar(silencio){
+  pxLeerDOM();
+  const p=pxEdit, t=pxCalc();
+  if(!p.cliente.razon_social || !p.cliente.nif){ appAlert('La razón social y el NIF del cliente son obligatorios: sin ellos el presupuesto no identifica a quién obliga.'); return null; }
+  if(!(p.lineas.rec||[]).length && !(p.lineas.uni||[]).length){ appAlert('Añade al menos una línea al presupuesto.'); return null; }
+  const body={
+    numero:p.numero, fecha:p.fecha||new Date().toISOString().slice(0,10),
+    validez_dias:Number(p.validez_dias)||30,
+    cliente:p.cliente, lineas:p.lineas,
+    subtotal:+t.subtotal.toFixed(2), descuento_pct:Number(p.descuento_pct)||0,
+    iva_pct:Number(p.iva_pct)||0, total:+t.total.toFixed(2),
+    notas:p.notas||'', estado:p.estado||'borrador'
+  };
+  try{
+    if(p.id){ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body}); }
+    else{ await call('/rest/v1/presupuestos',{method:'POST',body}); }
+    if(!silencio){ pxEdit=null; await pxRender(); }
+    return true;
+  }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); return null; }
+}
+
+async function pxGuardarYPDF(){
+  const ok=await pxGuardar(true);
+  if(!ok) return;
+  pxRenderPDF(JSON.parse(JSON.stringify(pxEdit)));
+  pxEdit=null;
+  await pxRender();
+}
+
+async function pxSetEstado(id,v){
+  try{
+    await call('/rest/v1/presupuestos?id=eq.'+id,{method:'PATCH',body:{estado:v}});
+    const p=pxLista.find(x=>String(x.id)===String(id)); if(p) p.estado=v;
+    pxPintar();
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+
+async function pxBorrar(id){
+  if(!await appConfirm('¿Borrar este presupuesto? No se puede deshacer.')) return;
+  try{
+    await call('/rest/v1/presupuestos?id=eq.'+id,{method:'DELETE'});
+    pxLista=pxLista.filter(x=>String(x.id)!==String(id));
+    pxPintar();
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+
+function pxPDF(id){
+  const p=pxLista.find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  pxRenderPDF(p);
+}
+
+/* PDF del presupuesto: emisor con NIF, cliente, nº, fecha, validez, desglose,
+   condiciones y hueco de aceptación firmada. */
+function pxRenderPDF(p){
+  if(!window.jspdf){ appAlert('No se pudo cargar el generador de PDF.'); return; }
+  const c=p.cliente||{}, lin=p.lineas||{};
+  const rec=lin.rec||[], uni=lin.uni||[];
+  const sum=a=>a.reduce((t,l)=>t+((Number(l.precio)||0)*(Number(l.cant)||0)),0);
+  const subtotal=sum(rec)+sum(uni);
+  const desc=subtotal*((Number(p.descuento_pct)||0)/100);
+  const base=subtotal-desc;
+  const iva=base*((Number(p.iva_pct)||0)/100);
+  const total=base+iva;
+
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const M=16; let y=20;
+  const NAVY=[46,49,99], INK=[30,26,16], SOFT=[110,110,120];
+
+  pdfLogo(doc, M, y-6, 42);
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...INK);
+  doc.text('PRESUPUESTO', 210-M, y, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...SOFT);
+  doc.text('Nº '+(p.numero||''), 210-M, y+5, {align:'right'});
+  doc.text('Fecha: '+(p.fecha||''), 210-M, y+10, {align:'right'});
+  doc.text('Válido hasta: '+pxCaducidad(p), 210-M, y+15, {align:'right'});
+  y+=26;
+  doc.setDrawColor(220,220,225); doc.line(M,y,210-M,y); y+=8;
+
+  // Emisor y cliente
+  const yIni=y;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...SOFT); doc.text('DE', M, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...INK);
+  let ye=y+5;
+  ['Bernardo Medina Oranto','NIF: 28604587Q','Calle Castellar 12, Primero A','41003 Sevilla','contacto@aptuvia.es','aptuvia.es'].forEach(l=>{ doc.text(l, M, ye); ye+=4.6; });
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...SOFT); doc.text('PARA', 112, yIni);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...INK);
+  let yc=yIni+5;
+  [c.razon_social||'', c.nif?('NIF: '+c.nif):'', c.direccion||'', [c.cp,c.poblacion,c.provincia].filter(Boolean).join(' '),
+   c.contacto?('At.: '+c.contacto):'', c.email||'', c.telefono||''].filter(Boolean).forEach(l=>{ doc.text(l, 112, yc); yc+=4.6; });
+  y=Math.max(ye,yc)+8;
+
+  // Líneas
+  const drawFila=(c1,c2,c3,c4,bold)=>{
+    doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(9);
+    doc.text(String(c1), M, y);
+    doc.text(String(c2), 128, y, {align:'right'});
+    doc.text(String(c3), 150, y, {align:'right'});
+    doc.text(String(c4), 210-M, y, {align:'right'});
+    y+=6;
+  };
+  doc.setTextColor(...SOFT); drawFila('Concepto','Precio','Cant.','Importe',true);
+  doc.setDrawColor(220,220,225); doc.line(M,y-3,210-M,y-3);
+  doc.setTextColor(...INK);
+  const seccion=(tit,arr)=>{
+    if(!arr.length) return;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...SOFT);
+    doc.text(tit, M, y); y+=5; doc.setTextColor(...INK);
+    arr.forEach(l=>{ if(y>250){doc.addPage(); y=20;} drawFila(l.nombre, (Number(l.precio)||0).toFixed(2)+' €', l.cant, ((Number(l.precio)||0)*(Number(l.cant)||0)).toFixed(2)+' €'); });
+  };
+  seccion('CUOTA MENSUAL', rec);
+  seccion('PAGO ÚNICO', uni);
+
+  y+=2; doc.setDrawColor(220,220,225); doc.line(120,y,210-M,y); y+=6;
+  const totLinea=(lab,val,bold)=>{ doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(bold?11:9); doc.text(lab,150,y,{align:'right'}); doc.text(val,210-M,y,{align:'right'}); y+=bold?7:5; };
+  doc.setTextColor(...INK);
+  totLinea('Subtotal', subtotal.toFixed(2)+' €');
+  if((Number(p.descuento_pct)||0)>0) totLinea('Descuento ('+p.descuento_pct+'%)', '-'+desc.toFixed(2)+' €');
+  totLinea('Base imponible', base.toFixed(2)+' €');
+  totLinea('IVA ('+(p.iva_pct||0)+'%)', iva.toFixed(2)+' €');
+  doc.setTextColor(...NAVY); totLinea('TOTAL', total.toFixed(2)+' €', true);
+
+  // Condiciones
+  y+=6;
+  if(y>235){ doc.addPage(); y=20; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...SOFT); doc.text('CONDICIONES', M, y); y+=5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...INK);
+  const cond=String(p.notas||'').split('\n').filter(Boolean);
+  cond.forEach(l=>{ doc.splitTextToSize(l, 178).forEach(t=>{ if(y>262){doc.addPage(); y=20;} doc.text(t, M, y); y+=4.4; }); });
+  doc.setTextColor(...SOFT); doc.setFontSize(8);
+  [ 'Presupuesto válido hasta el '+pxCaducidad(p)+'. Pasada esa fecha, los precios pueden variar.',
+    'Los precios no incluyen el IVA salvo indicación expresa en el total.',
+    'Aptuvia es una herramienta de apoyo al estudio: no expide títulos ni certificaciones oficiales.'
+  ].forEach(l=>{ doc.splitTextToSize(l,178).forEach(t=>{ if(y>262){doc.addPage(); y=20;} doc.text(t, M, y); y+=4.2; }); });
+
+  // Aceptación
+  y+=6;
+  if(y>240){ doc.addPage(); y=20; }
+  doc.setDrawColor(220,220,225); doc.line(M,y,210-M,y); y+=6;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...INK);
+  doc.text('ACEPTACIÓN DEL PRESUPUESTO', M, y); y+=5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
+  doc.splitTextToSize('La firma de este documento supone la aceptación del presupuesto y de sus condiciones, y da inicio a la prestación del servicio en los términos aquí descritos.',178).forEach(t=>{ doc.text(t,M,y); y+=4.2; });
+  y+=10;
+  doc.setDrawColor(150,150,160);
+  doc.line(M,y,M+70,y); doc.line(120,y,190,y); y+=4;
+  doc.setFontSize(8); doc.setTextColor(...SOFT);
+  doc.text('Firma y sello del cliente', M, y);
+  doc.text('Fecha', 120, y);
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
+  doc.text('contacto@aptuvia.es · aptuvia.es', M, 288);
+  doc.save('Presupuesto_'+(p.numero||'')+'_'+String(c.razon_social||'').replace(/[^a-z0-9]/gi,'_')+'.pdf');
+}
+
+function pxEnviar(id){
+  const p=pxLista.find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  const c=p.cliente||{};
+  if(!c.email){ appAlert('Este presupuesto no tiene email del cliente. Edítalo y añádelo.'); return; }
+  const asunto='Presupuesto Aptuvia · '+(p.numero||'');
+  const cuerpo=
+    'Estimado/a '+(c.contacto||c.razon_social||'')+':\n\n'+
+    'Le enviamos el presupuesto '+(p.numero||'')+' para los servicios de Aptuvia, por un total de '+Number(p.total||0).toFixed(2)+' € (IVA incluido).\n\n'+
+    'El presupuesto es válido hasta el '+pxCaducidad(p)+'. Encontrará el desglose completo y las condiciones en el PDF adjunto.\n\n'+
+    'Si le encaja, basta con devolvernos el documento firmado.\n\n'+
+    'Quedamos a su disposición para cualquier duda.\n\n'+
+    'Un cordial saludo,\nAptuvia\ncontacto@aptuvia.es';
+  window._factMail={ email:c.email, asunto, cuerpo };
+  factMostrarPlantilla();
+}
+
+/* Pasar un presupuesto aceptado a la pantalla de factura */
+function pxAFactura(id){
+  const p=pxLista.find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  const lin=p.lineas||{};
+  window._fact={
+    academiaId:null, profesorId:null,
+    academiaNombre:(p.cliente&&p.cliente.razon_social)||'cliente',
+    datos:p.cliente||{},
+    rec:JSON.parse(JSON.stringify(lin.rec||[])),
+    uni:JSON.parse(JSON.stringify(lin.uni||[])),
+    descuento:Number(p.descuento_pct)||0, iva:Number(p.iva_pct)||21,
+    facturas:[]
+  };
+  saRenderFacturacion();
+  appAlert('Presupuesto '+(p.numero||'')+' cargado en la factura. Revisa las líneas antes de generar el PDF.');
 }
 
 /* ═══════════════ CONTABILIDAD ═══════════════ */
@@ -3278,19 +3736,19 @@ async function ctRender(){
       catch(e){ window._factTodas=[]; }
     }
   }catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
       <div class="center-msg">No se pudieron cargar los datos.<br><small>${escHtml(e.message||'')}</small></div>`);
     return;
   }
   try{ ctPintar(); }
   catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
       <div class="center-msg">Error al pintar la pantalla.<br><small>${escHtml(e.message||String(e))}</small></div>`);
   }
 }
 
 function ctPintar(){
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Facturación</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🧾 Contabilidad</h2>
     <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">Todo se calcula solo, a partir de las facturas emitidas y de los gastos. Los importes los valida tu gestoría.</p>`;
 
@@ -3301,7 +3759,7 @@ function ctPintar(){
 
   h+=`<div class="t-toggle" style="margin-bottom:14px;flex-wrap:wrap">
     ${[['emitidas','Expedidas'],['recibidas','Recibidas'],['inversion','Inversión'],['303','303 IVA'],['130','130 IRPF'],['anual','Anual']]
-      .map(([k,l])=>`<button class="${ctTab===k?'on':''}" onclick="ctSet('tab','${k}')" style="font-size:.68rem;padding:8px 6px">${l}</button>`).join('')}
+      .map(([k,l])=>`<button class="${ctTab===k?'on':''}" onclick="ctSet('tab','${k}')" style="flex:1 1 30%;font-size:.7rem;padding:9px 4px;white-space:nowrap">${l}</button>`).join('')}
   </div>`;
 
   if(ctTab==='emitidas') h+=ctLibroEmitidas();
@@ -3583,20 +4041,20 @@ async function gxRender(){
       catch(e){ window._factTodas=[]; }
     }
   }catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
       <div class="center-msg">No se pudo cargar.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de gastos?</small></div>`);
     return;
   }
   try{
     gxPintar();
   }catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Facturación</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
       <div class="center-msg">Error al pintar la pantalla.<br><small>${escHtml(e.message||String(e))}</small></div>`);
   }
 }
 
 function gxPintar(){
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Facturación</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">Gastos y balance</h2>`;
   h+=`<div class="t-toggle" style="margin-bottom:14px">
     ${[['facturas','Facturas'],['prev','Previstos'],['provs','Proveedores'],['balance','Balance']]
@@ -4260,7 +4718,7 @@ function factLineHtml(tipo, i, l){
 
 function saRenderFacturacion(){
   const f=window._fact; const d=f.datos||{};
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Facturación</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
     <h2 style="font-size:1.1rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">Factura · ${escHtml(f.academiaNombre)}</h2>`;
 
   // Ficha del cliente (desplegable)
@@ -4594,7 +5052,7 @@ function saPintarFacturasEmitidas(){
   const clientesDisp=[...new Set(todas.map(f=>f.academia_nombre||'—'))].sort((a,b)=>a.localeCompare(b,'es'));
   const mesNomSel=(mk)=>{ const [y,m]=mk.split('-'); const n=new Date(+y,+m-1,1).toLocaleDateString('es-ES',{month:'long',year:'numeric'}); return n.charAt(0).toUpperCase()+n.slice(1); };
 
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Facturación</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 10px">📊 Facturas emitidas</h2>`;
 
   // Filtro por mes
