@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aptuvia · Plataforma de exámenes para academias, profesores y opositores</title>
+<meta name="description" content="Crea tus exámenes, sube tu temario y deja que la plataforma corrija. Para academias de certificados de profesionalidad, profesores de instituto, particulares y opositores. Pruébala sin registrarte.">
+<link rel="preload" as="image" href="/img/captura-panel-profesor.jpg" fetchpriority="high">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="theme-color" content="#1e2252">
+<link rel="canonical" href="https://aptuvia.es/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Aptuvia · Plataforma de exámenes">
+<meta property="og:description" content="Crea tus exámenes, sube tu temario y deja que la plataforma corrija. Pruébala sin registrarte.">
+<meta property="og:url" content="https://aptuvia.es/">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="Aptuvia">
+<meta property="og:image" content="https://aptuvia.es/img/og-aptuvia.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Aptuvia · Los exámenes de tu certificado, ya montados">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Aptuvia · Plataforma de exámenes">
+<meta name="twitter:description" content="Crea tus exámenes, sube tu temario y deja que la plataforma corrija. Pruébala sin registrarte.">
+<meta name="twitter:image" content="https://aptuvia.es/img/og-aptuvia.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1e2252; --navy-2:#2e3163; --navy-3:#3c4080;
+  --honey:#d4901f; --honey-2:#e8a63a; --honey-tint:#fdf1dd;
+  --celeste:#7fc3e8; --celeste-1:#eaf6fd; --celeste-2:#0077b6;
+  --ink:#22242e; --ink-soft:#6b6b76; --line:#e6e3dc; --paper:#faf8f2; --white:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Poppins',system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--paper);line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+a{color:inherit}
+h1,h2,h3{line-height:1.2;letter-spacing:-.5px}
+.btn{display:inline-block;padding:14px 26px;border-radius:12px;font-weight:800;font-size:.95rem;text-decoration:none;border:2px solid transparent;cursor:pointer;transition:transform .12s}
+.btn:active{transform:translateY(1px)}
+.btn-honey{background:linear-gradient(135deg,var(--honey) 0%,var(--honey-2) 55%,#f2bd63 100%);color:#fff;box-shadow:0 6px 18px rgba(212,144,31,.35)}
+.btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
+.btn-navy{background:var(--navy);color:#fff}
+.btn-out{background:#fff;color:var(--navy);border-color:var(--honey)}
+
+/* ── cabecera ── */
+header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.97);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);box-shadow:0 2px 10px rgba(30,34,82,.06)}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 18px;min-width:0}
+.logo{display:flex;align-items:center;text-decoration:none;flex:0 1 auto;min-width:0}
+.logo img{height:32px;width:auto;display:block;max-width:100%}
+.nav-links{display:none;gap:20px;font-size:.86rem;font-weight:600}
+.nav-links a{color:var(--navy);text-decoration:none}
+.nav-links a:hover{color:var(--honey)}
+.nav-cta{display:flex;gap:6px;flex:0 0 auto}
+.nav-cta .btn{padding:6px 10px;font-size:.72rem;border-radius:8px;box-shadow:none}
+.btn-nav{background:#fff;color:var(--navy);border-color:var(--line)}
+.btn-nav:hover{border-color:var(--honey)}
+@media(min-width:520px){ .nav-cta .btn{padding:7px 14px;font-size:.78rem} .logo img{height:36px} }
+@media(min-width:900px){ .nav-links{display:flex} .logo img{height:42px} }
+
+/* ── hero ── */
+.hero{background:linear-gradient(145deg,var(--navy) 0%,var(--navy-2) 55%,var(--navy-3) 100%);color:#fff;padding:64px 0 72px;position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;right:-140px;top:-140px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(127,195,232,.28),transparent 70%)}
+.hero-in{position:relative;z-index:2;max-width:760px}
+.eyebrow{display:inline-block;background:rgba(127,195,232,.18);border:1px solid rgba(127,195,232,.5);color:var(--celeste);font-size:.74rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:6px 12px;border-radius:99px;margin-bottom:18px}
+.hero h1{font-size:2.1rem;font-weight:800;margin-bottom:16px}
+.hero h1 em{font-style:normal;color:var(--honey-2)}
+.hero p.lead{font-size:1.05rem;color:#d8dcf0;margin-bottom:12px;max-width:620px}
+.hero .claim{font-weight:800;color:#fff;margin:18px 0 26px;font-size:1rem}
+.hero-cta{display:flex;gap:10px;flex-wrap:wrap}
+.hero-note{margin-top:16px;font-size:.8rem;color:#aab0d4}
+@media(min-width:760px){ .hero h1{font-size:2.9rem} .hero{padding:86px 0 96px} }
+
+/* ── secciones ── */
+section{padding:60px 0}
+.sec-head{max-width:640px;margin-bottom:34px}
+.sec-head h2{font-size:1.6rem;font-weight:800;color:var(--navy);margin-bottom:10px}
+.sec-head p{color:var(--ink-soft);font-size:.95rem}
+.grid{display:grid;gap:16px}
+@media(min-width:760px){ .grid-3{grid-template-columns:repeat(3,1fr)} .grid-2{grid-template-columns:repeat(2,1fr)} }
+
+.card{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:22px}
+.card h3{font-size:1.05rem;font-weight:800;color:var(--navy);margin-bottom:8px}
+.card p{font-size:.9rem;color:var(--ink-soft)}
+.card .ico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin-bottom:12px}
+
+/* para quién */
+.who{background:#fff}
+.who .card{border-color:var(--honey);background:var(--honey-tint)}
+.who .card.aa{border-color:var(--celeste);background:var(--celeste-1)}
+.who .tag{display:inline-block;font-size:.68rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;border-radius:99px;margin-bottom:10px;background:var(--navy);color:#fff}
+.who .card.aa .tag{background:var(--celeste-2)}
+.who ul{margin:10px 0 0 18px;font-size:.88rem;color:var(--ink-soft)}
+.who li{margin-bottom:5px}
+
+/* pasos */
+.steps{counter-reset:s}
+.step{display:flex;gap:16px;align-items:flex-start;padding:18px 0;border-bottom:1px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.step .n{counter-increment:s;flex:0 0 40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--honey-2),var(--honey));color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+.step .n::before{content:counter(s)}
+.step h3{font-size:1rem;font-weight:800;color:var(--navy);margin-bottom:4px}
+.step p{font-size:.9rem;color:var(--ink-soft)}
+
+/* funciones */
+.feats{background:var(--celeste-1)}
+.feat{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:16px}
+.feat b{display:block;color:var(--navy);font-size:.93rem;margin-bottom:4px}
+.feat span{font-size:.84rem;color:var(--ink-soft)}
+
+/* demo */
+.demo{background:linear-gradient(145deg,var(--navy),var(--navy-3));color:#fff;text-align:center}
+.demo h2{font-size:1.7rem;font-weight:800;margin-bottom:12px}
+.demo p{color:#d8dcf0;max-width:560px;margin:0 auto 24px;font-size:.95rem}
+.demo .box{background:rgba(255,255,255,.07);border:1.5px solid rgba(212,144,31,.6);border-radius:14px;padding:16px;max-width:620px;margin:0 auto 24px;font-size:.86rem;color:#e8eaf8}
+
+/* precio */
+.price .card{border-color:var(--honey)}
+.price ul{margin:12px 0 0 18px;font-size:.88rem;color:var(--ink-soft)}
+.price li{margin-bottom:6px}
+
+/* faq */
+details{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+details[open]{border-color:var(--honey)}
+summary{font-weight:700;color:var(--navy);cursor:pointer;font-size:.93rem;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'+';float:right;color:var(--honey);font-weight:800}
+details[open] summary::after{content:'−'}
+details p{margin-top:10px;font-size:.88rem;color:var(--ink-soft)}
+
+/* roles del equipo */
+.roles{display:grid;gap:10px}
+.role{display:flex;gap:12px;align-items:flex-start;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+.role .dot{flex:0 0 10px;height:10px;border-radius:50%;margin-top:7px}
+.role b{display:block;color:var(--navy);font-size:.9rem}
+.role span{font-size:.83rem;color:var(--ink-soft)}
+/* capturas */
+.shots{display:grid;gap:18px;margin-top:8px}
+@media(min-width:760px){ .shots{grid-template-columns:repeat(3,1fr)} }
+.shot{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:12px;text-align:center}
+.shot img{width:100%;max-width:280px;height:auto;border-radius:10px;border:1px solid var(--line);display:block;margin:0 auto 10px}
+.shot b{display:block;color:var(--navy);font-size:.9rem}
+.shot span{font-size:.8rem;color:var(--ink-soft)}
+.hero-shot{display:none}
+@media(min-width:980px){
+  .hero{padding-bottom:0}
+  .hero-flex{display:flex;gap:40px;align-items:flex-end}
+  .hero-shot{display:block;flex:0 0 250px;position:relative;z-index:3}
+  .hero-shot img{width:250px;border-radius:14px 14px 0 0;border:6px solid rgba(255,255,255,.14);border-bottom:0;display:block}
+}
+/* footer */
+footer{background:var(--navy);color:#c9cde8;padding:44px 0 28px;font-size:.85rem}
+footer a{color:var(--celeste);text-decoration:none}
+.foot-grid{display:grid;gap:24px;margin-bottom:26px}
+@media(min-width:760px){ .foot-grid{grid-template-columns:2fr 1fr 1fr} }
+footer h4{color:#fff;font-size:.8rem;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+footer ul{list-style:none}
+footer li{margin-bottom:6px}
+.rs-ico{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#c9cde8;transition:background .15s,color .15s}
+.rs-ico:hover{background:var(--honey);color:#fff}
+.legal{border-top:1px solid rgba(255,255,255,.14);padding-top:18px;font-size:.76rem;color:#8f95bf;line-height:1.7}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="/"><img src="/img/logo-aptuvia.png" alt="Aptuvia · Plataforma de exámenes" width="300" height="83"></a>
+    <nav class="nav-links">
+      <a href="#que-entregamos">Qué incluye</a>
+      <a href="#para-quien">Para quién</a>
+      <a href="#como">Cómo funciona</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#aula-abierta">Aula Abierta</a>
+      <a href="#precio">Precio</a>
+      <a href="#equipo">Quiénes somos</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-nav" href="/app.html">Acceder</a>
+      <a class="btn btn-honey" href="/app.html#demo">Ver demo</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-flex"><div class="hero-in">
+    <h1>Los exámenes de tu certificado,<br><em>ya montados.</em></h1>
+    <p class="lead">Contratas el certificado y te lo entregamos hecho: banco de preguntas y exámenes listos por cada unidad formativa. El profesor los enciende, el alumno los hace y se corrigen solos. Sin redactar una sola pregunta.</p>
+    <p class="lead">¿Quieres meter lo tuyo? También: creas tus propios exámenes, subes tu temario y añades tus preguntas cuando te haga falta. Pero <b>no empiezas de cero</b>.</p>
+    <p class="claim">Las cosas claras y las notas más.</p>
+    <div class="hero-cta">
+      <a class="btn btn-honey" href="/app.html#demo">Ver la demo — sin registrarse</a>
+      <a class="btn btn-ghost" href="#contacto">Hablar con nosotros</a>
+    </div>
+    <p class="hero-note">La demo se abre al instante, con datos de ejemplo. No pedimos ni un dato tuyo.</p>
+    </div>
+    <div class="hero-shot"><img src="/img/captura-panel-profesor.jpg" alt="Panel del profesor en Aptuvia" loading="eager" fetchpriority="high" decoding="async" width="250" height="419"></div>
+  </div>
+</section>
+
+<section id="que-entregamos" style="background:#fff">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Qué te entregamos el primer día</h2>
+      <p>La diferencia está aquí: no te damos una plataforma vacía para que la llenes tú. Te damos el trabajo hecho.</p>
+    </div>
+    <div class="grid grid-3">
+      <div class="card" style="border-color:var(--honey);background:var(--honey-tint)">
+        <div class="ico" style="background:#fff">🗂️</div>
+        <h3>El banco de preguntas</h3>
+        <p>Las preguntas del certificado, con su explicación, organizadas por unidad formativa y por tema. Elaboradas por nosotros.</p>
+      </div>
+      <div class="card" style="border-color:var(--honey);background:var(--honey-tint)">
+        <div class="ico" style="background:#fff">✅</div>
+        <h3>Los exámenes montados</h3>
+        <p>Ya creados, unidad por unidad y tema por tema. El profesor solo decide cuáles enciende y cuándo. El alumno los ve al instante.</p>
+      </div>
+      <div class="card" style="border-color:var(--honey);background:var(--honey-tint)">
+        <div class="ico" style="background:#fff">➕</div>
+        <h3>Y encima, lo tuyo</h3>
+        <p>Sobre esa base, cada profesor añade sus exámenes, sus preguntas, sus redacciones y su temario. Lo suyo no se mezcla con lo de nadie.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px;border-color:var(--celeste);background:var(--celeste-1)">
+      <h3>Seamos claros con esto</h3>
+      <p style="margin-bottom:8px">No tenemos montados todos los certificados de profesionalidad que existen. Tenemos unos cuantos listos y el resto los vamos preparando.</p>
+      <p><b style="color:var(--navy)">Escríbenos con el código de tu certificado</b> (por ejemplo, ADGG0508) y te decimos exactamente en qué punto está: si lo tienes disponible ya o cuánto tardamos en tenerlo. Sin marear.</p>
+    </div>
+  </div>
+</section>
+
+<section class="who" id="para-quien">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Para quién es</h2>
+      <p>La misma herramienta, tres formas de usarla. Todas empiezan por lo mismo: dejar de corregir a mano.</p>
+    </div>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="tag">Punto fuerte</span>
+        <h3>Academias de certificados de profesionalidad</h3>
+        <p>Lo que mejor hace Aptuvia. Contratas el certificado y llega con su contenido montado, en la estructura de módulos y unidades formativas que pide el SEPE.</p>
+        <ul>
+          <li><b>Banco de preguntas y exámenes ya hechos</b></li>
+          <li>Exámenes por unidad formativa</li>
+          <li>Nota final y reapertura de intentos</li>
+          <li>Informes por alumno y por clase</li>
+          <li>Varios profesores, cada uno con lo suyo</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="tag">También</span>
+        <h3>Profesores de instituto, academia o particulares</h3>
+        <p>No hace falta ser un centro acreditado. Creas tu materia, subes tus apuntes y evalúas.</p>
+        <ul>
+          <li>Tu materia, tus temas, tus preguntas</li>
+          <li>Exámenes tipo test y de redacción</li>
+          <li>Decides qué ve el alumno y cuándo</li>
+          <li>Tu contenido no se comparte con nadie</li>
+        </ul>
+      </div>
+      <div class="card aa">
+        <span class="tag">Aula Abierta</span>
+        <h3>Quien estudia por su cuenta</h3>
+        <p>¿Preparas una oposición o un curso y quieres tener tus apuntes y tus test en un sitio serio? También puedes.</p>
+        <ul>
+          <li>Tus apuntes y tu temario</li>
+          <li>Tus propios test de práctica</li>
+          <li>Repaso de las preguntas falladas</li>
+          <li>Tu historial de notas</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="como">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Cómo funciona</h2>
+      <p>De la primera pantalla al primer examen corregido, sin instalar nada y sin migrar nada.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="n"></div><div>
+        <h3>Te llega con todo puesto</h3>
+        <p>Al activar tu certificado, sus unidades formativas, su banco de preguntas y sus exámenes ya están dentro. El profesor entra y se lo encuentra hecho.</p>
+      </div></div>
+      <div class="step"><div class="n"></div><div>
+        <h3>Y si quieres, montas más</h3>
+        <p>Un examen automático a partir del banco, o uno a medida con tus preguntas. También puedes pegar un examen que ya tengas escrito, o crear uno de redacción con un PDF adjunto (un mapa, un texto, un plano).</p>
+      </div></div>
+      <div class="step"><div class="n"></div><div>
+        <h3>Decides qué ve el alumno</h3>
+        <p>Cada examen se enciende o se apaga. Los apagados no le aparecen. Marcas cuáles cuentan para la nota final y cuáles son solo práctica.</p>
+      </div></div>
+      <div class="step"><div class="n"></div><div>
+        <h3>El alumno lo hace y se corrige solo</h3>
+        <p>Los test se corrigen en el servidor al instante: las soluciones nunca se descargan a su dispositivo. Ve su nota, sus fallos y la explicación de cada pregunta.</p>
+      </div></div>
+      <div class="step"><div class="n"></div><div>
+        <h3>Tú ves por dónde va la clase</h3>
+        <p>Media del mejor intento, media de todos los intentos y media de los exámenes finales. Por alumno y por unidad. Con eso sabes a quién hay que echarle un cable antes de que sea tarde.</p>
+      </div></div>
+    </div>
+
+    <div class="shots" style="margin-top:30px">
+      <div class="shot"><img src="/img/captura-crear-examen.jpg" alt="Pantalla de creación de exámenes de Aptuvia" loading="lazy" decoding="async" width="520" height="872">
+        <b>Montas el examen</b><span>Automático por tema o a medida</span></div>
+      <div class="shot"><img src="/img/captura-notas.jpg" alt="Notas por unidad y nota final en Aptuvia" loading="lazy" decoding="async" width="520" height="872">
+        <b>Las notas, claras</b><span>Nota final, apto y redacción corregida</span></div>
+      <div class="shot"><img src="/img/captura-megatest.jpg" alt="Mega test de repaso y preguntas falladas en Aptuvia" loading="lazy" decoding="async" width="520" height="872">
+        <b>Repaso de verdad</b><span>Mega test y preguntas falladas</span></div>
+    </div>
+    <p style="text-align:center;font-size:.78rem;color:var(--ink-soft);margin-top:14px">Capturas reales de la plataforma, tomadas de la demo. Los datos que se ven son inventados.</p>
+  </div>
+</section>
+
+<section class="feats" id="funciones">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Qué más trae la plataforma</h2>
+      <p>Todo esto ya está hecho y funcionando. Ni una función de las de "próximamente".</p>
+    </div>
+    <div class="grid grid-3">
+      <div class="feat"><b>Exámenes tipo test</b><span>Automáticos por tema o a medida, con barajado de preguntas y opciones.</span></div>
+      <div class="feat"><b>Exámenes de redacción</b><span>Con PDF adjunto opcional. El profesor corrige y pone nota y comentario.</span></div>
+      <div class="feat"><b>Corrección automática</b><span>En el servidor. Nota, fallos y explicación al instante.</span></div>
+      <div class="feat"><b>Mega test de repaso</b><span>50 preguntas al azar de toda la unidad, en dos partes.</span></div>
+      <div class="feat"><b>Repaso de falladas</b><span>Un test solo con lo que el alumno falló. Cuando acierta, sale del contador.</span></div>
+      <div class="feat"><b>Temario</b><span>Apuntes y ejercicios que el alumno ve y descarga dentro de cada unidad.</span></div>
+      <div class="feat"><b>Nota final y reapertura</b><span>Marcas qué cuenta y puedes reabrir un examen a un alumno concreto.</span></div>
+      <div class="feat"><b>Informes en PDF</b><span>Por alumno y por clase, listos para descargar.</span></div>
+      <div class="feat"><b>Estados por unidad</b><span>Activo, terminado o próximamente: preparas material sin que se vea.</span></div>
+      <div class="feat"><b>Gestión de alumnos</b><span>Altas por invitación, contraseñas y autorización por certificado.</span></div>
+      <div class="feat"><b>Aislamiento real</b><span>Cada profesor ve lo suyo, aunque compartan academia.</span></div>
+      <div class="feat"><b>Móvil de verdad</b><span>Hecha y probada en el móvil, no un escritorio encogido.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="aula-abierta">
+  <div class="wrap">
+    <div class="grid grid-2" style="align-items:center">
+      <div>
+        <span class="eyebrow" style="background:var(--celeste-1);border-color:var(--celeste);color:var(--celeste-2)">Módulo Aula Abierta</span>
+        <h2 style="font-size:1.6rem;color:var(--navy);margin:14px 0 12px">Fuera del marco del SEPE, tus reglas</h2>
+        <p style="color:var(--ink-soft);font-size:.95rem;margin-bottom:14px">Aula Abierta es la parte libre de Aptuvia. Aquí no hay certificados oficiales ni módulos obligatorios: creas tu materia y decides tú qué entra.</p>
+        <p style="color:var(--ink-soft);font-size:.95rem;margin-bottom:14px">Historia de 2º de Bachillerato, Biología de la ESO, un temario de oposición, un curso de empresa o los apuntes que te estás preparando por tu cuenta. Mismo motor, misma corrección, mismos informes.</p>
+        <a class="btn btn-out" href="/app.html#demo">Ver Aula Abierta en la demo</a>
+      </div>
+      <div class="card" style="border-color:var(--celeste);background:var(--celeste-1)">
+        <img src="/img/captura-aula-abierta.jpg" alt="Panel del profesor en Aula Abierta" loading="lazy" decoding="async" width="520" height="1033" style="width:100%;max-width:240px;height:auto;border-radius:10px;border:1px solid var(--line);display:block;margin:0 auto 14px">
+        <h3 style="margin-bottom:12px">Un profesor puede tener</h3>
+        <p style="margin-bottom:8px">✓ Varias materias a la vez, cada una con sus temas</p>
+        <p style="margin-bottom:8px">✓ Sus propias preguntas y sus propias explicaciones</p>
+        <p style="margin-bottom:8px">✓ Su temario en PDF dentro de cada materia</p>
+        <p style="margin-bottom:8px">✓ Sus alumnos, sin mezclarse con los de nadie</p>
+        <p>✓ El control de qué se publica y cuándo</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="demo">
+  <div class="wrap">
+    <h2>Míralo por dentro antes de preguntar el precio</h2>
+    <p>Cuatro recorridos completos: profesor y alumno de Aptuvia, profesor y alumno de Aula Abierta. Sin registro, sin correo, sin compromiso.</p>
+    <div class="box">
+      <b>Todo lo que hay en la demo es inventado.</b> La academia, los profesores, los alumnos, las preguntas y las notas son ficticios, creados solo para la demostración. La estructura sí es la real. Es un recorrido de solo lectura: nada se guarda.
+    </div>
+    <a class="btn btn-honey" href="/app.html#demo">Entrar en la demo</a>
+  </div>
+</section>
+
+<section class="price" id="precio">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Precio</h2>
+      <p>Sin letra pequeña: el precio depende de lo que uses, y se cierra por escrito antes de empezar.</p>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Cómo se cobra</h3>
+        <p>El modelo se estructura por capas acumulables:</p>
+        <ul>
+          <li><b>Acceso mensual por profesor activo.</b> Solo se factura a los profesores dados de alta.</li>
+          <li><b>Activación por certificado</b> (pago único): habilita todos sus módulos y unidades formativas <b>con su banco de preguntas y sus exámenes ya montados</b>. Es lo que te ahorra los meses de redactar contenido.</li>
+          <li><b>Servicios opcionales:</b> contenido a medida, soporte prioritario, informes, licencia multiaula.</li>
+        </ul>
+      </div>
+      <div class="card" style="background:var(--honey-tint)">
+        <h3>Y ahora, la parte honesta</h3>
+        <p style="margin-bottom:10px">Aptuvia es un producto nuevo y <b>todavía no tiene clientes de pago</b>. No vas a encontrar aquí testimonios ni cifras de usuarios, porque no los hay.</p>
+        <p style="margin-bottom:10px">Lo que sí hay es una plataforma terminada, que puedes probar entera ahora mismo sin dar un solo dato, y un desarrollador al otro lado del correo.</p>
+        <p>Si eres de los primeros centros, hay condiciones especiales durante el primer año. Hablemos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="equipo" style="background:#fff">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Quiénes somos</h2>
+      <p>Tres compañeros de clase. Ni una multinacional ni una startup con inversores detrás.</p>
+    </div>
+    <div class="grid grid-2" style="align-items:start">
+      <div>
+        <p style="font-size:.95rem;color:var(--ink-soft);margin-bottom:14px">Aptuvia no nació en una reunión. Nació en un aula, haciendo un certificado de profesionalidad.</p>
+        <p style="font-size:.95rem;color:var(--ink-soft);margin-bottom:14px">Uno de nosotros estaba en ese curso como alumno. Viendo cómo se evaluaba, empezó a construir la plataforma que le habría gustado tener, y la fue probando en el propio curso: con lo que aquello tenía de bueno y de malo.</p>
+        <p style="font-size:.95rem;color:var(--ink-soft);margin-bottom:14px">Las otras dos eran sus compañeras de clase y la usaron desde el otro lado: como alumnas, estudiando de verdad con ella. Cuando el curso terminó, decidimos montar el negocio juntos.</p>
+        <p style="font-size:.95rem;color:var(--ink-soft);margin-bottom:18px">Hoy somos tres, cada uno con su parte. <b style="color:var(--navy)">Ninguno de los tres es profesor</b>: conocimos el problema desde el pupitre, que es justo donde se ve si un examen sirve para algo o no.</p>
+
+        <div class="roles">
+          <div class="role"><span class="dot" style="background:var(--navy)"></span><div>
+            <b>Desarrollo y soporte</b>
+            <span>La plataforma y el trato directo con los profesores que ya la usan, en el día a día.</span></div></div>
+          <div class="role"><span class="dot" style="background:var(--honey)"></span><div>
+            <b>Área financiera</b>
+            <span>Facturación, contabilidad y las cuentas del negocio.</span></div></div>
+          <div class="role"><span class="dot" style="background:var(--celeste-2)"></span><div>
+            <b>Comercial y redes</b>
+            <span>La relación con los centros y todo lo que contamos fuera.</span></div></div>
+        </div>
+      </div>
+      <div class="card" style="border-color:var(--honey);background:var(--honey-tint)">
+        <h3>Lo que no vas a encontrar aquí</h3>
+        <p style="margin-bottom:9px">✗ Testimonios de clientes: <b>todavía no tenemos clientes de pago</b>. Somos nuevos y lo decimos.</p>
+        <p style="margin-bottom:9px">✗ Cifras de usuarios inventadas.</p>
+        <p style="margin-bottom:9px">✗ Funciones "próximamente" vendidas como si existieran.</p>
+        <p style="margin-bottom:14px">✗ Un formulario que te pide el correo antes de dejarte ver nada.</p>
+        <p style="font-size:.9rem"><b style="color:var(--navy)">Lo que sí:</b> una plataforma terminada que puedes recorrer entera ahora mismo, y tres personas al otro lado del correo que responden.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Preguntas frecuentes</h2>
+    </div>
+    <details><summary>¿Aptuvia expide títulos o certificados oficiales?</summary>
+      <p>No. Es una herramienta de apoyo al estudio y a la evaluación. No sustituye a las pruebas ni a las acreditaciones del SEPE ni de los centros acreditados. Superar un examen en Aptuvia no tiene validez administrativa.</p></details>
+    <details><summary>¿Sirve para cualquier certificado de profesionalidad?</summary>
+      <p>La estructura sí: módulos, unidades formativas, exámenes, notas e informes valen para cualquiera. Lo que varía es el contenido. Escríbenos con el código del certificado y te decimos en qué punto está.</p></details>
+    <details><summary>¿Tengo que cambiar de plataforma o migrar algo?</summary>
+      <p>No. Aptuvia hace exámenes; no pretende sustituir a tu gestor académico. Se abre en el navegador, no se instala nada y puedes usarla solo para la parte de evaluación.</p></details>
+    <details><summary>¿El alumno puede ver las respuestas correctas antes de tiempo?</summary>
+      <p>No. La corrección se hace en el servidor: las soluciones no se descargan al dispositivo del alumno. Solo ve la corrección cuando entrega.</p></details>
+    <details><summary>¿Qué pasa con los datos de mi alumnado?</summary>
+      <p>La academia es la responsable del tratamiento y Aptuvia actúa como encargado, tratando los datos solo para prestar el servicio. Los datos se alojan en servidores de la Unión Europea. Antes de firmar se formaliza el contrato de encargado del tratamiento que exige el RGPD.</p></details>
+    <details><summary>¿Funciona en el móvil?</summary>
+      <p>Sí, y no de aquella manera: está desarrollada y probada desde el móvil. También funciona en tableta y en ordenador.</p></details>
+    <details><summary>¿Puedo usarla solo yo, sin academia?</summary>
+      <p>Sí, con Aula Abierta. Creas tus materias, subes tu temario y montas tus test. Escríbenos y te contamos cómo.</p></details>
+  </div>
+</section>
+
+<footer id="contacto">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a class="logo" href="/" style="margin-bottom:12px"><img src="/img/logo-aptuvia-footer.png" alt="Aptuvia" width="220" height="60" style="height:46px"></a>
+        <p style="margin-top:10px;max-width:340px">Plataforma de exámenes para academias, profesores y estudiantes. Producto propio, desarrollado en Sevilla.</p>
+        <p style="margin-top:12px"><b style="color:#fff">¿Hablamos?</b><br>
+          <a href="mailto:contacto@aptuvia.es">contacto@aptuvia.es</a></p>
+      </div>
+      <div>
+        <h4>Producto</h4>
+        <ul>
+          <li><a href="#que-entregamos">Qué te entregamos</a></li>
+          <li><a href="#para-quien">Para quién es</a></li>
+          <li><a href="#como">Cómo funciona</a></li>
+          <li><a href="#funciones">Funciones</a></li>
+          <li><a href="#aula-abierta">Aula Abierta</a></li>
+          <li><a href="#precio">Precio</a></li>
+          <li><a href="#equipo">Quiénes somos</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Acceso</h4>
+        <ul>
+          <li><a href="/app.html#demo">Ver la demo</a></li>
+          <li><a href="/app.html">Entrar en la plataforma</a></li>
+          <li><a href="#faq">Preguntas frecuentes</a></li>
+        </ul>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,.14);padding-top:18px;margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#fff;margin-right:4px">Síguenos</span>
+      <a href="#" aria-label="LinkedIn" title="LinkedIn" class="rs-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05C20.3 8.65 21 11 21 14.1V21h-4v-6.1c0-1.45-.03-3.3-2-3.3-2 0-2.3 1.57-2.3 3.2V21H9z"/></svg></a>
+      <a href="#" aria-label="Instagram" title="Instagram" class="rs-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg></a>
+      <a href="#" aria-label="Facebook" title="Facebook" class="rs-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h2.6l.4-3H13v-2c0-.55.45-1 1-1z"/></svg></a>
+      
+      <a href="#" aria-label="YouTube" title="YouTube" class="rs-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22.5 7.2a2.7 2.7 0 0 0-1.9-1.9C18.9 4.8 12 4.8 12 4.8s-6.9 0-8.6.5A2.7 2.7 0 0 0 1.5 7.2C1 8.9 1 12 1 12s0 3.1.5 4.8a2.7 2.7 0 0 0 1.9 1.9c1.7.5 8.6.5 8.6.5s6.9 0 8.6-.5a2.7 2.7 0 0 0 1.9-1.9c.5-1.7.5-4.8.5-4.8s0-3.1-.5-4.8zM9.8 15.3V8.7l5.7 3.3z"/></svg></a>
+      <a href="#" aria-label="TikTok" title="TikTok" class="rs-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M16.6 2h-3v13.1a2.6 2.6 0 1 1-2.2-2.6V9.4a5.7 5.7 0 1 0 5.2 5.7V8.6a6.6 6.6 0 0 0 4 1.3V6.8a3.6 3.6 0 0 1-4-4.8z"/></svg></a>
+    </div>
+    <div class="legal">
+      Titular: Bernardo Medina Oranto · NIF 28604587Q · Calle Castellar 12, Primero A · 41003 Sevilla · contacto@aptuvia.es<br>
+      Aptuvia es una herramienta de apoyo al estudio. No expide títulos ni certificaciones oficiales y no sustituye a las pruebas del SEPE ni de los centros acreditados.<br>
+      © 2026 Aptuvia. Todos los derechos reservados. Queda prohibida la reproducción total o parcial de este software, así como su uso comercial sin autorización expresa del titular.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
