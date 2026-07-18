@@ -1396,7 +1396,7 @@ function avVisibles(area){
   const arch=new Set(avArch.map(a=>a.clave));
   return (avLista||[]).filter(a=>{
     if(arch.has(a.clave)) return false;
-    if(area==='admin') return true;          // admin ve todo
+    if(area==='soporte') return true;        // Soporte (Ber) ve todo
     return a.area===area;
   });
 }
@@ -1416,12 +1416,12 @@ function avPintarBarra(){
 }
 function avPanel(area,vis){
   let h=`<div style="border:1.5px solid var(--line);border-top:0;border-radius:0 0 11px 11px;background:#fff;padding:10px 12px;margin-top:-3px">`;
-  if(area==='admin') h+=`<p style="font-size:.68rem;color:var(--ink-soft);margin:0 0 8px">Administración ve los avisos de todas las áreas.</p>`;
+  if(area==='soporte') h+=`<p style="font-size:.68rem;color:var(--ink-soft);margin:0 0 8px">Soporte ve los avisos de todas las áreas.</p>`;
   if(!vis.length){
     h+=`<p style="font-size:.8rem;color:var(--ink-soft);text-align:center;padding:6px 0">Nada pendiente. 👍</p>`;
   }else{
     vis.forEach(a=>{
-      const et=area==='admin'?`<span style="font-size:.6rem;font-weight:800;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.5px;margin-right:5px">${a.area}</span>`:'';
+      const et=area==='soporte'?`<span style="font-size:.6rem;font-weight:800;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.5px;margin-right:5px">${a.area}</span>`:'';
       h+=`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)">
         <span style="flex:1;font-size:.78rem;color:${a.urgente?'#b4232a':'var(--ink)'}">${a.urgente?'⚠️ ':(a.icono||'•')+' '}${et}${escHtml(a.texto)}</span>
         <button onclick="avArchivar('${escAttr(a.clave)}')" title="Cerrar" style="flex:0 0 auto;background:#fff;border:1px solid var(--line);border-radius:6px;width:20px;height:20px;line-height:1;font-size:.72rem;color:var(--ink-soft);cursor:pointer;padding:0">✕</button>
@@ -1479,7 +1479,7 @@ async function aiCargar(force){
   aiPintarBarra();
 }
 function aiVisibles(area){
-  return (aiLista||[]).filter(a=> area==='admin' ? true : (a.para_area===area || a.de_area===area));
+  return (aiLista||[]).filter(a=> area==='soporte' ? true : (a.para_area===area || a.de_area===area));
 }
 function aiPintarBarra(){
   const bar=$('ai-bar'); if(!bar) return;
