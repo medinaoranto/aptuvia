@@ -1465,6 +1465,96 @@ async function avBorrar(id,clave){
     avVerArchivados();
   }catch(e){ appAlert('No se pudo borrar: '+(e.message||'')); }
 }
+// ── Avisos internos: mensajes directos entre departamentos (Raquel ↔ Ber ↔ Laura) ──
+const AI_AREAS={soporte:'Soporte',admin:'Administración',comercial:'Comercial'};
+let aiLista=null, aiCargando=false, aiDest='';
+function aiArea(){ return avAreaActual(); }
+async function aiCargar(force){
+  if(aiLista && !force) return;
+  if(aiCargando) return;
+  aiCargando=true;
+  try{ aiLista=await call('/rest/v1/avisos_internos?select=*&order=creado_en.desc')||[]; }
+  catch(e){ aiLista=[]; }
+  aiCargando=false;
+  aiPintarBarra();
+}
+function aiVisibles(area){
+  return (aiLista||[]).filter(a=> area==='admin' ? true : (a.para_area===area || a.de_area===area));
+}
+function aiPintarBarra(){
+  const bar=$('ai-bar'); if(!bar) return;
+  const area=aiArea();
+  const vis=aiVisibles(area);
+  const nuevos=(aiLista||[]).filter(a=> a.para_area===area && !a.leido).length;
+  const abierta=window._aiAbierta;
+  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${nuevos?'#eaf3fb':'#f4f4f6'};border:1.5px solid ${nuevos?'#5aa9d6':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
+      <span>✉️</span>
+      <span>Avisos internos</span>
+      ${nuevos?`<span style="background:#5aa9d6;color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:'<span style="color:var(--ink-soft);font-weight:600">sin nuevos</span>'}
+      <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
+    </button>`;
+  if(abierta) bar.innerHTML+=aiPanel(area,vis);
+}
+function aiPanel(area,vis){
+  const otras=Object.keys(AI_AREAS).filter(k=>k!==area);
+  if(!otras.includes(aiDest)) aiDest=otras[0];
+  let h=`<div style="border:1.5px solid var(--line);border-top:0;border-radius:0 0 11px 11px;background:#fff;padding:10px 12px;margin-top:-3px">`;
+  h+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:7px">
+      <span style="font-size:.72rem;color:var(--ink-soft)">De <b style="color:var(--navy)">${AI_AREAS[area]}</b> para</span>
+      <select id="ai-dest" onchange="aiDest=this.value" style="font-size:.74rem;padding:4px 6px;border:1px solid var(--line);border-radius:7px;font-family:inherit;color:var(--navy)">
+        ${otras.map(k=>`<option value="${k}"${k===aiDest?' selected':''}>${AI_AREAS[k]}</option>`).join('')}
+      </select></div>
+    <textarea id="ai-texto" rows="2" placeholder="Escribe un aviso…" style="width:100%;box-sizing:border-box;font-size:.8rem;padding:7px 9px;border:1px solid var(--line);border-radius:9px;font-family:inherit;resize:vertical"></textarea>
+    <button onclick="aiEnviar()" style="margin:6px 0 10px;background:linear-gradient(to right,#5aa9d6,#1d4f78);color:#fff;border:0;border-radius:9px;padding:7px 14px;font-family:inherit;font-weight:700;font-size:.76rem;cursor:pointer">Enviar aviso</button>`;
+  if(!vis.length){
+    h+=`<p style="font-size:.8rem;color:var(--ink-soft);text-align:center;padding:6px 0">No hay avisos internos.</p>`;
+  }else{
+    vis.forEach(a=>{
+      const entrante=a.para_area===area;
+      const nuevo=entrante && !a.leido;
+      const f=String(a.creado_en||'').slice(0,16).replace('T',' ');
+      h+=`<div style="padding:8px 0;border-top:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${entrante?'#1d4f78':'var(--ink-soft)'}">${AI_AREAS[a.de_area]||a.de_area} → ${AI_AREAS[a.para_area]||a.para_area}</span>
+          ${nuevo?'<span style="background:#5aa9d6;color:#fff;border-radius:6px;padding:0 5px;font-size:.6rem;font-weight:800">NUEVO</span>':''}
+          <span style="margin-left:auto;font-size:.62rem;color:var(--ink-soft)">${escHtml(f)}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <span style="flex:1;font-size:.8rem;color:var(--ink)">${escHtml(a.texto)}</span>
+          ${nuevo?`<button onclick="aiLeido('${escAttr(String(a.id))}')" title="Marcar leído" style="flex:0 0 auto;background:#eaf3fb;border:1px solid #5aa9d6;border-radius:6px;padding:1px 6px;font-size:.66rem;color:#1d4f78;cursor:pointer">✓</button>`:''}
+          <button onclick="aiBorrar('${escAttr(String(a.id))}')" title="Borrar" style="flex:0 0 auto;background:#fff;border:1px solid var(--line);border-radius:6px;width:20px;height:20px;line-height:1;font-size:.72rem;color:var(--ink-soft);cursor:pointer;padding:0">🗑</button>
+        </div>
+      </div>`;
+    });
+  }
+  return h+`</div>`;
+}
+function aiToggle(){ window._aiAbierta=!window._aiAbierta; aiPintarBarra(); }
+async function aiEnviar(){
+  const ta=$('ai-texto'); const txt=ta?ta.value.trim():'';
+  if(!txt){ appAlert('Escribe el aviso antes de enviarlo.'); return; }
+  const area=aiArea();
+  try{
+    await call('/rest/v1/avisos_internos',{method:'POST',body:{de_area:area,para_area:aiDest,texto:txt}});
+    aiLista=null;
+    await aiCargar(true);
+  }catch(e){ appAlert('No se pudo enviar: '+(e.message||'')); }
+}
+async function aiLeido(id){
+  try{
+    await call('/rest/v1/avisos_internos?id=eq.'+id,{method:'PATCH',body:{leido:true}});
+    const a=(aiLista||[]).find(x=>String(x.id)===String(id)); if(a) a.leido=true;
+    aiPintarBarra();
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function aiBorrar(id){
+  if(!await appConfirm('¿Borrar este aviso interno?')) return;
+  try{
+    await call('/rest/v1/avisos_internos?id=eq.'+id,{method:'DELETE'});
+    aiLista=(aiLista||[]).filter(x=>String(x.id)!==String(id));
+    aiPintarBarra();
+  }catch(e){ appAlert('No se pudo borrar: '+(e.message||'')); }
+}
 function saShell(inner){
   const ico=`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>`;
   const base=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#eaf6fd,#7fc3e8);color:var(--navy)`;
@@ -1480,6 +1570,7 @@ function saShell(inner){
       <button style="${st('rs')}" onclick="saSetMain('rs')">Comercial</button>
     </div>
     ${window._avRaiz?`<div id="av-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
+    ${window._avRaiz?`<div id="ai-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
     ${enSoporte?`<div class="t-toggle" style="margin:0 0 16px;display:flex;gap:5px;flex-wrap:nowrap">
       <button style="${sub('ev')}" onclick="saSetMain('ev')">Aptuvia</button>
       <button style="${sub('aa')}" onclick="saSetMain('aa')">Aula Abierta</button>
@@ -1491,6 +1582,7 @@ function saRenderLista(okMsg,errMsg){
   window._avAbierta=false;
   window._avRaiz=true;
   setTimeout(()=>{ try{ avCargar(true); }catch(e){} },0);
+  setTimeout(()=>{ try{ aiCargar(true); }catch(e){} },0);
   let h='';
   if(okMsg) h+=`<div class="t-note ok">${escHtml(okMsg)}</div>`;
   if(errMsg) h+=`<div class="t-note err">${escHtml(errMsg)}</div>`;
