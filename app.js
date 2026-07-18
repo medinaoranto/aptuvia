@@ -682,6 +682,8 @@ function _modal(opts){
 }
 function appAlert(m){ return _modal({msg:m}); }
 function appConfirm(m){ return _modal({msg:m,cancel:true}); }
+// Abre Google Drive en otra pestaña para arrastrar allí el PDF recién descargado.
+function driveAbrir(){ try{ window.open('https://drive.google.com/drive/my-drive','_blank','noopener'); }catch(e){} }
 function appPrompt(m,def){ return _modal({msg:m,cancel:true,prompt:true,def:def}); }
 
 // Selector de certificado tappable (estilo lista de módulos), fuente: catálogo CERT_CATEGORIAS.
@@ -769,6 +771,7 @@ function renderTemarioProfesor(unidad){
     let h=`<button class="backbtn" onclick="openTeacher()" style="margin-bottom:12px">← Panel</button>
       <h2 style="font-size:1.1rem;font-weight:800;color:var(--navy);margin:2px 2px 6px">📚 Temario</h2>
       <p style="font-size:.85rem;color:var(--ink-soft);margin-bottom:12px">Sube apuntes, temas o ejercicios. El alumno los verá y descargará dentro de cada unidad.</p>
+      <button onclick="driveAbrir()" style="width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;margin-bottom:12px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive (subir/descargar materiales)</button>
       <label style="font-size:.75rem;color:var(--ink-soft)">Unidad</label>
       <select id="tem-unidad" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin:4px 0 14px;font-size:.9rem;background:#fff">${opts}</select>
       <div style="border:1.5px solid var(--honey);background:var(--honey-tint);border-radius:14px;padding:14px;margin-bottom:16px">
@@ -2495,6 +2498,7 @@ function pxForm(){
 
   h+=`<button class="btn btn-primary" onclick="pxGuardar()" style="margin-top:14px">Guardar presupuesto</button>`;
   h+=`<button onclick="pxGuardarYPDF()" style="margin-top:10px;width:100%;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;font-size:.9rem">📄 Descargar PDF</button>`;
+  h+=`<button onclick="driveAbrir()" style="margin-top:8px;width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive para guardarlo</button>`;
 
   $('teacher').innerHTML=saShell(h);
   pxRecalc();
@@ -3933,6 +3937,7 @@ function saRenderFacturacion(){
   </div>`;
 
   h+=`<button class="btn btn-honey" onclick="factGenerarPDF()" style="margin-top:14px">📄 Generar factura PDF</button>`;
+  h+=`<button onclick="driveAbrir()" style="margin-top:8px;width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive para guardarla</button>`;
   h+=`<button onclick="factEnviarCliente()" style="margin-top:10px;width:100%;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;font-size:.9rem">✉️ Enviar factura al cliente</button>`;
 
   // Facturas guardadas
@@ -4254,6 +4259,7 @@ function saPintarFacturasEmitidas(){
 
   // Botón PDF de la selección
   h+=`<button onclick="factResumenPDF()" style="width:100%;margin-bottom:14px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.88rem">📄 Descargar PDF de esta selección</button>`;
+  h+=`<button onclick="driveAbrir()" style="width:100%;margin-bottom:14px;margin-top:-6px;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive para guardarlo</button>`;
 
   if(!lista.length){ h+=`<p class="sa-empty">No hay facturas para este filtro.</p>`; $('teacher').innerHTML=saShell(h); return; }
 
