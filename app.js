@@ -6479,7 +6479,7 @@ let redCurrent=null;
 async function openRedaccion(examId){
   const all=[].concat(...Object.values(examsByUnit));
   const ex=all.find(e=>e.id===examId)||{};
-  redCurrent={examId, unitId:ex.unidad, titulo:ex.titulo||'Examen de redacción', preguntas:[], material_url:ex.material_url||null, material_modo:ex.material_modo||'inline'};
+  redCurrent={examId, unitId:ex.unidad, titulo:ex.titulo||'Examen de redacción', preguntas:[], material_url:ex.material_url||null, material_modo:ex.material_modo||'inline', cuentaFinal:!!ex.cuenta_final};
   current.unit=ex.unidad;
   showView('exam'); window.scrollTo(0,0);
   $('exam').innerHTML='<div class="loader"><span class="spin"></span></div>';
@@ -6492,7 +6492,12 @@ async function openRedaccion(examId){
       const arr=await call(`/rest/v1/entregas?examen_id=eq.${examId}${flt}&select=respuestas,estado,nota,comentario`);
       if(arr&&arr[0]) entrega=arr[0];
     }catch(_){}
-    renderRedaccion(entrega);
+    const editable = !entrega || entrega.estado==='reabierto';
+    if(editable && redCurrent.cuentaFinal){
+      renderInstruccionesRedaccion(entrega);
+    }else{
+      renderRedaccion(entrega);
+    }
   }catch(err){
     $('exam').innerHTML=`<div class="center-msg">No se pudo abrir el examen.<br><small>${err.message}</small></div>
       <div class="bar"><button class="btn btn-ghost" onclick="backToUnit()">← Volver</button></div>`;
@@ -6592,27 +6597,110 @@ function renderRedaccion(entrega){
   embedAllPdfs($('exam'));
   if($('red-send')) $('red-send').onclick=entregarRedaccionUI;
 }
-async function entregarRedaccionUI(){
+// Pantalla-puerta de la redacción oficial (cuenta para nota): mismas reglas
+// que un test oficial, adaptadas a la redacción (se auto-entrega lo escrito).
+function renderInstruccionesRedaccion(entrega){
+  const n=redCurrent.preguntas.length;
+  $('exam').innerHTML=`
+    <button class="backbtn" onclick="backToUnit()">← ${current.unit?(unidadesById[current.unit]?.codigo||'Volver'):'Volver'}</button>
+    <h1 style="font-size:1.15rem;font-weight:800;letter-spacing:-.3px;margin:10px 0 4px;color:var(--navy)">${escHtml(redCurrent.titulo)}</h1>
+    <p style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">${n} pregunta(s) de redacción · <b style="color:#92400e">Cuenta para la nota</b></p>
+
+    <div class="instr-box">
+      <div class="instr-h">⚠️ Antes de empezar, lee esto</div>
+      <p>Este es un <b>examen oficial de redacción</b>. Una vez que empieces, se aplican estas normas para que la nota sea justa para toda la clase:</p>
+
+      <div class="instr-item">
+        <span class="instr-ic">↩️</span>
+        <div><b>Si pulsas el botón "atrás" del móvil</b><br>
+        Saldrá un aviso preguntándote si quieres salir. Podrás <b>cancelar y seguir</b> escribiendo, o confirmar para entregar lo que lleves.</div>
+      </div>
+
+      <div class="instr-item instr-danger">
+        <span class="instr-ic">🚪</span>
+        <div><b>Si cambias de aplicación, abres otra pestaña o bloqueas el móvil</b><br>
+        El examen se <b>entregará automáticamente</b> con lo que hayas escrito hasta ese momento. <b>No podrás continuar</b> ni volver a entregarlo.</div>
+      </div>
+
+      <p style="margin-top:12px;font-weight:600">Para hacerlo con tranquilidad: cierra otras apps, silencia notificaciones y no salgas de esta pantalla hasta pulsar "Entregar".</p>
+    </div>
+
+    <div class="bar">
+      <button class="btn btn-primary" id="red-empezar">Entiendo las normas · Empezar</button>
+      <button class="btn btn-ghost" style="margin-top:9px" onclick="backToUnit()">← Ahora no, volver</button>
+    </div>`;
+  $('red-empezar').onclick=()=>comenzarRedaccionOficial(entrega);
+}
+// Activa los "vigilantes" y muestra la redacción. A partir de aquí, salir de la
+// pantalla tiene consecuencias (ya avisadas y aceptadas).
+function comenzarRedaccionOficial(entrega){
+  window._redActiva=true;
+  window._redEntregado=false;
+  history.pushState({redBlock:true}, '');
+  window._redPopHandler=function(e){
+    history.pushState({redBlock:true}, '');
+    intentarSalirRedaccion();
+  };
+  window.addEventListener('popstate', window._redPopHandler);
+  window._redVisHandler=function(){
+    if(document.hidden && window._redActiva && !window._redEntregado){
+      window._redEntregado=true;
+      entregarRedaccionAuto().then(()=>{ backToUnit(); }).catch(()=>{ backToUnit(); });
+    }
+  };
+  document.addEventListener('visibilitychange', window._redVisHandler);
+  renderRedaccion(entrega);
+  window.scrollTo(0,0);
+}
+// Recoge el texto actual de todas las preguntas de la redacción.
+function gatherRedaccionRespuestas(){
   const respuestas=[];
-  let vacias=0;
   redCurrent.preguntas.forEach(q=>{
     const ta=document.querySelector(`.red-a[data-pid="${q.pregunta_id}"]`);
     const txt=ta?ta.value.trim():'';
-    if(!txt) vacias++;
     respuestas.push({pregunta_id:q.pregunta_id, enunciado:q.enunciado, texto:txt});
   });
+  return respuestas;
+}
+// Botón "atrás": aviso cancelable. Si confirma, se entrega lo escrito.
+async function intentarSalirRedaccion(){
+  if(window._redEntregado) return;
+  const resp=gatherRedaccionRespuestas().filter(r=>r.texto).length;
+  const total=redCurrent.preguntas.length;
+  const msg=`⚠️ ATENCIÓN: Estás a punto de abandonar un examen oficial de redacción.\n\n`+
+    `Llevas ${resp} de ${total} pregunta(s) escrita(s).\n\n`+
+    `Si sales ahora, el examen se dará por entregado con lo que hayas escrito hasta este momento. No podrás volver a entregarlo.\n\n`+
+    `La única forma de finalizar correctamente es pulsar "Entregar".\n\n`+
+    `¿Deseas salir igualmente y que quede entregado tal y como está?`;
+  if(await appConfirm(msg)){
+    window._redEntregado=true;
+    entregarRedaccionAuto().then(()=>{ backToUnit(); }).catch(()=>{ backToUnit(); });
+  }
+}
+// Entrega silenciosa (salir de app / bloqueo / confirmación de atrás).
+async function entregarRedaccionAuto(){
+  const respuestas=gatherRedaccionRespuestas();
+  try{
+    await call('/rest/v1/rpc/entregar_redaccion',{method:'POST',body:{p_examen_id:redCurrent.examId, p_respuestas:respuestas}});
+    entregasByExam[redCurrent.examId]={estado:'pendiente',nota:null};
+  }catch(err){}
+}
+async function entregarRedaccionUI(){
+  const respuestas=gatherRedaccionRespuestas();
+  const vacias=respuestas.filter(r=>!r.texto).length;
   if(vacias===redCurrent.preguntas.length){ appAlert('Escribe al menos una respuesta antes de entregar.'); return; }
   if(vacias>0 && !await appConfirm('Hay '+vacias+' pregunta(s) sin responder. ¿Entregar igualmente?')) return;
   // Doble confirmación: la entrega es única y no se puede deshacer.
   if(!await appConfirm('¿Seguro que quieres ENTREGAR?\n\nSolo se puede entregar una vez. Después ya no podrás cambiar tus respuestas.')) return;
   if(!await appConfirm('Última comprobación: se enviará al profesor tal y como está.\n\n¿Entregar definitivamente?')) return;
+  window._redEntregado=true;
   const btn=$('red-send'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
   try{
     await call('/rest/v1/rpc/entregar_redaccion',{method:'POST',body:{p_examen_id:redCurrent.examId, p_respuestas:respuestas}});
     entregasByExam[redCurrent.examId]={estado:'pendiente',nota:null};
     appAlert('¡Entregado! Queda pendiente de corrección. Recuerda que solo puedes entregar una vez.');
     backToUnit();
-  }catch(err){ btn.disabled=false; btn.textContent='Entregar'; appAlert('No se pudo entregar: '+(err.message||'')); }
+  }catch(err){ window._redEntregado=false; btn.disabled=false; btn.textContent='Entregar'; appAlert('No se pudo entregar: '+(err.message||'')); }
 }
 
 // ============ EXAMEN ============
@@ -7191,6 +7279,15 @@ function backToUnit(){
     document.removeEventListener('visibilitychange', window._examVisHandler);
     window._examVisHandler = null;
   }
+  if(window._redPopHandler){
+    window.removeEventListener('popstate', window._redPopHandler);
+    window._redPopHandler = null;
+  }
+  if(window._redVisHandler){
+    document.removeEventListener('visibilitychange', window._redVisHandler);
+    window._redVisHandler = null;
+  }
+  window._redActiva = false;
   if(current.unit){ openUnit(current.unit); } else { goHome(); }
 }
 
