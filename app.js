@@ -4904,7 +4904,7 @@ function renderExamMgmt(okMsg,errMsg){
   if(errMsg) h.push(`<div class="t-note err">${errMsg}</div>`);
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button></div>`);
   if(builder.kind==='redaccion'){
-        h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label>Nivel</label><select id="ce-nivel"><option value="medio"'+(builder.nivel==='medio'?' selected':'')+'>Medio</option><option value="alto"'+(builder.nivel==='alto'?' selected':'')+'>Alto</option></select><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><select id="ce-mat-mode" style="font-size:.78rem;padding:6px;border:1.5px solid var(--line);border-radius:8px;margin-top:6px"><option value="inline"'+(builder.examMatMode==='inline'?' selected':'')+'>Mostrar incrustado</option><option value="boton"'+(builder.examMatMode==='boton'?' selected':'')+'>Botón "Ver material"</option></select></div>');
+        h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label>Nivel</label><select id="ce-nivel"><option value="medio"'+(builder.nivel==='medio'?' selected':'')+'>Medio</option><option value="alto"'+(builder.nivel==='alto'?' selected':'')+'>Alto</option></select><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
     h.push(renderRedSection());
     h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
     h.push(listaProfHtml(units));
@@ -5025,7 +5025,7 @@ function renderRedSection(){
   h.push(`<label style="margin-top:6px">Preguntas para redactar (${builder.redItems.length})</label>`);
   builder.redItems.forEach((raw,i)=>{
     const it=(raw&&typeof raw==='object')?raw:{enun:raw||'',file:null,matName:'',matMode:'inline'};
-    h.push(`<div class="red-q" style="margin-bottom:14px"><div class="rq-num" style="display:flex;justify-content:space-between;align-items:center">Pregunta ${i+1}${builder.redItems.length>1?`<button class="ce-del" data-rmred="${i}" aria-label="Quitar" style="background:none">✕</button>`:''}</div><textarea class="red-q-in" rows="2" placeholder="Escribe el enunciado a redactar">${escHtml(it.enun)}</textarea><div style="margin-top:6px"><label style="font-size:.72rem;color:var(--ink-soft)">PDF de la pregunta (opcional)${it.matName?` · <b>📎 ${escHtml(it.matName)}</b>`:''}</label><input class="red-q-file" type="file" accept="application/pdf" style="font-size:.75rem;display:block;margin-top:4px"><select class="red-q-mode" style="font-size:.78rem;padding:6px;border:1.5px solid var(--line);border-radius:8px;margin-top:6px"><option value="inline"${it.matMode==='inline'?' selected':''}>Mostrar incrustado</option><option value="boton"${it.matMode==='boton'?' selected':''}>Botón "Ver material"</option></select></div></div>`);
+    h.push(`<div class="red-q" style="margin-bottom:14px"><div class="rq-num" style="display:flex;justify-content:space-between;align-items:center">Pregunta ${i+1}${builder.redItems.length>1?`<button class="ce-del" data-rmred="${i}" aria-label="Quitar" style="background:none">✕</button>`:''}</div><textarea class="red-q-in" rows="2" placeholder="Escribe el enunciado a redactar">${escHtml(it.enun)}</textarea><div style="margin-top:6px"><label style="font-size:.72rem;color:var(--ink-soft)">PDF de la pregunta (opcional)${it.matName?` · <b>📎 ${escHtml(it.matName)}</b>`:''}</label><input class="red-q-file" type="file" accept="application/pdf" style="font-size:.75rem;display:block;margin-top:4px"></div></div>`);
   });
   h.push(`<button class="btn btn-ghost" id="red-add" style="margin-top:6px">Añadir pregunta</button>`);
   h.push(`<button class="btn btn-honey" id="red-create" style="margin-top:12px">Crear examen de redacción</button>`);
@@ -6518,11 +6518,44 @@ function cerrarMaterialExamen(){ const ov=document.getElementById('mat-overlay')
 
 function materialViewerHtml(url, modo, label){
   if(!url) return '';
-  const u=escAttr(url), lbl=escHtml(label||'Ver material');
-  if(modo==='boton'){
-    return `<div style="margin:8px 0"><button type="button" class="btn btn-ghost" onclick="verMaterialExamen('${u}')" style="display:inline-block">📄 ${lbl}</button></div>`;
+  // Siempre INCRUSTADO en la pantalla del alumno con pdf.js. Nunca abre fuera
+  // (ni iframe, que Android Chrome manda a un visor externo, ni pestaña nueva):
+  // así en un examen con nota el alumno no necesita salir y no salta el antifraude.
+  const id='pdfemb-'+Math.random().toString(36).slice(2,9);
+  return `<div class="pdf-embed" id="${id}" data-url="${escAttr(url)}" style="margin:10px 0;border:1px solid var(--line);border-radius:12px;background:#f5f7fb;overflow:hidden">
+      <div style="padding:22px;text-align:center;color:var(--ink-soft);font-size:.82rem"><span class="spin"></span> Cargando material…</div>
+    </div>`;
+}
+// Renderiza un PDF dentro de un contenedor .pdf-embed usando pdf.js (canvas).
+async function embedPdf(box){
+  const url=box.getAttribute('data-url'); if(!url) return;
+  try{
+    const lib=await gxCargarPdfJs();
+    const buf=await (await fetch(url)).arrayBuffer();
+    const doc=await lib.getDocument({data:buf}).promise;
+    box.innerHTML='';
+    const w=box.clientWidth||(box.parentElement&&box.parentElement.clientWidth)||320;
+    const ancho=Math.max(240, w-2);
+    const np=Math.min(doc.numPages, 20);
+    const dpr=Math.min(window.devicePixelRatio||1, 2);
+    for(let i=1;i<=np;i++){
+      const pg=await doc.getPage(i);
+      const vp0=pg.getViewport({scale:1});
+      const vp=pg.getViewport({scale:ancho/vp0.width});
+      const cv=document.createElement('canvas');
+      cv.width=Math.floor(vp.width*dpr); cv.height=Math.floor(vp.height*dpr);
+      cv.style.width='100%'; cv.style.height='auto'; cv.style.display='block';
+      if(i<np) cv.style.marginBottom='6px';
+      box.appendChild(cv);
+      const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+      await pg.render({canvasContext:ctx, viewport:vp}).promise;
+    }
+  }catch(e){
+    box.innerHTML='<div style="padding:16px;text-align:center;font-size:.8rem;color:var(--ink-soft)">No se pudo mostrar el material aquí.<br><a href="'+escAttr(url)+'" target="_blank" rel="noopener" style="color:var(--navy)">Abrir el PDF</a></div>';
   }
-  return `<div style="margin:8px 0"><iframe src="${u}" style="width:100%;height:420px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe><div style="margin-top:4px"><button type="button" onclick="verMaterialExamen('${u}')" style="background:none;border:0;color:var(--navy);font-size:.78rem;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit">Ver a pantalla completa</button></div></div>`;
+}
+function embedAllPdfs(root){
+  (root||document).querySelectorAll('.pdf-embed[data-url]').forEach(el=>{ if(!el._done){ el._done=true; embedPdf(el); } });
 }
 function renderRedaccion(entrega){
   const estado = entrega ? entrega.estado : null;
@@ -6556,6 +6589,7 @@ function renderRedaccion(entrega){
     h.push(`<div class="bar"><button class="btn btn-ghost" onclick="backToUnit()">← Volver</button></div>`);
   }
   $('exam').innerHTML=h.join('');
+  embedAllPdfs($('exam'));
   if($('red-send')) $('red-send').onclick=entregarRedaccionUI;
 }
 async function entregarRedaccionUI(){
