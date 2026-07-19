@@ -4648,7 +4648,7 @@ function openPublicar(okMsg){
       if(!exs.length) return;
       const u=unidadesById[uid];
       any=true;
-      h.push(`<div class="pub-unit">${u?escHtml(u.codigo):uid} · ${u?escHtml(u.titulo):''}</div>`);
+      h.push(`<div class="pub-unit">${u?escHtml(u.codigo):uid} · ${u?escHtml(partesMateria(u.titulo).nombre):''}</div>`);
       h.push(`<div class="pub-bulk"><button class="pub-allbtn" data-all="${uid}" data-val="1">Activar todas</button><button class="pub-allbtn ghost" data-all="${uid}" data-val="0">Quitar todas</button></div>`);
       exs.forEach(e=>{
         const on=!!e.publicado;
@@ -5702,7 +5702,7 @@ function openEstados(okMsg){
     m.unidades.forEach(uid=>{
       const u=unidadesById[uid];
       const codigo = u ? u.codigo : uid.toUpperCase();
-      const titulo = (u&&u.titulo) ? u.titulo : (UF_TITULOS[uid]||'');
+      const titulo = (u&&u.titulo) ? partesMateria(u.titulo).nombre : (UF_TITULOS[uid]||'');
       const est=unitEstado(uid);
       h.push(`<div class="est-row"><div class="est-name">${escHtml(codigo)}${titulo?' · '+escHtml(titulo):''}</div><div class="est-seg">${['activo','terminado','proximamente'].map(s=>`<button class="est-b ${s}${est===s?' on':''}" data-uid="${uid}" data-est="${s}">${estLabel(s)}</button>`).join('')}</div></div>`);
     });
@@ -6480,7 +6480,7 @@ async function openRedaccion(examId){
   const all=[].concat(...Object.values(examsByUnit));
   const ex=all.find(e=>e.id===examId)||{};
   redCurrent={examId, unitId:ex.unidad, titulo:ex.titulo||'Examen de redacción', preguntas:[], material_url:ex.material_url||null, material_modo:ex.material_modo||'inline', cuentaFinal:!!ex.cuenta_final};
-  current.unit=ex.unidad;
+  current.unit=ex.unidad; current.mode='redaccion';
   showView('exam'); window.scrollTo(0,0);
   $('exam').innerHTML='<div class="loader"><span class="spin"></span></div>';
   try{
@@ -6634,7 +6634,6 @@ function renderInstruccionesRedaccion(entrega){
 // Activa los "vigilantes" y muestra la redacción. A partir de aquí, salir de la
 // pantalla tiene consecuencias (ya avisadas y aceptadas).
 function comenzarRedaccionOficial(entrega){
-  window._redActiva=true;
   window._redEntregado=false;
   history.pushState({redBlock:true}, '');
   window._redPopHandler=function(e){
@@ -6643,12 +6642,19 @@ function comenzarRedaccionOficial(entrega){
   };
   window.addEventListener('popstate', window._redPopHandler);
   window._redVisHandler=function(){
-    if(document.hidden && window._redActiva && !window._redEntregado){
+    if(document.visibilityState==='hidden' && current.mode==='redaccion' && !window._redEntregado){
       window._redEntregado=true;
       entregarRedaccionAuto().then(()=>{ backToUnit(); }).catch(()=>{ backToUnit(); });
     }
   };
   document.addEventListener('visibilitychange', window._redVisHandler);
+  window._redHideHandler=function(){
+    if(current.mode==='redaccion' && !window._redEntregado){
+      window._redEntregado=true;
+      entregarRedaccionAuto();
+    }
+  };
+  window.addEventListener('pagehide', window._redHideHandler);
   renderRedaccion(entrega);
   window.scrollTo(0,0);
 }
@@ -6664,7 +6670,7 @@ function gatherRedaccionRespuestas(){
 }
 // Botón "atrás": aviso cancelable. Si confirma, se entrega lo escrito.
 async function intentarSalirRedaccion(){
-  if(window._redEntregado) return;
+  if(window._redEntregado || current.mode!=='redaccion') return;
   const resp=gatherRedaccionRespuestas().filter(r=>r.texto).length;
   const total=redCurrent.preguntas.length;
   const msg=`⚠️ ATENCIÓN: Estás a punto de abandonar un examen oficial de redacción.\n\n`+
@@ -7287,7 +7293,10 @@ function backToUnit(){
     document.removeEventListener('visibilitychange', window._redVisHandler);
     window._redVisHandler = null;
   }
-  window._redActiva = false;
+  if(window._redHideHandler){
+    window.removeEventListener('pagehide', window._redHideHandler);
+    window._redHideHandler = null;
+  }
   if(current.unit){ openUnit(current.unit); } else { goHome(); }
 }
 
