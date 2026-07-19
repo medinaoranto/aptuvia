@@ -7568,13 +7568,84 @@ const DEMO_EXAMENES = [
 
 function _dFecha(d){ const x=new Date(); x.setDate(x.getDate()-d); return x.toISOString(); }
 
-const DEMO_INTENTOS = [
-  {id:'di1', examen_id:'demo-ex1', correctas:3, total:5, creado_en:_dFecha(12)},
-  {id:'di2', examen_id:'demo-ex1', correctas:5, total:5, creado_en:_dFecha(9)},
-  {id:'di3', examen_id:'demo-ex2', correctas:3, total:4, creado_en:_dFecha(6)},
-  {id:'di4', examen_id:'demo-ex3', correctas:4, total:5, creado_en:_dFecha(2)},
-  {id:'di5', examen_id:'demo-h1',  correctas:3, total:4, creado_en:_dFecha(5)}
+/* ---------- Clase demo: 10 alumnos, 5 intentos cada uno ---------- */
+// Metadatos de los exámenes EV que puntúan (demo-ex3 = examen final).
+const DEMO_EX_META = {
+  'demo-ex1':{unidad:'demo-u1', titulo:'El puesto de trabajo y el teclado', total:5, final:false},
+  'demo-ex2':{unidad:'demo-u1', titulo:'Archivos, carpetas y seguridad',    total:4, final:false},
+  'demo-ex3':{unidad:'demo-u2', titulo:'Hojas de cálculo · examen final',   total:5, final:true}
+};
+// sc = aciertos en [ex1·intento1, ex1·intento2, ex2, ex3final·intento1, ex3final·intento2]
+const DEMO_CLASE = [
+  {n:'Lucía Fernández (demo)', e:'lucia',  sc:[4,5,3,4,5]},
+  {n:'Andrés Vega (demo)',     e:'andres', sc:[3,4,3,3,4]},
+  {n:'Carla Molina (demo)',    e:'carla',  sc:[5,5,4,5,4]},
+  {n:'Diego Herrero (demo)',   e:'diego',  sc:[2,3,2,2,3]},
+  {n:'Nerea Blanco (demo)',    e:'nerea',  sc:[4,4,3,3,4]},
+  {n:'Pablo Gil (demo)',       e:'pablo',  sc:[3,2,2,3,2]},
+  {n:'Sara Ortega (demo)',     e:'sara',   sc:[4,5,4,4,3]},
+  {n:'Hugo Ramírez (demo)',    e:'hugo',   sc:[2,3,1,2,2]},
+  {n:'Irene Castro (demo)',    e:'irene',  sc:[5,4,3,4,5]},
+  {n:'Marcos Duarte (demo)',   e:'marcos', sc:[3,4,2,4,4]}
 ];
+const _demoMail = al => al.e+'@demo.local';
+function _demoAttempts(al){
+  const s=al.sc;
+  return [
+    {ex:'demo-ex1', c:s[0], dia:12}, {ex:'demo-ex1', c:s[1], dia:9},
+    {ex:'demo-ex2', c:s[2], dia:7},
+    {ex:'demo-ex3', c:s[3], dia:4}, {ex:'demo-ex3', c:s[4], dia:2}
+  ];
+}
+// resultados_alumnado: una fila por intento (shape que consume el profesor).
+function demoResultados(){
+  const out=[]; let k=0;
+  DEMO_CLASE.forEach(al=>{
+    const email=_demoMail(al);
+    _demoAttempts(al).forEach(a=>{
+      const m=DEMO_EX_META[a.ex];
+      out.push({ id:'dr'+(++k), alumno:al.n+'|'+email, unidad:m.unidad, examen:m.titulo,
+        examen_id:a.ex, correctas:a.c, total:m.total,
+        porcentaje:Math.round(a.c/m.total*100), apto:(a.c/m.total)>=0.5, creado_en:_dFecha(a.dia) });
+    });
+  });
+  return out;
+}
+// resumen_alumnado: agregado por alumno (media del mejor intento por examen).
+function demoResumen(){
+  return DEMO_CLASE.map(al=>{
+    const best={};
+    _demoAttempts(al).forEach(a=>{ const m=DEMO_EX_META[a.ex]; const nota=a.c/m.total*10; if(best[a.ex]==null||nota>best[a.ex]) best[a.ex]=nota; });
+    const v=Object.values(best); const media=v.reduce((x,y)=>x+y,0)/v.length;
+    return { user_id:'demo-'+al.e, alumno:al.n+'|'+_demoMail(al), nombre:al.n, email:_demoMail(al), n_intentos:5, media:Math.round(media*10)/10 };
+  });
+}
+// listar_registrados: cuentas de la clase (todas con actividad).
+function demoRegistrados(){
+  return DEMO_CLASE.map(al=>({ id:'demo-'+al.e, email:_demoMail(al), nombre:al.n, autorizado:true, con_actividad:true }));
+}
+// Entregas de redacción (Correcciones): algunas corregidas, algunas pendientes.
+const DEMO_ENTREGAS_LIST = [
+  {id:'de1', a:'lucia', n:'Lucía Fernández (demo)', estado:'corregido', nota:7.5, dia:5},
+  {id:'de2', a:'carla', n:'Carla Molina (demo)',    estado:'corregido', nota:9.0, dia:5},
+  {id:'de3', a:'diego', n:'Diego Herrero (demo)',   estado:'pendiente', nota:null, dia:2},
+  {id:'de4', a:'hugo',  n:'Hugo Ramírez (demo)',    estado:'pendiente', nota:null, dia:1}
+];
+function demoEntregasList(){
+  return DEMO_ENTREGAS_LIST.map(x=>({
+    id:x.id, examen_id:'demo-red', examen:'Informe escrito (redacción)',
+    user_id:'demo-'+x.a, alumno:x.a+'@demo.local', nombre:x.n, estado:x.estado, nota:x.nota,
+    comentario: x.estado==='corregido' ? 'Buen planteamiento. [[Concreta cada cuánto se hace la copia]]' : '',
+    creado_en:_dFecha(x.dia),
+    respuestas:[{enunciado:'Redacta un informe breve…', texto:'Organizaría los archivos por departamento y año, con una carpeta por proyecto y una copia de seguridad semanal en un disco aparte.'}]
+  }));
+}
+
+// Intentos del alumno logueado en la demo (Lucía), coherentes con su fila de la clase.
+const DEMO_INTENTOS = (function(){
+  const al=DEMO_CLASE[0];
+  return _demoAttempts(al).map((a,i)=>({ id:'di'+(i+1), examen_id:a.ex, correctas:a.c, total:DEMO_EX_META[a.ex].total, creado_en:_dFecha(a.dia) }));
+})();
 
 const DEMO_ENTREGAS = [
   {examen_id:'demo-red', estado:'corregido', nota:7.5, user_id:'demo-alumno'}
@@ -7582,7 +7653,6 @@ const DEMO_ENTREGAS = [
 
 const DEMO_PERFILES = [
   {id:'demo-alumno',  nombre:'Lucía Fernández (demo)', rol:'alumno',   academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof'},
-  {id:'demo-alumno2', nombre:'Andrés Vega (demo)',     rol:'alumno',   academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof'},
   {id:'demo-prof',    nombre:'Elena Ortiz (demo)',     rol:'profesor', academia_id:DEMO_ACADEMIA, profesor_id:null},
   {id:'demo-prof-aa1',nombre:'Marta Ruiz (demo)',      rol:'profesor', academia_id:DEMO_ACADEMIA, profesor_id:null},
   {id:'demo-prof-aa2',nombre:'Javier Soto (demo)',     rol:'profesor', academia_id:DEMO_ACADEMIA, profesor_id:null}
@@ -7603,7 +7673,10 @@ function demoResponder(path, opts){
   if(p.indexOf('/rest/v1/examenes')===0) return DEMO_EXAMENES.map(e=>({...e}));
   if(p.indexOf('/rest/v1/perfiles')===0) return [ {...(window._demoPerfil||DEMO_PERFILES[0])} ];
   if(p.indexOf('/rest/v1/intentos')===0) return DEMO_INTENTOS.map(x=>({...x}));
-  if(p.indexOf('/rest/v1/entregas')===0) return DEMO_ENTREGAS.map(x=>({...x}));
+  if(p.indexOf('/rest/v1/entregas')===0){
+    if(p.indexOf('estado=eq.pendiente')>=0) return DEMO_ENTREGAS_LIST.filter(x=>x.estado==='pendiente').map(x=>({id:x.id}));
+    return DEMO_ENTREGAS.map(x=>({...x}));
+  }
   if(p.indexOf('/rest/v1/temario')===0) return [];
   if(p.indexOf('/rest/v1/academia')===0) return [{nombre:'Academia Demo', nombre_aula_abierta:'Aula Abierta Demo'}];
   if(p.indexOf('/rest/v1/certificados')===0) return [{codigo:'DEMO0508', nombre:'Operaciones de grabación y tratamiento de datos y documentos (demostración)'}];
@@ -7640,16 +7713,17 @@ function demoResponder(path, opts){
     return [{id:'dr1', enunciado:'Redacta un informe breve (unas 10 líneas) explicando cómo organizarías los archivos de un departamento y qué copias de seguridad harías.', material_url:null, material_modo:null}];
 
   if(p.indexOf('/rest/v1/rpc/resumen_alumnado')===0)
-    return [
-      {user_id:'demo-alumno',  nombre:'Lucía Fernández (demo)',  email:'lucia@demo.local',  n_intentos:4, media:7.8},
-      {user_id:'demo-alumno2', nombre:'Andrés Vega (demo)',      email:'andres@demo.local', n_intentos:2, media:5.5}
-    ];
+    return demoResumen();
   if(p.indexOf('/rest/v1/rpc/resultados_alumnado')===0)
-    return DEMO_INTENTOS.map(i=>({user_id:'demo-alumno', nombre:'Lucía Fernández (demo)', examen_id:i.examen_id, correctas:i.correctas, total:i.total, creado_en:i.creado_en}));
+    return demoResultados();
   if(p.indexOf('/rest/v1/rpc/listar_entregas')===0)
-    return [{id:'de1', examen_id:'demo-red', examen:'Informe escrito (redacción)', user_id:'demo-alumno', alumno:'lucia@demo.local', nombre:'Lucía Fernández (demo)', estado:'corregido', nota:7.5, comentario:'Buen planteamiento. [[Falta concretar cada cuánto se hace la copia]]', creado_en:_dFecha(3), respuestas:[{enunciado:'Redacta un informe breve…', texto:'Organizaría los archivos por departamento y año, con una carpeta por cada proyecto…'}]}];
+    return demoEntregasList();
+  if(p.indexOf('/rest/v1/rpc/obtener_entrega')===0){
+    const e=demoEntregasList().find(x=>x.id===body.p_id);
+    return e?[e]:[];
+  }
   if(p.indexOf('/rest/v1/rpc/listar_registrados')===0)
-    return DEMO_PERFILES.filter(x=>x.rol==='alumno').map(x=>({...x, email:x.id+'@demo.local'}));
+    return demoRegistrados();
   if(p.indexOf('/rest/v1/rpc/listar_invitaciones')===0) return [];
 
   // RPC que escriben (entregar_redaccion, reabrir_intento, crear_*, guardar_*…): bloqueadas.
