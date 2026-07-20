@@ -1389,18 +1389,37 @@ function avAreaActual(){
   return 'soporte';
 }
 // Módulo de avisos: campana por departamento. Admin ve TODO en lectura.
-let avLista=null, avArch=[], avManuales=[], avCargando=false;
+let avLista=null, avArch=[], avManuales=[], avTiposOff=[], avCargando=false;
+const AV_DEF_TIPOS=[
+  {tipo:'sop_acad_rev',area:'soporte',label:'Academia revocada'},
+  {tipo:'sop_prof_bloq',area:'soporte',label:'Profesor bloqueado'},
+  {tipo:'sop_acad_sin_prof',area:'soporte',label:'Academia activa sin profesores'},
+  {tipo:'sop_mant',area:'soporte',label:'Mantenimiento encendido demasiado tiempo'},
+  {tipo:'sop_backup',area:'soporte',label:'Recordatorio de backup (domingos)'},
+  {tipo:'adm_cli_rev',area:'admin',label:'Cliente revocado'},
+  {tipo:'adm_rec_mes',area:'admin',label:'Gasto recurrente por vencer'},
+  {tipo:'adm_gas_venc',area:'admin',label:'Gasto por vencer'},
+  {tipo:'adm_gas_vencida',area:'admin',label:'Gasto vencido sin pagar'},
+  {tipo:'adm_fac_impagada',area:'admin',label:'Factura sin cobrar'},
+  {tipo:'adm_contrato_fin',area:'admin',label:'Contrato que termina pronto'},
+  {tipo:'adm_presu_caduca',area:'admin',label:'Presupuesto que caduca'},
+  {tipo:'com_cli_rev',area:'comercial',label:'Cliente revocado'},
+  {tipo:'com_presu_ok',area:'comercial',label:'Presupuesto aceptado'},
+  {tipo:'com_presu_ko',area:'comercial',label:'Presupuesto rechazado/caducado'},
+  {tipo:'com_post_atrasado',area:'comercial',label:'Post de redes atrasado'}
+];
 async function avCargar(force){
   if(avLista && !force) return;
   if(avCargando) return;
   avCargando=true;
   window._avErrMan=null;
-  const [av,ar,man]=await Promise.all([
+  const [av,ar,man,off]=await Promise.all([
     call('/rest/v1/rpc/sa_avisos',{method:'POST',body:{}}).catch(()=>[]),
     call('/rest/v1/avisos_archivados?select=*&order=archivado_en.desc').catch(()=>[]),
-    call('/rest/v1/avisos_manuales?select=*&order=creado_en.desc').catch(e=>{ window._avErrMan=(e&&e.message)||'error'; return []; })
+    call('/rest/v1/avisos_manuales?select=*&order=creado_en.desc').catch(e=>{ window._avErrMan=(e&&e.message)||'error'; return []; }),
+    call('/rest/v1/avisos_tipos_off?select=tipo').catch(()=>[])
   ]);
-  avLista=av||[]; avArch=ar||[]; avManuales=man||[];
+  avLista=av||[]; avArch=ar||[]; avManuales=man||[]; avTiposOff=(off||[]).map(x=>x.tipo);
   avCargando=false;
   avPintarBarra();
 }
@@ -1488,11 +1507,39 @@ function avPanel(area,vis){
     </div>`;
   });
   h+=`</div>`;
+  // ── Avisos por defecto: interruptor verde/rojo global ──
+  const dOpen=window._avDefAbierto;
+  h+=`<div style="border-top:1px dashed var(--line);margin-top:10px;padding-top:9px">
+    <button onclick="avDefToggleSec()" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:0;cursor:pointer;font-family:inherit;padding:0">
+      <b style="font-size:.72rem;color:var(--navy)">⚙ Avisos por defecto</b>
+      <span style="color:var(--ink-soft);font-size:.7rem">${dOpen?'▲':'▼'}</span>
+    </button>`;
+  if(dOpen){
+    h+=`<p style="font-size:.64rem;color:var(--ink-soft);margin:5px 0 3px">Verde = activo · rojo = desactivado (para todos).</p>`;
+    AV_DEF_TIPOS.filter(t=> area==='soporte'?true:t.area===area).forEach(t=>{
+      const off=avTiposOff.includes(t.tipo);
+      h+=`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--line)">
+        <button onclick="avTipoToggle('${t.tipo}',${!off})" title="${off?'Desactivado — activar':'Activo — desactivar'}" style="flex:0 0 auto;width:15px;height:15px;border-radius:50%;border:0;cursor:pointer;background:${off?'#e11d1d':'#16a34a'}"></button>
+        <span style="flex:1;font-size:.74rem;color:${off?'var(--ink-soft)':'var(--ink)'}">${escHtml(t.label)}${area==='soporte'?`<br><span style="font-size:.62rem;color:var(--ink-soft)">${t.area}</span>`:''}</span>
+      </div>`;
+    });
+  }
+  h+=`</div>`;
   const nArch=avArch.length;
   h+=`<button onclick="avVerArchivados()" style="width:100%;margin-top:9px;background:none;border:0;color:var(--ink-soft);font-size:.72rem;cursor:pointer;font-family:inherit;text-decoration:underline">Ver archivados${nArch?' ('+nArch+')':''}</button>`;
   return h+`</div>`;
 }
 function avToggle(){ window._avAbierta=!window._avAbierta; avPintarBarra(); }
+function avDefToggleSec(){ window._avDefAbierto=!window._avDefAbierto; avPintarBarra(); }
+async function avTipoToggle(tipo, off){
+  try{
+    if(off) await call('/rest/v1/avisos_tipos_off',{method:'POST',body:{tipo}});
+    else await call('/rest/v1/avisos_tipos_off?tipo=eq.'+encodeURIComponent(tipo),{method:'DELETE'});
+    if(off){ if(!avTiposOff.includes(tipo)) avTiposOff.push(tipo); }
+    else avTiposOff=avTiposOff.filter(x=>x!==tipo);
+    await avCargar(true);
+  }catch(e){ appAlert('No se pudo cambiar: '+(e.message||'')); }
+}
 function avManToggleForm(){ const d=window._avMan||(window._avMan={}); d.abierto=!d.abierto; avPintarBarra(); }
 function avManSetRepetir(v){ const d=window._avMan||(window._avMan={}); const t=$('avman-txt'); if(t) d.texto=t.value; d.repetir=v; avPintarBarra(); }
 async function avManGuardar(){
