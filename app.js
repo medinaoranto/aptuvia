@@ -5237,9 +5237,10 @@ function renderEditarCabecera(ex){
       <label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ed-fin"${ex.cuenta_final?' checked':''}> Cuenta para la nota final</label>
       <button class="btn btn-honey" id="ed-save" style="margin-top:16px">Guardar cambios</button>
     </div>
-    ${ex.tipo!=='redaccion'?`<button class="btn btn-ghost pv-toggle" id="btn-pv-preguntas" style="margin-top:14px;width:100%">👁 Revisar y editar preguntas</button><div id="pv-preguntas"></div>`:''}`;
+    ${ex.tipo!=='redaccion'?`<button class="btn btn-ghost pv-toggle" id="btn-pv-preguntas" style="margin-top:14px;width:100%">👁 Revisar y editar preguntas</button><div id="pv-preguntas"></div>`:`<button class="btn btn-ghost pv-toggle" id="btn-red-edit" style="margin-top:14px;width:100%">✏️ Editar enunciados</button><div id="red-prof"></div>`}`;
   $('ed-save').onclick=()=>guardarCabeceraUI(ex.id);
   const _pvb=$('btn-pv-preguntas'); if(_pvb) _pvb.onclick=()=>togglePreviewPreguntas(ex.id);
+  const _rdb=$('btn-red-edit'); if(_rdb) _rdb.onclick=()=>toggleRedaccionProf(ex.id);
 }
 async function guardarCabeceraUI(id){
   const tit=($('ed-tit').value||'').trim();
@@ -6439,6 +6440,7 @@ async function cargarPreviewPreguntas(examId){
     if(!qs.length){ box.innerHTML='<div class="center-msg">Este examen no tiene preguntas.</div>'; return; }
     const LET=['A','B','C','D','E','F'];
     let h=`<div class="pvq-count">${qs.length} pregunta${qs.length!==1?'s':''} · la correcta aparece marcada en verde</div>
+    <button class="btn btn-ghost pv-toggle" id="btn-pv-nueva" style="margin-bottom:8px">➕ Pregunta nueva</button>
     <button class="btn btn-ghost pv-toggle" id="btn-pv-add">Reponer pregunta del banco</button>
     <div id="pv-banco"></div>
     <div class="pvq-list">`;
@@ -6460,6 +6462,8 @@ async function cargarPreviewPreguntas(examId){
     box.innerHTML=h;
     const addBtn=$('btn-pv-add');
     if(addBtn) addBtn.onclick=()=>toggleBancoPreguntas(examId);
+    const nvBtn=$('btn-pv-nueva');
+    if(nvBtn) nvBtn.onclick=()=>nuevaPreguntaUI(examId);
   }catch(err){
     box.innerHTML=`<div class="center-msg">No se pudieron cargar las preguntas.<br><small>${escHtml(err.message||'')}</small></div>`;
   }
@@ -6520,6 +6524,151 @@ async function guardarPreguntaEditUI(examId, preguntaId){
     await call('/rest/v1/rpc/actualizar_pregunta',{method:'POST',body:{p_pregunta_id:+preguntaId, p_examen_id:examId, p_enunciado:enun, p_opciones:opciones, p_correcta:correcta, p_explicacion:ex, p_nivel:niv}});
     await cargarPreviewPreguntas(examId);
   }catch(err){ btn.disabled=false; btn.textContent='Guardar'; appAlert('No se pudo guardar: '+(err.message||'')); }
+}
+// ---- Añadir una pregunta nueva al examen (Alcance C · capa 2c) ----
+function nuevaPreguntaUI(examId){
+  const box=$('pv-preguntas'); if(!box) return;
+  const LET=['A','B','C','D'];
+  let opsH='';
+  for(let i=0;i<4;i++){ opsH+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><label style="display:flex;align-items:center;gap:5px;font-size:.82rem;white-space:nowrap"><input type="radio" name="nqp-cor" value="${i}"${i===0?' checked':''}> ${LET[i]}</label><input class="nqp-op" type="text" placeholder="Opción ${LET[i]}${i>1?' (opcional)':''}" style="flex:1"></div>`; }
+  box.innerHTML=`
+    <div class="t-card">
+      <div style="font-weight:800;color:var(--navy);margin-bottom:10px">Pregunta nueva</div>
+      <label style="margin-top:2px">Enunciado</label>
+      <textarea id="nqp-enun" rows="3" placeholder="Escribe la pregunta"></textarea>
+      <label style="margin-top:10px">Opciones · marca la correcta (mínimo 2)</label>
+      ${opsH}
+      <label style="margin-top:6px">Explicación (opcional)</label>
+      <textarea id="nqp-ex" rows="2"></textarea>
+      <label style="margin-top:10px">Nivel</label>
+      <select id="nqp-niv"><option value="medio" selected>Medio</option><option value="alto">Alto</option></select>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn btn-ghost" style="flex:1" onclick="cargarPreviewPreguntas('${examId}')">Cancelar</button>
+        <button class="btn btn-primary" id="nqp-save" style="flex:1">Añadir al examen</button>
+      </div>
+    </div>`;
+  $('nqp-save').onclick=()=>guardarNuevaPreguntaUI(examId);
+  try{ box.scrollIntoView({behavior:'smooth',block:'start'}); }catch(_){}
+}
+async function guardarNuevaPreguntaUI(examId){
+  const enun=($('nqp-enun').value||'').trim();
+  if(!enun){ appAlert('El enunciado no puede estar vacío.'); return; }
+  const rows=[...document.querySelectorAll('.nqp-op')];
+  const corEl=document.querySelector('input[name="nqp-cor"]:checked');
+  let opciones=[], correcta=-1;
+  rows.forEach((el,slot)=>{ const v=(el.value||'').trim(); if(v){ if(corEl && +corEl.value===slot) correcta=opciones.length; opciones.push(v); } });
+  if(opciones.length<2){ appAlert('Escribe al menos dos opciones.'); return; }
+  if(correcta<0){ appAlert('Marca como correcta una opción que tenga texto.'); return; }
+  const ex=($('nqp-ex').value||'').trim();
+  const niv=$('nqp-niv').value==='alto'?'alto':'medio';
+  const btn=$('nqp-save'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  try{
+    await call('/rest/v1/rpc/agregar_pregunta_examen',{method:'POST',body:{p_examen_id:examId, p_enunciado:enun, p_opciones:opciones, p_correcta:correcta, p_explicacion:ex, p_nivel:niv}});
+    await cargarPreviewPreguntas(examId);
+  }catch(err){ btn.disabled=false; btn.textContent='Añadir al examen'; appAlert('No se pudo añadir: '+(err.message||'')); }
+}
+// ---- Editar enunciados de un examen de redacción (Alcance C · capa 2d) ----
+let _redProfAbierto=null;
+async function toggleRedaccionProf(examId){
+  const box=$('red-prof'); if(!box) return;
+  const b=$('btn-red-edit');
+  if(_redProfAbierto===examId){ box.innerHTML=''; _redProfAbierto=null; if(b) b.textContent='✏️ Editar enunciados'; return; }
+  _redProfAbierto=examId;
+  if(b) b.textContent='▲ Ocultar enunciados';
+  await cargarRedaccionProf(examId);
+}
+async function cargarRedaccionProf(examId){
+  const box=$('red-prof'); if(!box) return;
+  box.innerHTML='<div class="loader"><span class="spin"></span></div>';
+  try{
+    const ex=[].concat(...Object.values(examsByUnit)).find(e=>String(e.id)===String(examId))||{};
+    const qs=await call('/rest/v1/rpc/obtener_redaccion_profesor',{method:'POST',body:{p_examen_id:examId}})||[];
+    window._redMat={ex:(ex.material_url||null), q:{}}; qs.forEach(function(q){ window._redMat.q[q.pregunta_id]=q.material_url||null; });
+    let h=`<div class="t-card" style="margin-top:10px">
+      <div style="font-weight:800;color:var(--navy);margin-bottom:6px">PDF del examen</div>
+      <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:8px">${ex.material_url?'📎 Hay un PDF adjunto.':'Sin PDF.'}</div>
+      <input id="mat-ex-file" type="file" accept="application/pdf" style="font-size:.75rem;display:block">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" style="flex:1" onclick="guardarMaterialExamenUI('${examId}')">${ex.material_url?'Cambiar PDF':'Subir PDF'}</button>
+        ${ex.material_url?`<button class="btn btn-ghost" style="flex:1" onclick="quitarMaterialExamenUI('${examId}')">Quitar PDF</button>`:''}
+      </div>
+    </div>`;
+    if(!qs.length){ h+='<div class="center-msg" style="margin-top:10px">Este examen no tiene enunciados.</div>'; }
+    qs.forEach((q,i)=>{
+      h+=`<div class="t-card" style="margin-top:10px">
+        <div style="font-weight:800;color:var(--navy);margin-bottom:8px">Enunciado ${i+1}</div>
+        <textarea id="red-en-${q.pregunta_id}" rows="3">${escHtml(q.enunciado||'')}</textarea>
+        <button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="guardarEnunciadoUI('${examId}',${q.pregunta_id})">Guardar enunciado</button>
+        <div style="font-size:.8rem;color:var(--ink-soft);margin:12px 0 6px">${q.material_url?'📎 PDF adjunto a esta pregunta.':'Sin PDF en esta pregunta.'}</div>
+        <input id="mat-q-${q.pregunta_id}" type="file" accept="application/pdf" style="font-size:.75rem;display:block">
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-ghost" style="flex:1" onclick="guardarMaterialPreguntaUI('${examId}',${q.pregunta_id})">${q.material_url?'Cambiar PDF':'Subir PDF'}</button>
+          ${q.material_url?`<button class="btn btn-ghost" style="flex:1" onclick="quitarMaterialPreguntaUI('${examId}',${q.pregunta_id})">Quitar PDF</button>`:''}
+        </div>
+      </div>`;
+    });
+    box.innerHTML=h;
+  }catch(err){ box.innerHTML=`<div class="center-msg">No se pudieron cargar los enunciados.<br><small>${escHtml(err.message||'')}</small></div>`; }
+}
+async function guardarEnunciadoUI(examId, preguntaId){
+  const ta=$('red-en-'+preguntaId); if(!ta) return;
+  const val=(ta.value||'').trim();
+  if(!val){ appAlert('El enunciado no puede estar vacío.'); return; }
+  try{
+    await call('/rest/v1/rpc/actualizar_enunciado',{method:'POST',body:{p_pregunta_id:+preguntaId, p_examen_id:examId, p_enunciado:val}});
+    appAlert('✅ Enunciado guardado.');
+  }catch(err){ appAlert('No se pudo guardar: '+(err.message||'')); }
+}
+function _matPathBase(examId){ return 'red/'+String(examId).replace(/[^a-z0-9]/gi,'_'); }
+async function borrarMaterialPDF(url){
+  if(!url) return;
+  const m='/material-examenes/'; const i=url.indexOf(m); if(i<0) return;
+  const path=url.slice(i+m.length);
+  try{ await fetch(SUPABASE_URL+'/storage/v1/object/material-examenes/'+path,{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token}}); }catch(_){}
+}
+async function guardarMaterialExamenUI(examId){
+  const inp=$('mat-ex-file'); const file=inp&&inp.files?inp.files[0]:null;
+  if(!file){ appAlert('Elige un PDF primero.'); return; }
+  const oldUrl=(window._redMat&&window._redMat.ex)||null;
+  try{
+    const url=await subirMaterialPDF(file, _matPathBase(examId)+'/examen_'+Date.now()+'.pdf');
+    await call('/rest/v1/rpc/actualizar_material_examen',{method:'POST',body:{p_examen_id:examId, p_material_url:url, p_material_modo:'inline'}});
+    const ex=[].concat(...Object.values(examsByUnit)).find(e=>String(e.id)===String(examId)); if(ex){ ex.material_url=url; ex.material_modo='inline'; }
+    if(oldUrl && oldUrl!==url) borrarMaterialPDF(oldUrl);
+    appAlert('✅ PDF del examen guardado.');
+    await cargarRedaccionProf(examId);
+  }catch(err){ appAlert('No se pudo guardar el PDF: '+(err.message||'')); }
+}
+async function quitarMaterialExamenUI(examId){
+  if(!await appConfirm('¿Quitar el PDF del examen?')) return;
+  const oldUrl=(window._redMat&&window._redMat.ex)||null;
+  try{
+    await call('/rest/v1/rpc/actualizar_material_examen',{method:'POST',body:{p_examen_id:examId, p_material_url:null, p_material_modo:null}});
+    const ex=[].concat(...Object.values(examsByUnit)).find(e=>String(e.id)===String(examId)); if(ex){ ex.material_url=null; ex.material_modo=null; }
+    if(oldUrl) borrarMaterialPDF(oldUrl);
+    await cargarRedaccionProf(examId);
+  }catch(err){ appAlert('No se pudo quitar: '+(err.message||'')); }
+}
+async function guardarMaterialPreguntaUI(examId, preguntaId){
+  const inp=$('mat-q-'+preguntaId); const file=inp&&inp.files?inp.files[0]:null;
+  if(!file){ appAlert('Elige un PDF primero.'); return; }
+  const oldUrl=(window._redMat&&window._redMat.q)?window._redMat.q[preguntaId]:null;
+  try{
+    const url=await subirMaterialPDF(file, _matPathBase(examId)+'/p'+preguntaId+'_'+Date.now()+'.pdf');
+    await call('/rest/v1/rpc/actualizar_material_pregunta',{method:'POST',body:{p_pregunta_id:+preguntaId, p_examen_id:examId, p_material_url:url, p_material_modo:'inline'}});
+    if(oldUrl && oldUrl!==url) borrarMaterialPDF(oldUrl);
+    appAlert('✅ PDF de la pregunta guardado.');
+    await cargarRedaccionProf(examId);
+  }catch(err){ appAlert('No se pudo guardar el PDF: '+(err.message||'')); }
+}
+async function quitarMaterialPreguntaUI(examId, preguntaId){
+  if(!await appConfirm('¿Quitar el PDF de esta pregunta?')) return;
+  const oldUrl=(window._redMat&&window._redMat.q)?window._redMat.q[preguntaId]:null;
+  try{
+    await call('/rest/v1/rpc/actualizar_material_pregunta',{method:'POST',body:{p_pregunta_id:+preguntaId, p_examen_id:examId, p_material_url:null, p_material_modo:null}});
+    if(oldUrl) borrarMaterialPDF(oldUrl);
+    await cargarRedaccionProf(examId);
+  }catch(err){ appAlert('No se pudo quitar: '+(err.message||'')); }
 }
 
 // ---- Reponer: elegir una pregunta del banco (mismo tema) y añadirla al examen ----
