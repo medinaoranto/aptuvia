@@ -5236,8 +5236,10 @@ function renderEditarCabecera(ex){
       <select id="ed-niv"><option value="medio"${ex.nivel!=='alto'?' selected':''}>Medio</option><option value="alto"${ex.nivel==='alto'?' selected':''}>Alto</option></select>
       <label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ed-fin"${ex.cuenta_final?' checked':''}> Cuenta para la nota final</label>
       <button class="btn btn-honey" id="ed-save" style="margin-top:16px">Guardar cambios</button>
-    </div>`;
+    </div>
+    ${ex.tipo!=='redaccion'?`<button class="btn btn-ghost pv-toggle" id="btn-pv-preguntas" style="margin-top:14px;width:100%">👁 Revisar y editar preguntas</button><div id="pv-preguntas"></div>`:''}`;
   $('ed-save').onclick=()=>guardarCabeceraUI(ex.id);
+  const _pvb=$('btn-pv-preguntas'); if(_pvb) _pvb.onclick=()=>togglePreviewPreguntas(ex.id);
 }
 async function guardarCabeceraUI(id){
   const tit=($('ed-tit').value||'').trim();
