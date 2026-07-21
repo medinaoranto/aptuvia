@@ -1784,7 +1784,10 @@ function saRenderLista(okMsg,errMsg){
     rsRender();
     return;
   }
-  h+=`<button class="btn btn-honey" id="sa-nueva" style="margin-bottom:14px">Nueva academia</button>`;
+  h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <button class="btn btn-honey" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
+    <button class="btn btn-ghost" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
+  </div>`;
   h+=`<div class="sa-cards-grid">`;
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
@@ -1797,6 +1800,7 @@ function saRenderLista(okMsg,errMsg){
   h+=`<div id="sa-mant-box" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)"></div>`;
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
+  if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
   saPintarMantenimiento();
 }
@@ -2007,6 +2011,90 @@ async function saCrearProfesorUI(academiaId, aaMode){
     if(aaMode){ await saAbrirAula(); } else { await saAbrirAcademia(academiaId); }
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
+/* ═══════════ ALTA DE CLIENTE DESDE PRESUPUESTO (trazabilidad) ═══════════ */
+/* Los datos del cliente entran por el presupuesto (Comercial). Aquí Soporte da
+   de alta el cliente SIN reescribir: crea la academia/AA, siembra su ficha de
+   facturación desde el presupuesto y deja el presupuesto enlazado al cliente. */
+function saDatosDesdeCliente(c){
+  c=c||{};
+  return { razon_social:c.razon_social||'', nif:c.nif||'', direccion:c.direccion||'',
+    cp:c.cp||'', poblacion:c.poblacion||'', provincia:c.provincia||'',
+    email:c.email||'', telefono:c.telefono||'' };
+}
+async function saAltaDesdePresu(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  let lista=[];
+  try{ lista=await call('/rest/v1/presupuestos?select=*&order=fecha.desc,creado_en.desc')||[]; }
+  catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:10px">← Soporte</button>
+      <div class="center-msg">No se pudieron cargar los presupuestos.<br><small>${escHtml(e.message||'')}</small></div>`);
+    return;
+  }
+  // Convertibles: aceptados y aún no dados de alta (sin academia ni profesor enlazado).
+  const conv=lista.filter(p=>pxEstadoReal(p)==='aceptado' && !p.academia_id && !p.profesor_id);
+  window._altaPresu=conv;
+  let h=`<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:10px">← Soporte</button>
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Alta desde presupuesto</h2>
+    <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">Da de alta el cliente a partir de un presupuesto aceptado. Se crea la academia (o el profesor de Aula Abierta) y su ficha de facturación se rellena sola con los datos del presupuesto.</p>`;
+  if(!conv.length){ $('teacher').innerHTML=saShell(h+`<p class="sa-empty">No hay presupuestos aceptados pendientes de alta.</p>`); return; }
+  conv.forEach(p=>{
+    const c=p.cliente||{};
+    h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b><br>
+          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(c.razon_social||'—')}${c.nif?(' · '+escHtml(c.nif)):''}</span></div>
+        <b style="font-size:.9rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
+        <button onclick="saAltaAcademia('${p.id}')" class="gx-mini ok">🏫 Crear academia</button>
+        <button onclick="saAltaAA('${p.id}')" class="gx-mini">🎨 Crear Aula Abierta</button>
+      </div>
+    </div>`;
+  });
+  $('teacher').innerHTML=saShell(h);
+}
+async function saAltaAcademia(id){
+  const p=(window._altaPresu||[]).find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  const c=p.cliente||{};
+  const nombre=await appPrompt('Nombre de la academia:', c.razon_social||''); if(nombre===null) return;
+  if(nombre.trim().length<2){ appAlert('Nombre demasiado corto.'); return; }
+  try{
+    const nid=await call('/rest/v1/rpc/sa_crear_academia',{method:'POST',body:{p_nombre:nombre.trim()}});
+    const academiaId=(typeof nid==='number')?nid:(Array.isArray(nid)?nid[0]:parseInt(nid,10));
+    if(!academiaId){ appAlert('La academia se creó pero no se obtuvo su id. Revisa en la lista.'); await openSuperadmin(); return; }
+    try{ await call('/rest/v1/rpc/sa_guardar_datos_fact',{method:'POST',body:{p_academia:academiaId,p_datos:saDatosDesdeCliente(c),p_profesor:null}}); }catch(_){}
+    try{ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body:{academia_id:academiaId}}); }catch(_){}
+    saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
+    await saAbrirAcademia(academiaId);
+    appAlert('✅ Academia "'+nombre.trim()+'" creada desde '+(p.numero||'')+'. Su ficha de facturación ya tiene los datos del cliente. Añade ahora sus profesores y certificados.');
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function saAltaAA(id){
+  const p=(window._altaPresu||[]).find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  const c=p.cliente||{};
+  const nombre=await appPrompt('Nombre del profesor de Aula Abierta:', c.contacto||c.razon_social||'')||'';
+  const email=await appPrompt('Email de acceso del profesor:', c.email||''); if(email===null||!email.trim()) return;
+  const pass=await appPrompt('Contraseña inicial (mín. 6):'); if(pass===null) return;
+  if(pass.length<6){ appAlert('Mínimo 6 caracteres.'); return; }
+  try{
+    await call('/rest/v1/rpc/sa_crear_profesor',{method:'POST',body:{p_email:email.trim(),p_pass:pass,p_nombre:nombre,p_academia:1,p_cert:'aula_abierta',p_cert_codigo:'AULA',p_cert_nombre:'Aula Abierta'}});
+    let profId=null;
+    try{
+      const us=await call('/rest/v1/rpc/sa_aa_usuarios',{method:'POST',body:{}})||[];
+      const u=us.find(x=>String(x.email||'').toLowerCase()===email.trim().toLowerCase());
+      profId=u?u.id:null;
+    }catch(_){}
+    if(profId){
+      try{ await call('/rest/v1/rpc/sa_guardar_datos_fact',{method:'POST',body:{p_academia:null,p_datos:saDatosDesdeCliente(c),p_profesor:profId}}); }catch(_){}
+      try{ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body:{profesor_id:profId}}); }catch(_){}
+    }
+    await saAbrirAula();
+    appAlert('✅ Profesor de Aula Abierta creado desde '+(p.numero||'')+(profId?'. Su ficha de facturación ya tiene los datos del cliente.':'. (No se pudo enlazar la ficha automáticamente; revísala en Facturación.)'));
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+
 async function saResetPassUI(userId,email){
   const nueva=await appPrompt('Nueva contraseña para '+email+' (mín. 6):'); if(nueva===null) return;
   if(nueva.length<6){ appAlert('Mínimo 6 caracteres.'); return; }
@@ -2454,6 +2542,7 @@ function saRenderFacturacionLista(){
   if(!sub){
     let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 14px">Gestión</h2>`;
     h+=`<div class="sa-cards-grid">`;
+    h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('aa')"><b>Facturar Aula Abierta</b><span>Emitir factura a los clientes de Aula Abierta</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
@@ -2464,6 +2553,7 @@ function saRenderFacturacionLista(){
     return;
   }
   if(sub==='conta'){ ctRender(); return; }
+  if(sub==='presuacep'){ saRenderPresuAceptados(); return; }
   if(sub==='emitidas'){ saRenderFacturasEmitidas(); return; }
   if(sub==='gastos'){ gxRender(); return; }
   if(sub==='academias'){
@@ -2521,6 +2611,18 @@ function pxCaducidad(p){
   const d=new Date(p.fecha); d.setDate(d.getDate()+(Number(p.validez_dias)||30));
   return d.toISOString().slice(0,10);
 }
+// Trazabilidad: si el presupuesto ya se convirtió en cliente, describe en cuál.
+function pxAltaLabel(p){
+  if(p.academia_id){
+    const a=(typeof saAcademias!=='undefined'&&saAcademias)?saAcademias.find(x=>String(x.academia_id)===String(p.academia_id)):null;
+    return 'Cliente dado de alta: '+(a?a.nombre:('academia #'+p.academia_id));
+  }
+  if(p.profesor_id){
+    const u=(typeof pxAA!=='undefined'&&pxAA?pxAA.find(x=>String(x.id)===String(p.profesor_id)):null);
+    return 'Alta en Aula Abierta'+(u?(': '+(u.nombre||u.email)):'');
+  }
+  return '';
+}
 
 function pxNuevoNumero(){
   const y=new Date().getFullYear();
@@ -2571,7 +2673,7 @@ function pxPintar(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b>
           <span style="font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;color:${e.col};background:${e.bg}">${e.lab}</span><br>
-          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span></div>
+          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
@@ -2581,7 +2683,7 @@ function pxPintar(){
         <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="padding:3px 5px">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
         </select>
-        ${est==='aceptado'?`<button onclick="pxAFactura('${p.id}')" class="gx-mini ok">→ Facturar</button>`:''}
+        ${est==='aceptado'?(p.facturado_en?`<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Facturado</span>`:`<span class="gx-mini" style="background:#eef4fb;color:#2563a8;cursor:default">→ Lo factura Administración</span>`):''}
         <button onclick="pxBorrar('${p.id}')" class="gx-mini del" style="margin-left:auto">🗑</button>
       </div>
     </div>`;
@@ -2943,6 +3045,77 @@ function pxEnviar(id){
     'Un cordial saludo,\nAptuvia\ncontacto@aptuvia.es';
   window._factMail={ email:c.email, asunto, cuerpo };
   factMostrarPlantilla();
+}
+
+/* ═══════════ PRESUPUESTOS ACEPTADOS · Administración ═══════════ */
+/* Administración factura aquí los presupuestos ya aceptados por el cliente,
+   sin entrar en Comercial. Al generar la factura se marca facturado y se
+   bloquea (antiduplicado). Las mensuales recurrentes van por "Facturar Aptuvia". */
+async function saRenderPresuAceptados(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  let lista=[];
+  try{ lista=await call('/rest/v1/presupuestos?select=*&order=fecha.desc,creado_en.desc')||[]; }
+  catch(e){
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
+      <div class="center-msg">No se pudieron cargar los presupuestos.<br><small>${escHtml(e.message||'')}</small></div>`);
+    return;
+  }
+  window._presuAcep=lista;
+  const acep=lista.filter(p=>pxEstadoReal(p)==='aceptado');
+  let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Presupuestos aceptados</h2>
+    <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">Presupuestos aceptados por el cliente, listos para emitir su <b>primera</b> factura. Al facturar se bloquean para no duplicarlos. Las facturas mensuales recurrentes se emiten desde <b>Facturar Aptuvia</b>.</p>`;
+  if(!acep.length){ $('teacher').innerHTML=saShell(h+`<p class="sa-empty">No hay presupuestos aceptados.</p>`); return; }
+  acep.forEach(p=>{
+    const cli=(p.cliente&&p.cliente.razon_social)||'—';
+    const fact=!!p.facturado_en;
+    h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff${fact?';opacity:.9':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b>
+          ${fact?`<span style="font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;color:#15803d;background:#dcfce7">✅ Facturado</span>`:''}<br>
+          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')}${fact&&p.factura_numero?(' · '+escHtml(p.factura_numero)):''}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
+        <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
+        <button onclick="saPresuPDF('${p.id}')" class="gx-mini">📄 PDF</button>
+        ${fact
+          ? `<span class="gx-mini" style="background:#f1f1f4;color:#6e6e78;cursor:default">Facturado</span><button onclick="saPresuDesbloquear('${p.id}')" class="gx-mini del" style="margin-left:auto">↩ Desbloquear</button>`
+          : `<button onclick="saPresuFacturar('${p.id}')" class="gx-mini ok" style="margin-left:auto">→ Facturar</button>`}
+      </div>
+    </div>`;
+  });
+  $('teacher').innerHTML=saShell(h);
+}
+function saPresuPDF(id){
+  const p=(window._presuAcep||[]).find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  pxRenderPDF(p);
+}
+function saPresuFacturar(id){
+  const p=(window._presuAcep||[]).find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  if(p.facturado_en){ appAlert('Este presupuesto ya está facturado.'); return; }
+  const lin=p.lineas||{};
+  window._fact={
+    academiaId:null, profesorId:null,
+    academiaNombre:(p.cliente&&p.cliente.razon_social)||'cliente',
+    datos:p.cliente||{},
+    rec:JSON.parse(JSON.stringify(lin.rec||[])),
+    uni:JSON.parse(JSON.stringify(lin.uni||[])),
+    descuento:Number(p.descuento_pct)||0, iva:Number(p.iva_pct)||21,
+    facturas:[],
+    presuId:p.id, presuNumero:p.numero, marcarFacturado:true
+  };
+  saRenderFacturacion();
+  appAlert('Presupuesto '+(p.numero||'')+' cargado. Revisa las líneas y genera la factura; al generarla, el presupuesto quedará marcado como facturado.');
+}
+async function saPresuDesbloquear(id){
+  if(!await appConfirm('¿Desbloquear este presupuesto para volver a facturarlo? Úsalo solo si la factura anterior fue un error.')) return;
+  try{
+    await call('/rest/v1/presupuestos?id=eq.'+id,{method:'PATCH',body:{facturado_en:null,factura_numero:null}});
+    const p=(window._presuAcep||[]).find(x=>String(x.id)===String(id)); if(p){ p.facturado_en=null; p.factura_numero=null; }
+    saRenderPresuAceptados();
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 
 /* Pasar un presupuesto aceptado a la pantalla de factura */
@@ -4028,13 +4201,18 @@ async function saAbrirFacturacion(academiaId){
   let datos={}, facturas=[];
   try{ const d=await call('/rest/v1/datos_facturacion?academia_id=eq.'+academiaId); if(d&&d[0]) datos=d[0]; }catch(e){}
   try{ facturas=await call('/rest/v1/facturas?academia_id=eq.'+academiaId+'&order=creado_en.desc')||[]; }catch(e){}
+  let presus=[];
+  try{
+    const all=await call('/rest/v1/presupuestos?select=*&estado=eq.aceptado&order=fecha.desc')||[];
+    presus=all.filter(p=> String(p.academia_id)===String(academiaId) || (datos.nif && p.cliente && p.cliente.nif===datos.nif));
+  }catch(e){}
   window._fact={
     academiaId, profesorId:null, academiaNombre:a.nombre,
     datos,
     rec:[ {nombre:'Acceso por profesor', precio:14, cant:(a.n_profes||0)} ],
     uni:(a.n_certificados||0)>0 ? [ {nombre:'Certificado de profesionalidad', precio:198, cant:(a.n_certificados||0)} ] : [],
     descuento:0, iva:21,
-    facturas
+    facturas, presupuestos:presus
   };
   saRenderFacturacion();
 }
@@ -4044,14 +4222,35 @@ async function saAbrirFacturacionAA(profesorId, nombre){
   let datos={}, facturas=[];
   try{ const d=await call('/rest/v1/datos_facturacion?profesor_id=eq.'+profesorId); if(d&&d[0]) datos=d[0]; }catch(e){}
   try{ facturas=await call('/rest/v1/facturas?profesor_id=eq.'+profesorId+'&order=creado_en.desc')||[]; }catch(e){}
+  let presus=[];
+  try{
+    const all=await call('/rest/v1/presupuestos?select=*&estado=eq.aceptado&order=fecha.desc')||[];
+    presus=all.filter(p=> String(p.profesor_id)===String(profesorId) || (datos.nif && p.cliente && p.cliente.nif===datos.nif));
+  }catch(e){}
   window._fact={
     academiaId:null, profesorId, academiaNombre:nombre||'Aula Abierta',
     datos,
     rec:[ {nombre:'Aula Abierta · Plan Individual', precio:19, cant:1} ],
     uni:[],
     descuento:0, iva:21,
-    facturas
+    facturas, presupuestos:presus
   };
+  saRenderFacturacion();
+}
+
+function factCargarPresu(id){
+  const f=window._fact; if(!f) return;
+  if(!id){ return; }
+  const p=(f.presupuestos||[]).find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  const lin=p.lineas||{};
+  f.rec=JSON.parse(JSON.stringify(lin.rec||[]));
+  f.uni=JSON.parse(JSON.stringify(lin.uni||[]));
+  f.descuento=Number(p.descuento_pct)||0;
+  f.iva=(p.iva_pct!=null)?Number(p.iva_pct):21;
+  f.presuId=p.id; f.presuNumero=p.numero;
+  // Referencia de origen; NO marca el presupuesto como facturado (esto es facturación,
+  // recurrente incluida). El bloqueo antiduplicado solo aplica al alta desde "Presupuestos aceptados".
   saRenderFacturacion();
 }
 
@@ -4067,7 +4266,18 @@ function factLineHtml(tipo, i, l){
 function saRenderFacturacion(){
   const f=window._fact; const d=f.datos||{};
   let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
-    <h2 style="font-size:1.1rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">Factura · ${escHtml(f.academiaNombre)}</h2>`;
+    <h2 style="font-size:1.1rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">Factura · ${escHtml(f.academiaNombre)}</h2>${f.presuNumero?`<p style="font-size:.72rem;color:#2563a8;font-weight:700;margin:0 2px 6px">📝 Origen: presupuesto ${escHtml(f.presuNumero)}</p>`:''}`;
+
+  // Tirar del presupuesto de origen: copia partidas, precios, descuento, IVA y condiciones.
+  if(f.presupuestos&&f.presupuestos.length){
+    h+=`<div style="margin:2px 2px 12px;padding:9px 11px;border:1.5px solid var(--honey);border-radius:11px;background:var(--honey-tint)">
+      <label style="font-size:.72rem;font-weight:800;color:var(--navy);display:block;margin-bottom:5px">📝 Tirar del presupuesto (copia partidas, precios y condiciones)</label>
+      <select onchange="factCargarPresu(this.value)" style="width:100%;font-size:.84rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;box-sizing:border-box">
+        <option value="">— Elegir presupuesto —</option>
+        ${f.presupuestos.map(p=>`<option value="${p.id}"${String(f.presuId)===String(p.id)?' selected':''}>${escHtml(p.numero||'')} · ${escHtml((p.cliente&&p.cliente.razon_social)||'')} · ${gxEur(p.total)}</option>`).join('')}
+      </select>
+    </div>`;
+  }
 
   // Ficha del cliente (desplegable)
   h+=`<details style="margin:10px 0;border:1.5px solid var(--honey);border-radius:12px;padding:10px 12px;background:var(--honey-tint)">
@@ -4234,7 +4444,9 @@ function factRenderPDF(data){
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...SOFT);
   doc.text('Nº '+data.numero, 210-M, y+5, {align:'right'});
   doc.text('Fecha: '+data.fecha, 210-M, y+10, {align:'right'});
-  y+=22;
+  let hdrExtra=0;
+  if(data.presuNumero){ doc.text('Ref. presupuesto: '+data.presuNumero, 210-M, y+15, {align:'right'}); hdrExtra=5; }
+  y+=22+hdrExtra;
   doc.setDrawColor(220,220,225); doc.line(M,y,210-M,y); y+=8;
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...SOFT); doc.text('FACTURAR A', M, y); y+=5;
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...INK);
@@ -4279,12 +4491,21 @@ async function factGenerarPDF(){
   const f=window._fact; const d=f.datos||{};
   const numero='F-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-5);
   const fecha=new Date().toISOString().slice(0,10);
-  const r=factRenderPDF({numero,fecha,nombreCliente:f.academiaNombre,d,rec:f.rec,uni:f.uni,descuento:f.descuento,iva:f.iva});
+  const r=factRenderPDF({numero,fecha,nombreCliente:f.academiaNombre,d,rec:f.rec,uni:f.uni,descuento:f.descuento,iva:f.iva,presuNumero:f.presuNumero});
   if(!r) return;
   try{
     const payload={ academia_id:f.academiaId, profesor_id:f.profesorId||null, numero, fecha, cliente:d, lineas:{rec:f.rec,uni:f.uni}, subtotal:+r.subtotal.toFixed(2), descuento_pct:f.descuento, iva_pct:f.iva, total:+r.total.toFixed(2) };
     const id=await call('/rest/v1/rpc/sa_guardar_factura',{method:'POST',body:{p_factura:payload}});
-    f.facturas=f.facturas||[]; f.facturas.unshift({id:(typeof id==='string'?id:(id&&id[0])||''), numero, fecha, total:+r.total.toFixed(2)});
+    const fid=(typeof id==='string'?id:(id&&id[0])||'');
+    f.facturas=f.facturas||[]; f.facturas.unshift({id:fid, numero, fecha, total:+r.total.toFixed(2)});
+    // Trazabilidad: toda factura que venga de un presupuesto guarda su referencia.
+    if(f.presuNumero && fid){
+      try{ await call('/rest/v1/facturas?id=eq.'+fid,{method:'PATCH',body:{presupuesto_numero:f.presuNumero,presupuesto_id:f.presuId||null}}); }catch(_){}
+    }
+    // Bloqueo antiduplicado SOLO para el alta desde "Presupuestos aceptados" (primera factura).
+    if(f.marcarFacturado && f.presuId){
+      try{ await call('/rest/v1/presupuestos?id=eq.'+f.presuId,{method:'PATCH',body:{facturado_en:new Date().toISOString(),factura_numero:numero}}); }catch(_){}
+    }
     saRenderFacturacion();
   }catch(e){ /* el PDF ya se descargó; si falla el guardado, no bloquea */ }
 }
@@ -4298,7 +4519,8 @@ async function factVerFactura(id){
       numero:fc.numero, fecha:fc.fecha,
       nombreCliente:(fc.cliente&&fc.cliente.razon_social)||window._fact.academiaNombre||'cliente',
       d:fc.cliente||{}, rec:lin.rec||[], uni:lin.uni||[],
-      descuento:Number(fc.descuento_pct)||0, iva:Number(fc.iva_pct)||21
+      descuento:Number(fc.descuento_pct)||0, iva:Number(fc.iva_pct)||21,
+      presuNumero:fc.presupuesto_numero||''
     });
   }catch(e){ appAlert('No se pudo abrir: '+(e.message||'')); }
 }
@@ -4340,7 +4562,7 @@ function factMostrarPlantilla(){
       <input id="fm-sub" value="${escAttr(m.asunto)}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 10px;box-sizing:border-box">
       <label style="font-size:.75rem;color:var(--ink-soft)">Mensaje (editable)</label>
       <textarea id="fm-body" rows="10" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 4px;box-sizing:border-box;font-family:inherit;font-size:.85rem;resize:vertical">${escHtml(m.cuerpo)}</textarea>
-      <p style="font-size:.72rem;color:var(--ink-soft);margin:4px 0 10px">Recuerda adjuntar el PDF descargado en tu app de correo antes de enviar.</p>
+      <p style="font-size:.72rem;color:var(--ink-soft);margin:4px 0 10px">Se abrirá Gmail con la cuenta de Aptuvia; comprueba que el remitente sea <b>contacto@aptuvia.es</b> y adjunta el PDF descargado antes de enviar.</p>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end">
       <button id="fm-cancel" style="padding:9px 16px;border-radius:10px;font-weight:700;border:1.5px solid var(--line);background:#fff;cursor:pointer">Cancelar</button>
@@ -4353,7 +4575,7 @@ function factMostrarPlantilla(){
     const sub=document.getElementById('fm-sub').value;
     const body=document.getElementById('fm-body').value;
     ov.remove();
-    if(!await appConfirm('¿Abrir tu app de correo para enviar la factura a '+to+'?')) return;
+    if(!await appConfirm('¿Abrir Gmail (cuenta de Aptuvia) para enviar a '+to+'?')) return;
     // Marcar como enviada: si viene del panel, esa factura; si no, la última del editor.
     try{
       const m=window._factMail||{};
@@ -4366,8 +4588,8 @@ function factMostrarPlantilla(){
         if(ult && ult.id){ await call('/rest/v1/rpc/sa_factura_estado',{method:'POST',body:{p_id:ult.id,p_campo:'enviada',p_valor:true}}); ult.enviada=true; }
       }
     }catch(e){}
-    const link='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body);
-    window.location.href=link;
+    const link='https://mail.google.com/mail/?view=cm&fs=1&tf=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body)+'&authuser=aptuvia@gmail.com';
+    try{ window.open(link,'_blank','noopener'); }catch(_){ window.location.href=link; }
   };
 }
 
@@ -4609,7 +4831,7 @@ async function factRectificar(id){
   const uni=neg(L.uni);
   const numero='R-'+new Date().getFullYear()+'-'+String(Date.now()).slice(-5);
   const fecha=new Date().toISOString().slice(0,10);
-  const r=factRenderPDF({numero,fecha,nombreCliente:d.razon_social||'',d,rec,uni,descuento:Number(fc.descuento_pct)||0,iva:Number(fc.iva_pct)||0});
+  const r=factRenderPDF({numero,fecha,nombreCliente:d.razon_social||'',d,rec,uni,descuento:Number(fc.descuento_pct)||0,iva:Number(fc.iva_pct)||0,presuNumero:fc.presupuesto_numero||''});
   if(!r) return;
   try{
     const payload={ academia_id:fc.academia_id, profesor_id:fc.profesor_id||null, numero, fecha, cliente:d, lineas:{rec,uni}, subtotal:+r.subtotal.toFixed(2), descuento_pct:Number(fc.descuento_pct)||0, iva_pct:Number(fc.iva_pct)||0, total:+r.total.toFixed(2) };
