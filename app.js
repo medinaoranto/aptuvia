@@ -1877,13 +1877,18 @@ function saDetalle(msg){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b id="sa-nombre">${escHtml(a.nombre)}</b>${(!esAA && a.activa===false)?' <span style="color:#b4232a;font-size:.72rem;font-weight:800">🔒 REVOCADA</span>':''}
           <div class="sa-counts" style="margin-top:6px"><span>${profes.length} profesores</span><span>${alumnos.length} alumnos</span></div></div>
-        ${esAA?`<button class="btn btn-honey" id="sa-nuevo-prof" style="flex:0 0 auto;width:48%;margin:0">Crear profesor</button>`:`<div class="sa-acts-acad">
+        ${esAA?'':`<div class="sa-acts-acad">
           <button class="sa-mini" id="sa-ren" title="Renombrar">✎</button>
           <button class="sa-mini danger" id="sa-borr" title="Borrar academia">🗑</button>
           <button class="sa-mini" id="sa-acad-rev" title="${a.activa===false?'Reactivar academia':'Revocar academia'}" style="${a.activa===false?'background:#e7f6ec;color:#15803d;border-color:#bfe3cb':'background:#fff7e6;color:#b26a00;border-color:#f0d9a8'}">${a.activa===false?'↺':'🔒'}</button>
         </div>`}
       </div>
-      ${esAA?'':`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>`}
+      ${esAA
+        ? `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+             <button class="btn btn-honey" id="sa-aa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
+             <button class="btn btn-ghost" id="sa-nuevo-prof" style="flex:1;margin:0;min-width:130px">Crear profesor</button>
+           </div>`
+        : `<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>`}
     </div>
     ${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}`;
   $('teacher').innerHTML=saShell(h);
@@ -1892,6 +1897,7 @@ function saDetalle(msg){
   if(g('sa-borr')) g('sa-borr').onclick=()=>saBorrarAcademiaUI(a.academia_id,a.nombre);
   if(g('sa-acad-rev')) g('sa-acad-rev').onclick=()=>saRevocarAcademiaUI(a.academia_id, a.activa!==false);
   if(g('sa-nuevo-prof')) g('sa-nuevo-prof').onclick=()=> esAA ? saCrearProfesorUI(1,true) : saCrearProfesorUI(a.academia_id);
+  if(g('sa-aa-alta-presu')) g('sa-aa-alta-presu').onclick=saAltaDesdePresu;
   $('teacher').querySelectorAll('[data-saprof]').forEach(b=> b.onclick=()=>saToggleProf(b.dataset.saprof));
   $('teacher').querySelectorAll('[data-saver]').forEach(b=> b.onclick=()=>saVerComoProfesor(b.dataset.saver,b.dataset.nombre));
   $('teacher').querySelectorAll('[data-saedit]').forEach(b=> b.onclick=()=>saEditarProfesorUI(b.dataset.saedit,b.dataset.nombre));
