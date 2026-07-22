@@ -2407,7 +2407,7 @@ function saDetalle(msg){
   $('teacher').innerHTML=saShell(h);
   const g=(id)=>$(id);
   if(g('sa-prem-tog')) g('sa-prem-tog').onclick=()=>saPremiumToggle(a.academia_id);
-  if(g('sa-prem-nueva')) g('sa-prem-nueva').onclick=()=>saPremiumCrearCuenta(a.academia_id);
+  if(g('sa-prem-nueva')) g('sa-prem-nueva').onclick=()=>saPremiumCrearCuenta(a.academia_id,null,false);
   $('teacher').querySelectorAll('[data-prempass]').forEach(b=> b.onclick=()=>saResetPassUI(b.dataset.prempass,b.dataset.email));
   $('teacher').querySelectorAll('[data-premdel]').forEach(b=> b.onclick=()=>saBorrarUsuarioUI(b.dataset.premdel,b.dataset.email));
   if(g('sa-aa-alta-presu')) g('sa-aa-alta-presu').onclick=saAltaDesdePresu;
@@ -2426,15 +2426,19 @@ function saDetalle(msg){
 }
 /* ── Acceso academia (Premium): interruptor + cuentas de dirección ── */
 function saPremiumCard(a){
-  const st=window._saPremium||{activo:false,cuentas:[]};
+  const st=window._saPremium||{activo:false,cuentas:[],presupuesto:null};
   const on=!!st.activo;
   const cuentas=st.cuentas||[];
+  const pr=st.presupuesto||null;
   let h=`<div style="border:1.5px solid ${on?'#bfe3cb':'var(--line)'};border-radius:12px;padding:11px 13px;margin:0 0 12px;background:${on?'#f4fbf6':'#fff'}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <div><b style="font-size:.86rem;color:var(--navy)">🏫 Acceso academia</b>
         <div style="font-size:.7rem;color:var(--ink-soft);margin-top:2px">Premium · consulta de notas en solo lectura</div></div>
       <button id="sa-prem-tog" class="sa-mini" style="${on?'background:#e7f6ec;color:#15803d;border-color:#bfe3cb':'background:#fdecec;color:#b4232a;border-color:#f0c4c4'};font-weight:800;font-size:.7rem;padding:6px 11px;white-space:nowrap">${on?'ACTIVO':'DESACTIVADO'}</button>
-    </div>`;
+    </div>
+    <div style="font-size:.68rem;margin-top:7px;color:${pr?'var(--ink-soft)':'#b26a00'}">${pr
+      ? ('Contratado en el presupuesto <b>'+escHtml(pr.numero||'—')+'</b>'+(pr.fecha?(' · '+escHtml(pr.fecha)):''))
+      : 'Sin presupuesto que respalde este servicio.'}</div>`;
   if(on){
     h+=`<div style="margin-top:10px">`;
     if(!cuentas.length){ h+=`<p class="sa-empty" style="margin:0 0 8px">Sin cuenta de dirección todavía.</p>`; }
@@ -2455,6 +2459,9 @@ function saPremiumCard(a){
 async function saPremiumToggle(academiaId){
   const st=window._saPremium||{activo:false};
   const nuevo=!st.activo;
+  if(nuevo && !st.presupuesto){
+    if(!await appConfirm('Este servicio no aparece en ningún presupuesto de la academia.\nLo normal es contratarlo desde Comercial (línea "Acceso academia") y darlo de alta desde el presupuesto.\n\n¿Activarlo igualmente?')) return;
+  }
   const msg=nuevo
     ? '¿Activar el acceso de dirección para esta academia?\nPodrá consultar (solo lectura) las notas de todos sus profesores.'
     : '¿Desactivar el acceso de dirección?\nSus cuentas dejarán de poder entrar. No se borra nada.';
@@ -2464,15 +2471,20 @@ async function saPremiumToggle(academiaId){
     await saAbrirAcademia(academiaId);
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
-async function saPremiumCrearCuenta(academiaId){
-  const nombre=await appPrompt('Nombre de la cuenta (ej.: Dirección):','Dirección'); if(nombre===null) return;
-  const email=await appPrompt('Email de la dirección:'); if(email===null||!email.trim()) return;
-  const pass=await appPrompt('Contraseña inicial (mín. 6):'); if(pass===null) return;
-  if(pass.length<6){ appAlert('Mínimo 6 caracteres.'); return; }
+// cli: datos del cliente del presupuesto (prellenan el formulario).
+// desdePresu: no repinta la ficha al terminar (lo hace el alta) y devuelve bool.
+async function saPremiumCrearCuenta(academiaId, cli, desdePresu){
+  const c=cli||{};
+  const nombre=await appPrompt('Nombre de la cuenta de dirección:', c.razon_social?('Dirección · '+c.razon_social):'Dirección');
+  if(nombre===null) return false;
+  const email=await appPrompt('Email de la dirección:', c.email||''); if(email===null||!email.trim()) return false;
+  const pass=await appPrompt('Contraseña inicial (mín. 6):'); if(pass===null) return false;
+  if(pass.length<6){ appAlert('Mínimo 6 caracteres.'); return false; }
   try{
     await call('/rest/v1/rpc/sa_crear_cuenta_academia',{method:'POST',body:{p_email:email.trim(),p_pass:pass,p_nombre:nombre||'Dirección',p_academia:academiaId}});
-    await saAbrirAcademia(academiaId);
-  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+    if(!desdePresu) await saAbrirAcademia(academiaId);
+    return true;
+  }catch(e){ appAlert('No se pudo crear la cuenta de dirección: '+(e.message||'')); return false; }
 }
 async function saBloquearProfesorUI(userId,estaBloqueado,email){
   const nuevo=!estaBloqueado;
@@ -2639,6 +2651,14 @@ async function avisarAdminFacturar(nombre, numeroPresu){
     }});
   }catch(e){ /* el alta no debe fallar por el aviso */ }
 }
+// ¿El presupuesto incluye la línea de acceso de dirección de academia?
+// Las líneas se guardan como {nombre,precio,cant} (sin clave), así que se
+// detecta por el nombre del concepto.
+function presuConAccesoAcademia(p){
+  const L=(p&&p.lineas)||{};
+  const todas=[].concat(L.rec||[],L.uni||[]);
+  return todas.some(x=>/acceso\s+academia/i.test((x&&x.nombre)||''));
+}
 async function saAltaAcademia(id){
   const p=(window._altaPresu||[]).find(x=>String(x.id)===String(id));
   if(!p){ appAlert('No se encontró el presupuesto.'); return; }
@@ -2652,9 +2672,20 @@ async function saAltaAcademia(id){
     try{ await call('/rest/v1/rpc/sa_guardar_datos_fact',{method:'POST',body:{p_academia:academiaId,p_datos:saDatosDesdeCliente(c),p_profesor:null}}); }catch(_){}
     try{ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body:{academia_id:academiaId}}); }catch(_){}
     await avisarAdminFacturar(nombre.trim(), p.numero||'');
+    // Si el presupuesto lleva contratado el acceso de dirección, se activa y se
+    // crea su cuenta aquí mismo: el recorrido completo sale del presupuesto.
+    let msgPrem='';
+    if(presuConAccesoAcademia(p)){
+      try{
+        await call('/rest/v1/rpc/sa_acceso_toggle',{method:'POST',body:{p_academia:academiaId,p_on:true}});
+        msgPrem='\n\n🏫 Acceso academia ACTIVADO (venía en el presupuesto).';
+        const hecho=await saPremiumCrearCuenta(academiaId, c, true);
+        msgPrem += hecho ? ' Su cuenta de dirección ya está creada.' : ' Crea su cuenta de dirección desde la ficha cuando quieras.';
+      }catch(e){ msgPrem='\n\n⚠️ No se pudo activar el acceso de dirección: '+(e.message||''); }
+    }
     saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
     await saAbrirAcademia(academiaId);
-    appAlert('✅ Academia "'+nombre.trim()+'" creada desde '+(p.numero||'')+'. Su ficha de facturación ya tiene los datos del cliente. Añade ahora sus profesores y certificados.');
+    appAlert('✅ Academia "'+nombre.trim()+'" creada desde '+(p.numero||'')+'. Su ficha de facturación ya tiene los datos del cliente. Añade ahora sus profesores y certificados.'+msgPrem);
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function saAltaAA(id){
@@ -2732,6 +2763,7 @@ async function saRevocarAcademiaUI(academiaId, estaActiva){
 // Tarifas de referencia (editable en cada línea).
 const TARIFAS_REC = [
   {k:'acceso', nombre:'Acceso por profesor', precio:14, auto:'profes'},
+  {k:'acceso_academia', nombre:'Acceso academia (dirección)', precio:19},
   {k:'soporte', nombre:'Soporte prioritario', precio:27},
   {k:'multiaula', nombre:'Licencia multiaula', precio:0},
   {k:'aa_individual', nombre:'Aula Abierta · Plan Individual', precio:19},
