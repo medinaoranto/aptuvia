@@ -1428,6 +1428,462 @@ async function openSuperadmin(okMsg,errMsg){
   }
   saRenderLista(okMsg,errMsg);
 }
+// ===================== DOCUMENTOS INTERNOS (PDF) =====================
+// Trazabilidad del circuito comercial completo. Genérico por áreas (Soporte /
+// Administración / Comercial), sin nombres propios: así sigue valiendo cuando
+// una persona cubre a otra.
+const TRAZA_SECCIONES = [
+  { t:'1. Para qué sirve este documento', p:[
+    'Describe el recorrido completo de un cliente: desde que se le prepara un presupuesto hasta que se le da de baja, por fin de contrato o por impago.',
+    'Está escrito por áreas y no por personas. El objetivo es que cualquiera pueda continuar una tarea empezada por otro sin preguntar y sin que quede nada a medias.',
+    'Regla general: si un paso no deja rastro en la plataforma, no ha ocurrido. Todo cambio de estado se hace dentro de Aptuvia, no por WhatsApp ni de palabra.'
+  ]},
+  { t:'2. Las tres áreas', p:[
+    'COMERCIAL: capta, prepara y envía presupuestos, y registra si el cliente acepta o rechaza. No factura ni da de alta a nadie.',
+    'SOPORTE: da de alta al cliente en la plataforma (academia de Aptuvia o usuario de Aula Abierta), lo configura y lo revoca cuando toca.',
+    'ADMINISTRACIÓN: emite las facturas, controla cobros y gastos, y vigila los vencimientos de contrato.',
+    'Cada área tiene su campana de avisos. Ve los suyos y, en solo lectura, los de las demás: por eso se puede cubrir una ausencia sin perder contexto.'
+  ]},
+  { t:'3. Mapa del circuito', p:[
+    'Presupuesto (Comercial) → Aceptado (Comercial) → Alta del cliente (Soporte) → Factura (Administración) → Cobro (Administración) → Vida del contrato → Baja o renovación (Soporte + Administración).',
+    'Cada flecha es un cambio de estado dentro de la plataforma. El presupuesto es el hilo que une todo: la factura lo referencia y el alta queda enlazada a él.'
+  ]},
+  { t:'4. Fase 1 · Presupuesto', p:[
+    'ÁREA: Comercial. PANTALLA: Comercial → Presupuestos.',
+    'Se crea el presupuesto con las partidas y condiciones acordadas. Queda en estado Borrador.',
+    'Se genera el PDF y se envía al cliente. El estado pasa a Enviado.',
+    'IMPORTANTE: el presupuesto aceptado y firmado hace de contrato. Por tanto las partidas, los precios y las condiciones tienen que estar bien desde el principio: es el documento que se podrá reclamar.',
+    'Cada presupuesto tiene fecha de validez. Si vence sin respuesta, la campana de Administración avisa con "Presupuesto que caduca".'
+  ]},
+  { t:'5. Fase 2 · Respuesta del cliente', p:[
+    'ÁREA: Comercial. PANTALLA: Comercial → Presupuestos.',
+    'Si el cliente acepta, se marca Aceptado. Si no, Rechazado o se deja caducar.',
+    'Al aceptar salta el aviso "Presupuesto aceptado" en Comercial. Ese es el disparo para que Soporte pueda dar de alta.',
+    'Comercial NO factura. En su pantalla el presupuesto aceptado muestra "Lo factura Administración": es informativo, sirve para saber en qué punto está.',
+    'SI CUBRES A COMERCIAL: no marques como aceptado nada que no tengas por escrito del cliente. Un aceptado en falso arrastra un alta y una factura.'
+  ]},
+  { t:'6. Fase 3 · Alta del cliente', p:[
+    'ÁREA: Soporte. PANTALLA: Soporte → Aptuvia o Aula Abierta → "Alta desde presupuesto".',
+    'Se elige el presupuesto aceptado y la plataforma crea la academia (Aptuvia) o el usuario (Aula Abierta), rellena sola la ficha de facturación con los datos del cliente y deja el alta enlazada al presupuesto.',
+    'Usar SIEMPRE "Alta desde presupuesto" cuando el cliente venga de uno. El botón secundario ("Nueva academia" / "Crear profesor") es para altas internas o de prueba, y esas no se facturan.',
+    'Al completar el alta salta un aviso a Administración: ya se puede emitir la factura. Hasta que la academia no está montada, no se factura al cliente.',
+    'Después del alta: dar de alta a sus profesores, activar sus certificados y comprobar que entra. El cliente no debe recibir factura de algo que todavía no puede usar.',
+    'SI CUBRES A SOPORTE: no crees la academia a mano y luego busques el presupuesto. Se pierde el enlace y Administración no sabrá a qué presupuesto corresponde.'
+  ]},
+  { t:'7. Fase 4 · Factura', p:[
+    'ÁREA: Administración. PANTALLA: Administración → Presupuestos aceptados.',
+    'Ahí aparecen los presupuestos aceptados pendientes de facturar. Al facturar, las partidas, precios y condiciones se copian del presupuesto: no se teclean otra vez.',
+    'La factura queda con la referencia del presupuesto, y esa referencia sale impresa en el PDF.',
+    'Al facturar, el presupuesto se marca como Facturado y se bloquea, para no emitir dos veces la misma. Si hiciera falta rehacerla, primero se desbloquea.',
+    'Para facturas posteriores del mismo cliente (mensualidades, ampliaciones) se usa "Facturar Aptuvia" o "Facturar Aula Abierta", con el selector "Tirar del presupuesto" para arrastrar las condiciones pactadas.',
+    'SI CUBRES A ADMINISTRACIÓN: no emitas una factura sin comprobar antes que Soporte ha dado el alta. Si no hay aviso de alta, pregunta antes de facturar.'
+  ]},
+  { t:'8. Fase 5 · Cobro y seguimiento', p:[
+    'ÁREA: Administración. PANTALLA: Administración → Facturas emitidas.',
+    'Cada factura se marca como enviada y, cuando entra el dinero, como pagada. Una factura sin marcar como pagada es, a todos los efectos, un impago.',
+    'Los gastos y el balance se llevan en "Gastos y balance": facturas de proveedores, gastos previstos y evolución del negocio.',
+    'Revisión recomendada: una pasada semanal a las facturas sin cobrar. Es lo que evita descubrir un impago tres meses tarde.'
+  ]},
+  { t:'9. Fase 6 · Vida del contrato', p:[
+    'ÁREA: Administración vigila, Soporte ejecuta.',
+    'La ficha de facturación de cada cliente guarda el inicio y el fin de contrato. De ahí sale el aviso "Contrato que termina pronto" en la campana de Administración.',
+    'Al recibir ese aviso: contactar con el cliente y decidir renovación o baja, ANTES de la fecha de fin. Si se renueva, se actualiza la fecha de fin y, si cambian condiciones, se hace un presupuesto nuevo (vuelta a la Fase 1).',
+    'Si no se renueva, se avisa a Soporte para que revoque en la fecha acordada.'
+  ]},
+  { t:'10. Fase 7 · Baja del cliente', p:[
+    'ÁREA: Soporte ejecuta, Administración confirma.',
+    'POR FIN DE CONTRATO: llegada la fecha, la academia se revoca. Los contratos vencidos se revocan de forma automática al entrar en el panel, y se muestra la lista de los revocados.',
+    'POR IMPAGO: primero reclamar por escrito y dejar constancia. Solo si no hay respuesta se corta el acceso. Nunca se revoca por sorpresa mientras haya alumnado usando la plataforma sin haberlo advertido antes.',
+    'La revocación se hace desde Soporte, en la ficha de la academia. Al revocar salta el aviso "Cliente revocado" en Comercial, que es quien lleva la relación.',
+    'La revocación bloquea el acceso pero NO borra los datos. No se borra una academia con alumnos: se revoca. Borrar es irreversible y se lleva por delante notas y expedientes.',
+    'ANTES DE REVOCAR, comprobar: que no queda ninguna factura pendiente de emitir, y que el cliente está avisado.'
+  ]},
+  { t:'11. Los avisos', p:[
+    'Los avisos son el mecanismo que une las tres áreas. Cada uno nace de un hecho de la plataforma.',
+    'ADMINISTRACIÓN recibe: alta hecha por Soporte (ya se puede facturar), contrato que termina pronto, presupuesto que caduca.',
+    'COMERCIAL recibe: presupuesto aceptado, presupuesto rechazado o caducado, cliente revocado, post de redes atrasado.',
+    'Cada área ve los avisos de las demás en solo lectura, sin poder descartarlos. Sirve para saber por dónde va lo que no es tuyo y poder cubrir una ausencia.',
+    'Se pueden crear recordatorios propios y compartirlos con otra área. Un aviso descartado no vuelve: descártalo solo cuando la tarea esté hecha, no para quitarlo de en medio.'
+  ]},
+  { t:'12. Reglas que no se saltan', p:[
+    'No se factura a un cliente que todavía no tiene la academia montada y funcionando.',
+    'No se da de alta a nadie sin presupuesto aceptado, salvo altas internas o de prueba, que no se facturan.',
+    'No se borra una academia con alumnos: se revoca.',
+    'Toda factura nace de un presupuesto y lo referencia. Si no hay presupuesto, no hay nada que reclamar ante un impago.',
+    'Los datos del cliente en una factura no se pueden cambiar una vez completado el pago.',
+    'Ante la duda, se deja el aviso puesto y se pregunta. Un aviso de más cuesta un minuto; una factura mal emitida cuesta bastante más.'
+  ]}
+];
+
+function docPDFBase(titulo, subtitulo, secciones){
+  if(typeof jsPDF==='undefined' && window.jspdf) window.jsPDF=window.jspdf.jsPDF;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const NAVY=[46,49,99], HONEY=[227,154,46], GRIS=[110,110,120];
+  const ML=18, MR=192, ANCHO=MR-ML;
+  let y=0, pag=1;
+  const indice=[];
+
+  function pie(){
+    doc.setFontSize(7.5); doc.setTextColor(...GRIS);
+    doc.text('Aptuvia · Documento interno · Uso exclusivo del equipo', ML, 287);
+    doc.text(String(pag), MR, 287, {align:'right'});
+  }
+  function nuevaPag(){
+    pie(); doc.addPage(); pag++; y=24;
+    doc.setFontSize(8); doc.setTextColor(...GRIS);
+    doc.text(titulo, ML, 15);
+    doc.setDrawColor(225,225,232); doc.line(ML,18,MR,18);
+  }
+  function espacio(n){ if(y+n>272) nuevaPag(); }
+
+  // ---- Portada ----
+  doc.setFillColor(...NAVY); doc.rect(0,0,210,62,'F');
+  doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(24);
+  doc.text('Aptuvia', ML, 28);
+  doc.setFontSize(15); doc.text(titulo, ML, 42);
+  doc.setFont(undefined,'normal'); doc.setFontSize(9.5);
+  doc.text(subtitulo, ML, 51);
+  doc.setTextColor(...GRIS); doc.setFontSize(8.5);
+  doc.text('Generado el '+new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}), ML, 74);
+  doc.setFontSize(9); doc.setTextColor(60,60,70);
+  doc.text(doc.splitTextToSize('Documento interno. Describe cómo se trabaja, no promete nada a ningún cliente. Si la plataforma cambia, este documento se regenera desde la propia app.', ANCHO), ML, 84);
+  const yIndice=100;
+  doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.setTextColor(...NAVY);
+  doc.text('Índice', ML, yIndice);
+  doc.setDrawColor(...HONEY); doc.setLineWidth(.7); doc.line(ML,yIndice+2,ML+22,yIndice+2); doc.setLineWidth(.2);
+
+  // ---- Contenido ----
+  nuevaPag();
+  secciones.forEach(sec=>{
+    espacio(26);
+    indice.push({t:sec.t, p:pag});
+    doc.setFont(undefined,'bold'); doc.setFontSize(12); doc.setTextColor(...NAVY);
+    const th=doc.splitTextToSize(sec.t, ANCHO);
+    doc.text(th, ML, y); y+=th.length*6;
+    doc.setDrawColor(...HONEY); doc.setLineWidth(.6); doc.line(ML,y-2.5,ML+16,y-2.5); doc.setLineWidth(.2);
+    y+=3.5;
+    doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(45,45,55);
+    sec.p.forEach(par=>{
+      const lineas=doc.splitTextToSize(par, ANCHO-5);
+      espacio(lineas.length*4.6+4);
+      doc.setFillColor(...HONEY); doc.circle(ML+1.2, y-1.4, .9, 'F');
+      doc.text(lineas, ML+5, y);
+      y+=lineas.length*4.6+3.4;
+    });
+    y+=5;
+  });
+  pie();
+
+  // ---- Índice (se rellena al final, ya con las páginas reales) ----
+  doc.setPage(1);
+  let yi=yIndice+10;
+  doc.setFont(undefined,'normal'); doc.setFontSize(9.5);
+  indice.forEach(it=>{
+    doc.setTextColor(45,45,55);
+    const t=doc.splitTextToSize(it.t, ANCHO-14);
+    doc.text(t[0], ML, yi);
+    doc.setTextColor(...GRIS);
+    doc.text(String(it.p), MR, yi, {align:'right'});
+    doc.setDrawColor(232,232,238); doc.line(ML+doc.getTextWidth(t[0])+2, yi-1, MR-6, yi-1);
+    yi+=7.2;
+  });
+  return doc;
+}
+
+function docTrazabilidad(){
+  try{
+    const doc=docPDFBase('Trazabilidad del circuito','Del presupuesto a la baja del cliente · quién hace qué en cada paso',TRAZA_SECCIONES);
+    doc.save('Aptuvia-trazabilidad.pdf');
+  }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
+}
+
+// ---- Manual del profesorado (se adapta a Aptuvia o a Aula Abierta) ----
+function manualProfeSecciones(esAula){
+  const QUIEN = esAula ? 'tus materias' : 'tu certificado';
+  const s = [];
+  s.push({ t:'1. Antes de empezar', p:[
+    'Se entra desde aptuvia.es con el correo y la contraseña que te han facilitado. Conviene cambiarla la primera vez desde "Cambiar contraseña".',
+    'La pantalla principal es el Área Docente: una tarjeta por cada cosa que puedes hacer. Desde cualquier pantalla se vuelve con el botón de arriba a la izquierda.',
+    'Todo se guarda al momento y queda visible para tu alumnado en cuanto lo publicas. Mientras no publiques un examen, el alumno no lo ve.'
+  ]});
+
+  if(esAula){
+    s.push({ t:'2. Tus materias', p:[
+      'DÓNDE: Área Docente → Módulos.',
+      'Una materia equivale a una clase o asignatura. Se crea con "+ Nueva materia": se le pone nombre y, si quieres, una etiqueta corta que aparece como distintivo (por ejemplo HISTORIA).',
+      'Las materias se numeran solas: AULA-01, AULA-02... según el orden en que las creas.',
+      'Para cambiar el nombre después: entra en la materia y pulsa el lápiz que hay junto al título.',
+      'La papelera de la tarjeta borra la materia con TODOS sus exámenes, preguntas y notas. Pide confirmación dos veces porque no tiene vuelta atrás.',
+      'El nombre de la cabecera de tu espacio (lo que aparece arriba, junto a la pastilla de Aula Abierta) se cambia con el lápiz que hay al lado. Es tuyo y no lo ven los demás profesores.'
+    ]});
+    s.push({ t:'3. Tu alumnado y sus clases', p:[
+      'DÓNDE: Área Docente → Alumnos y notas.',
+      'Pestaña Invitaciones: se autoriza a un alumno escribiendo su correo. Con eso ya puede registrarse él mismo desde la portada.',
+      'Pestaña Registrados: aparecen los que ya han entrado alguna vez.',
+      'IMPORTANTE: cada alumno registrado tiene una fila de "Clases" con un botón por materia. Solo ve las materias que le marques. Un alumno sin ninguna clase marcada sale con el aviso "sin clase: no ve nada" y no puede entrar en ningún sitio.',
+      'Así un alumno de un curso no entra en el de otro. Se marca y se desmarca en cualquier momento, y el cambio es inmediato.',
+      'Desde ahí también puedes generarle una contraseña nueva si la pierde.'
+    ]});
+  } else {
+    s.push({ t:'2. Módulos y unidades formativas', p:[
+      'DÓNDE: Área Docente → Módulos.',
+      'Verás los módulos y unidades formativas del certificado, con la evolución de la clase en cada uno.',
+      'La estructura del certificado viene dada: tú trabajas dentro de ella, no hay que crearla.'
+    ]});
+    s.push({ t:'3. Tu alumnado', p:[
+      'DÓNDE: Área Docente → Alumnos y notas.',
+      'Pestaña Invitaciones: se autoriza a un alumno escribiendo su correo. Con eso ya puede registrarse él mismo desde la portada.',
+      'Pestaña Registrados: los que ya han entrado. Desde ahí puedes generar una contraseña nueva si alguien la pierde.',
+      'Pestaña Notas: media por unidad y evolución de cada alumno. Se puede descargar en PDF.'
+    ]});
+  }
+
+  s.push({ t:'4. Crear un examen', p:[
+    'DÓNDE: Área Docente → Crear y gestionar exámenes.',
+    'Hay tres formas, con los botones de arriba:',
+    'TEST: se escriben las preguntas una a una, cada una con sus cuatro opciones, la respuesta correcta y, si quieres, una explicación que el alumno ve al corregirse.',
+    'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla.',
+    'PEGAR EXAMEN: para cargar de golpe un examen que ya tengas escrito, sin teclearlo pregunta a pregunta.',
+    'En todos los casos se elige la unidad o materia, el título y el nivel.',
+    'CUENTA PARA LA NOTA FINAL: casilla importante. Si la marcas, el alumno solo tiene UN intento, se le muestran las normas antes de empezar y se vigila que no se salga de la pantalla. Si no la marcas, puede repetirlo tantas veces como quiera.',
+    'Recomendación: máximo 25 preguntas por examen de tema nuevo. Para repasos largos, mejor partirlos en dos.'
+  ]});
+
+  s.push({ t:'5. Modificar un examen ya creado', p:[
+    'DÓNDE: Área Docente → Crear y gestionar exámenes, en la lista de abajo.',
+    'Se puede cambiar la cabecera (título, nivel y si cuenta para nota), añadir preguntas, corregir el enunciado o las opciones de una que esté mal, y borrar preguntas sueltas.',
+    'También se cambia o se quita el PDF adjunto de los exámenes de redacción.',
+    'La papelera borra el examen entero. Si ya lo han hecho alumnos, sus intentos se pierden con él.',
+    'Cuidado al cambiar un examen que ya han hecho: los que lo hicieron antes conservan la nota del examen antiguo.'
+  ]});
+
+  s.push({ t:'6. Decidir qué ve el alumno', p:[
+    'DÓNDE: Área Docente → Exámenes visibles.',
+    'Cada examen tiene un interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
+    'Esta es la pantalla que se usa para ir abriendo exámenes a medida que avanza el temario.'
+  ]});
+
+  s.push({ t:'7. Estados de la unidad', p:[
+    'DÓNDE: Área Docente → Estados.',
+    'Cada unidad o materia puede estar en uno de tres estados:',
+    'ACTIVO: el alumno entra y trabaja con normalidad.',
+    'PRÓXIMAMENTE: el alumno la ve en la lista pero no puede entrar. Sirve para anunciar lo que viene.',
+    'TERMINADO: se cierra. El alumno ya no puede hacer más intentos, pero conserva sus notas.',
+    'En la misma pantalla se activan dos extras: el repaso largo de la unidad y el repaso de preguntas falladas.'
+  ]});
+
+  s.push({ t:'8. Corregir redacciones', p:[
+    'DÓNDE: Área Docente → Correcciones.',
+    'Aquí llegan las redacciones entregadas. La tarjeta del Área Docente muestra cuántas tienes pendientes.',
+    'Se abre la entrega, se lee el texto del alumno, se le pone la nota y se le escribe un comentario. Al guardar, el alumno lo ve en su pantalla.',
+    'La corrección la haces tú. La plataforma no corrige textos automáticamente: solo corrige los test.'
+  ]});
+
+  s.push({ t:'9. Notas y seguimiento', p:[
+    'DÓNDE: Área Docente → Alumnos y notas, y Área Docente → Módulos.',
+    'Los test se corrigen solos en cuanto el alumno los termina.',
+    'La media por unidad se puede mirar de dos formas: por el mejor intento de cada alumno o por todos sus intentos.',
+    'Solo cuentan para la nota los exámenes marcados como "cuenta para la nota final".',
+    'Si un alumno tuvo un problema (se le cortó, se le cerró la pantalla), puedes reabrirle el intento para que lo repita.',
+    'Los informes se descargan en PDF, por alumno o por clase.'
+  ]});
+
+  s.push({ t:'10. Temario', p:[
+    'DÓNDE: Área Docente → Temario.',
+    'Para subir apuntes y material de apoyo (PDF y otros archivos) organizados por unidad o materia.',
+    'El alumno los ve y los descarga desde su pantalla. No es obligatorio usarlo.'
+  ]});
+
+  s.push({ t:'11. Dudas frecuentes', p:[
+    'EL ALUMNO NO VE UN EXAMEN: comprueba en "Exámenes visibles" que esté encendido, y en "Estados" que la unidad no esté en Próximamente o Terminado.'
+      + (esAula ? ' En Aula Abierta, comprueba además que el alumno tenga marcada esa clase en "Alumnos y notas".' : ''),
+    'EL ALUMNO NO PUEDE REPETIR UN EXAMEN: será uno que cuenta para la nota final. Solo permite un intento. Si procede, reábrele el intento.',
+    'NO ME SALE EL AVISO DE NORMAS AL EMPEZAR: ese aviso solo aparece en los exámenes marcados como que cuentan para la nota.',
+    'HE BORRADO ALGO SIN QUERER: no hay papelera de reciclaje. Los borrados de exámenes'+(esAula?' y materias':'')+' son definitivos, por eso se piden confirmaciones.',
+    'HE OLVIDADO MI CONTRASEÑA: la reactiva quien gestiona la plataforma. La de tus alumnos la puedes regenerar tú desde Registrados.'
+  ]});
+
+  return s;
+}
+
+function docManualProfe(){
+  try{
+    const esAula = (window._activeCertId==='__aula_abierta');
+    const doc=docPDFBase(
+      'Manual del profesorado',
+      esAula ? 'Aula Abierta · todo lo que puedes hacer, paso a paso' : 'Aptuvia · todo lo que puedes hacer, paso a paso',
+      manualProfeSecciones(esAula)
+    );
+    doc.save(esAula?'Aptuvia-manual-profesorado-aula-abierta.pdf':'Aptuvia-manual-profesorado.pdf');
+  }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
+}
+
+// ---- Manuales por área (Soporte / Administración / Comercial) ----
+const MANUAL_AREAS = {
+  soporte: {
+    titulo:'Manual de Soporte',
+    sub:'Altas, configuración y bajas de clientes',
+    secs:[
+      { t:'1. Qué se hace desde aquí', p:[
+        'Soporte es quien monta y desmonta clientes: da de alta la academia o el usuario de Aula Abierta, lo configura para que pueda trabajar, y lo revoca cuando termina el contrato o hay impago.',
+        'Soporte NO factura ni prepara presupuestos. Solo ejecuta el alta y la baja, y avisa a las otras áreas.',
+        'La pantalla tiene dos pestañas: Aptuvia (academias con certificados de profesionalidad) y Aula Abierta (usuarios independientes).'
+      ]},
+      { t:'2. Dar de alta un cliente', p:[
+        'BOTÓN NARANJA: "Alta desde presupuesto". Es el que hay que usar siempre que el cliente venga de un presupuesto aceptado.',
+        'Al elegir el presupuesto, la plataforma crea la academia (o el usuario de Aula Abierta), rellena sola su ficha de facturación con los datos del cliente y deja el alta enlazada al presupuesto.',
+        'Al terminar, salta un aviso a Administración diciendo que ya se puede facturar.',
+        'BOTÓN SECUNDARIO: "Nueva academia" o "Crear profesor". Es para altas internas, pruebas o demos. Esas no generan aviso y no se facturan.',
+        'NO crees la academia a mano si viene de un presupuesto: se pierde el enlace y Administración no sabrá a qué corresponde.'
+      ]},
+      { t:'3. Dejar el cliente listo para trabajar', p:[
+        'Después del alta, entra en la ficha de la academia y añade sus profesores, con el certificado que le corresponde a cada uno.',
+        'Comprueba que el profesor entra y ve lo suyo. Puedes suplantarlo desde su ficha para verlo con sus ojos, sin pedirle la contraseña.',
+        'Hasta que la academia no esté montada y funcionando, no se factura al cliente. Si Administración pregunta, esta es la respuesta.'
+      ]},
+      { t:'4. Mantenimiento del día a día', p:[
+        'Desde la ficha de cada academia: renombrarla, ver sus profesores y alumnos, y generar contraseñas nuevas a quien la pierda.',
+        'MODO MANTENIMIENTO: interruptor al final de la pantalla. Cierra la app a todo el mundo mientras se hace una intervención. Acuérdate de apagarlo.',
+        'Los avisos de tu campana son los tuyos. Los de Administración y Comercial los ves en solo lectura, para saber por dónde van.'
+      ]},
+      { t:'5. Dar de baja un cliente', p:[
+        'POR FIN DE CONTRATO: al entrar en el panel, los contratos vencidos se revocan solos y se muestra la lista de los que se han revocado.',
+        'POR IMPAGO: solo después de que Administración haya reclamado por escrito. Nunca se corta el acceso por sorpresa con alumnado dentro.',
+        'La revocación se hace en la ficha de la academia. Bloquea el acceso pero NO borra nada: notas y expedientes se conservan.',
+        'AL REVOCAR salta un aviso a Comercial, que es quien lleva la relación con el cliente.',
+        'NO se borra una academia con alumnos: se revoca. El borrado es irreversible y se lleva por delante todo su historial.',
+        'ANTES DE REVOCAR, comprueba con Administración que no queda ninguna factura por emitir.'
+      ]},
+      { t:'6. Si cubres a Soporte', p:[
+        'Lo único que no debes hacer sin preguntar es borrar. Todo lo demás se puede deshacer o rehacer.',
+        'Si dudas entre revocar o esperar, espera y deja un aviso. Un día de más no rompe nada; cortar el acceso a una clase en mitad de un examen, sí.',
+        'Si un profesor dice que no ve algo, suplántalo antes de tocar nada: casi siempre es un examen sin publicar o una unidad en Próximamente.'
+      ]}
+    ]
+  },
+
+  admin: {
+    titulo:'Manual de Administración',
+    sub:'Facturación, cobros, gastos y contabilidad',
+    secs:[
+      { t:'1. Qué se hace desde aquí', p:[
+        'Administración emite las facturas, controla que se cobren, registra los gastos y vigila los vencimientos de contrato.',
+        'No da de alta clientes (eso es Soporte) ni prepara presupuestos (eso es Comercial).',
+        'Regla de oro: no se factura a un cliente cuya academia no esté montada y funcionando.'
+      ]},
+      { t:'2. La primera factura de un cliente', p:[
+        'DÓNDE: "Presupuestos aceptados".',
+        'Ahí salen los presupuestos aceptados que aún no se han facturado. Al facturar, las partidas, precios y condiciones se copian del presupuesto: no se teclean otra vez.',
+        'La factura queda con la referencia del presupuesto y esa referencia sale impresa en el PDF.',
+        'Al facturar, el presupuesto se marca como Facturado y se bloquea para no emitirla dos veces. Si hay que rehacerla, primero se desbloquea.',
+        'Espera al aviso de Soporte ("ya se puede facturar"). Si no está, pregunta antes de emitir.'
+      ]},
+      { t:'3. Facturas siguientes', p:[
+        'DÓNDE: "Facturar Aptuvia" (academias) o "Facturar Aula Abierta" (usuarios independientes).',
+        'Se elige el cliente y se usa el selector "Tirar del presupuesto" para arrastrar las partidas y condiciones ya pactadas. Evita inventar precios distintos a los acordados.',
+        'Toda factura debe referenciar su presupuesto. Sin ese vínculo, ante un impago no hay nada que reclamar.',
+        'Los datos fiscales del cliente no se pueden cambiar una vez completado el pago: revísalos antes de emitir.'
+      ]},
+      { t:'4. Cobros', p:[
+        'DÓNDE: "Facturas emitidas". Se pueden ver, filtrar y sumar todas.',
+        'Cada factura se marca como enviada y, cuando entra el dinero, como pagada.',
+        'Una factura sin marcar como pagada es un impago a todos los efectos. Conviene una pasada semanal a las pendientes.',
+        'Si hay que reclamar, hazlo por escrito y deja constancia. Solo después se pide a Soporte que corte el acceso.'
+      ]},
+      { t:'5. Gastos y balance', p:[
+        'DÓNDE: "Gastos y balance".',
+        'Se registran las facturas de proveedores (se pueden leer directamente del PDF), los gastos previstos y los recurrentes.',
+        'Da la evolución del negocio: ingresos frente a gastos por mes.',
+        'Marca cada gasto como deducible o no y como bien de inversión cuando corresponda: es lo que luego alimenta la contabilidad.'
+      ]},
+      { t:'6. Contabilidad', p:[
+        'DÓNDE: "Contabilidad".',
+        'Libros de facturas emitidas y recibidas, IVA trimestral (modelo 303), IRPF (modelo 130) y resúmenes anuales (390 y 347).',
+        'AVISO IMPORTANTE: la plataforma calcula y ordena, pero los importes que se presenten a Hacienda deben validarse con una gestoría, al menos el primer trimestre.'
+      ]},
+      { t:'7. Vencimientos de contrato', p:[
+        'La ficha de facturación de cada cliente guarda el inicio y el fin de contrato.',
+        'De ahí sale el aviso "Contrato que termina pronto". Al recibirlo: contactar con el cliente y decidir renovación o baja ANTES de la fecha.',
+        'Si renueva, se actualiza la fecha de fin; si cambian las condiciones, Comercial hace un presupuesto nuevo.',
+        'Si no renueva, se avisa a Soporte para que revoque en la fecha acordada.',
+        'También salta "Presupuesto que caduca" cuando uno enviado está a punto de vencer sin respuesta.'
+      ]},
+      { t:'8. Si cubres a Administración', p:[
+        'No emitas ninguna factura que no venga de un presupuesto aceptado y con el alta hecha.',
+        'Ante cualquier duda sobre un importe, deja el aviso puesto y pregunta. Una factura mal emitida a un cliente nuevo cuesta la relación.',
+        'No borres facturas para "arreglar" un error: consúltalo antes.'
+      ]}
+    ]
+  },
+
+  comercial: {
+    titulo:'Manual de Comercial',
+    sub:'Captación, presupuestos y redes sociales',
+    secs:[
+      { t:'1. Qué se hace desde aquí', p:[
+        'Comercial capta clientes, prepara y envía presupuestos, y registra la respuesta del cliente.',
+        'No factura ni da de alta a nadie: eso es Administración y Soporte. En tu pantalla verás el estado de cada presupuesto para saber por dónde va.',
+        'También se lleva desde aquí toda la presencia en redes sociales.'
+      ]},
+      { t:'2. Preparar un presupuesto', p:[
+        'DÓNDE: "Presupuestos".',
+        'Se crea con las partidas y condiciones acordadas y queda en Borrador mientras lo trabajas.',
+        'Se genera el PDF y se envía al cliente; entonces pasa a Enviado.',
+        'CUIDADO: el presupuesto aceptado y firmado hace de contrato. Precios, partidas y condiciones tienen que estar bien desde el principio, porque es lo que se podrá reclamar.',
+        'Cada presupuesto lleva una fecha de validez. Si vence sin respuesta, salta el aviso "Presupuesto que caduca".'
+      ]},
+      { t:'3. Registrar la respuesta', p:[
+        'Si el cliente acepta, se marca Aceptado. Si no, Rechazado, o se deja caducar.',
+        'Marcar Aceptado es el disparo de todo lo demás: Soporte puede dar el alta y luego Administración factura.',
+        'No marques nada como aceptado sin tenerlo por escrito del cliente. Un aceptado en falso arrastra un alta y una factura.',
+        'El presupuesto aceptado muestra "Lo factura Administración": es informativo, no hay que hacer nada más.'
+      ]},
+      { t:'4. Redes sociales', p:[
+        'DÓNDE: las tarjetas de cada red. Cada una tiene su propio espacio con su límite de caracteres.',
+        'LINKEDIN es la prioridad: es donde están las academias y los centros de formación.',
+        'Instagram para marca y alumnado, Facebook para grupos de formación para el empleo, YouTube para demos y tutoriales, TikTok como opcional.',
+        'En cada red: se redacta el post, se programa en el calendario, queda en el historial y se anotan después las métricas (impresiones, "me gusta" y comentarios).',
+        'El botón de generar texto compone un guion a partir de una lista de temas y lo copia, para pegarlo en un asistente de IA. No publica solo: la publicación se hace a mano en cada red.'
+      ]},
+      { t:'5. Medir', p:[
+        'Desde el enlace a Google Search Console se ve qué busca la gente para llegar a aptuvia.es, la posición y las páginas indexadas.',
+        'También el rendimiento en Google: clics, impresiones y consultas de los últimos meses.',
+        'Salta un aviso cuando un post programado se queda atrasado.'
+      ]},
+      { t:'6. Qué NO se puede decir', p:[
+        'Estas reglas son obligatorias en cualquier texto, post o material comercial:',
+        'Aptuvia no expide títulos ni certificaciones oficiales. Es una herramienta de apoyo al estudio y no sustituye a las pruebas del SEPE ni de los centros acreditados.',
+        'No se inventan clientes, cifras, testimonios ni casos de éxito.',
+        'No se menciona a la competencia. Se vende el producto propio.',
+        'No se anuncian funciones que no existan.',
+        'Nada de marketing hueco: "solución integral", "revolucionar", "disruptivo" y similares se quedan fuera.'
+      ]},
+      { t:'7. Si cubres a Comercial', p:[
+        'Lo único irreversible aquí es enviar algo a un cliente. Revisa el PDF antes de mandarlo.',
+        'Si un presupuesto ya está aceptado y hay que cambiar condiciones, no lo edites: haz uno nuevo. El aceptado es el contrato.',
+        'Ante una duda de precio, pregunta antes de enviar.'
+      ]}
+    ]
+  }
+};
+
+function docManualArea(area){
+  try{
+    const m=MANUAL_AREAS[area]; if(!m) return;
+    const doc=docPDFBase(m.titulo, m.sub, m.secs);
+    doc.save('Aptuvia-manual-'+area+'.pdf');
+  }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
+}
+
+// Barra discreta de documentos internos. Va arriba, pequeña, sin robar atención.
+function docsBar(area){
+  const est='background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--ink-soft);cursor:pointer;font-family:inherit';
+  return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:0 2px 10px;flex-wrap:wrap">
+    ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
+    <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
+  </div>`;
+}
+
 function avAreaActual(){
   if(saMainTab==='fact') return 'admin';
   if(saMainTab==='rs')   return 'comercial';
@@ -1829,6 +2285,7 @@ function saRenderLista(okMsg,errMsg){
     rsRender();
     return;
   }
+  h+=docsBar('soporte');
   h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
     <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
@@ -1922,17 +2379,21 @@ function saDetalle(msg){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b id="sa-nombre">${escHtml(a.nombre)}</b>${(!esAA && a.activa===false)?' <span style="color:#b4232a;font-size:.72rem;font-weight:800">🔒 REVOCADA</span>':''}
           <div class="sa-counts" style="margin-top:6px"><span>${profes.length} profesores</span><span>${alumnos.length} alumnos</span></div></div>
-        ${esAA?`<button class="btn btn-honey" id="sa-nuevo-prof" style="flex:0 0 auto;width:48%;margin:0">Crear profesor</button>`:`<div class="sa-acts-acad">
+        ${esAA?'':`<div class="sa-acts-acad">
           <button class="sa-mini" id="sa-ren" title="Renombrar">✎</button>
           <button class="sa-mini danger" id="sa-borr" title="Borrar academia">🗑</button>
           <button class="sa-mini" id="sa-acad-rev" title="${a.activa===false?'Reactivar academia':'Revocar academia'}" style="${a.activa===false?'background:#e7f6ec;color:#15803d;border-color:#bfe3cb':'background:#fff7e6;color:#b26a00;border-color:#f0d9a8'}">${a.activa===false?'↺':'🔒'}</button>
         </div>`}
       </div>
-      ${esAA?'':`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>`}
+      ${esAA?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn btn-honey" id="sa-aa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
+        <button class="btn btn-ghost" id="sa-nuevo-prof" style="flex:1;margin:0;min-width:130px">Crear profesor</button>
+      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>`}
     </div>
     ${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}`;
   $('teacher').innerHTML=saShell(h);
   const g=(id)=>$(id);
+  if(g('sa-aa-alta-presu')) g('sa-aa-alta-presu').onclick=saAltaDesdePresu;
   if(g('sa-ren')) g('sa-ren').onclick=()=>saRenombrarUI(a.academia_id);
   if(g('sa-borr')) g('sa-borr').onclick=()=>saBorrarAcademiaUI(a.academia_id,a.nombre);
   if(g('sa-acad-rev')) g('sa-acad-rev').onclick=()=>saRevocarAcademiaUI(a.academia_id, a.activa!==false);
@@ -2103,7 +2564,7 @@ async function saAltaDesdePresu(){
 async function avisarAdminFacturar(nombre, numeroPresu){
   try{
     await call('/rest/v1/avisos_manuales',{method:'POST',body:{
-      area:'administracion',
+      area:'admin',
       texto:'💶 Facturar a "'+nombre+'"'+(numeroPresu?(' (presupuesto '+numeroPresu+')'):'')+'. Alta hecha por Soporte: ya se puede emitir la factura.',
       repetir:'no',
       fecha:new Date().toISOString().slice(0,10),
@@ -2567,7 +3028,7 @@ function rsRender(){
   if(window._enPresu){ pxRender(); return; }
   const sub=window._rsSub||null;
   if(sub){ rsCargar(); return; }
-  let h='';
+  let h=docsBar('comercial');
   h+=`<div class="sa-cards-grid">`;
   h+=`<button class="fact-menu" onclick="rsAbrirPresu()" style="background:#eef8fe"><b>📝 Presupuestos</b><span>Preparar, enviar y aceptar presupuestos. El aceptado y firmado es el contrato</span></button>`;
   h+=`</div>`;
@@ -2599,7 +3060,7 @@ function saRenderFacturacionLista(){
   // Menú principal de Facturación.
   const sub=window._factSub||null;
   if(!sub){
-    let h='';
+    let h=docsBar('admin');
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
@@ -4941,8 +5402,12 @@ function pintarTeacher(){
         <span class="ic" style="background:var(--navy-tint)">📚</span><span class="tt">Módulos</span><span class="ts">Evolución de la clase</span></button>
       <button class="t-tile" onclick="openAlumnos()">
         <span class="ic-row"><span class="ic" style="background:var(--navy-tint)">👥</span><span class="t-online-pill" id="t-sub-count"><span class="online-dot" style="background:#94a3b8;box-shadow:none;animation:none"></span>… en línea</span></span><span class="tt">Alumnos y notas</span><span class="ts">Registrados: ${nAl}</span></button>
-      <button class="t-tile" onclick="openPassword()">
-        <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
+      <div style="grid-column:span 2;display:flex;gap:10px">
+        <button class="t-tile" onclick="openPassword()" style="flex:1;margin:0">
+          <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
+        <button class="t-tile" onclick="docManualProfe()" style="flex:1;margin:0">
+          <span class="ic" style="background:var(--navy-tint)">📘</span><span class="tt">Manual de usuario</span><span class="ts">Guía en PDF, paso a paso</span></button>
+      </div>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>`;
