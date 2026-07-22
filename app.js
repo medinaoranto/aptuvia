@@ -238,7 +238,7 @@ function getModulos(){
         const pm=partesMateria(u.titulo);
         return {
           id:'mod-'+u.id, eye:pm.etiqueta, code:u.codigo||u.id.toUpperCase(), title:pm.nombre||u.id,
-          desc:'Materia creada desde Aula Abierta.',
+          desc:'',
           state:{label:'Activo', cls:'active'}, accent:'navy', unidades:[u.id],
         };
       });
@@ -2098,6 +2098,19 @@ async function saAltaDesdePresu(){
   });
   $('teacher').innerHTML=saShell(h);
 }
+// Aviso a Administración cuando Soporte da de alta un cliente desde presupuesto.
+// Solo en el alta desde presupuesto: las academias creadas a mano no se facturan.
+async function avisarAdminFacturar(nombre, numeroPresu){
+  try{
+    await call('/rest/v1/avisos_manuales',{method:'POST',body:{
+      area:'administracion',
+      texto:'💶 Facturar a "'+nombre+'"'+(numeroPresu?(' (presupuesto '+numeroPresu+')'):'')+'. Alta hecha por Soporte: ya se puede emitir la factura.',
+      repetir:'no',
+      fecha:new Date().toISOString().slice(0,10),
+      activo:true, dia_semana:null, dia_mes:null
+    }});
+  }catch(e){ /* el alta no debe fallar por el aviso */ }
+}
 async function saAltaAcademia(id){
   const p=(window._altaPresu||[]).find(x=>String(x.id)===String(id));
   if(!p){ appAlert('No se encontró el presupuesto.'); return; }
@@ -2110,6 +2123,7 @@ async function saAltaAcademia(id){
     if(!academiaId){ appAlert('La academia se creó pero no se obtuvo su id. Revisa en la lista.'); await openSuperadmin(); return; }
     try{ await call('/rest/v1/rpc/sa_guardar_datos_fact',{method:'POST',body:{p_academia:academiaId,p_datos:saDatosDesdeCliente(c),p_profesor:null}}); }catch(_){}
     try{ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body:{academia_id:academiaId}}); }catch(_){}
+    await avisarAdminFacturar(nombre.trim(), p.numero||'');
     saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
     await saAbrirAcademia(academiaId);
     appAlert('✅ Academia "'+nombre.trim()+'" creada desde '+(p.numero||'')+'. Su ficha de facturación ya tiene los datos del cliente. Añade ahora sus profesores y certificados.');
@@ -2135,6 +2149,7 @@ async function saAltaAA(id){
       try{ await call('/rest/v1/rpc/sa_guardar_datos_fact',{method:'POST',body:{p_academia:null,p_datos:saDatosDesdeCliente(c),p_profesor:profId}}); }catch(_){}
       try{ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body:{profesor_id:profId}}); }catch(_){}
     }
+    await avisarAdminFacturar((nombre||'').trim()||email.trim(), p.numero||'');
     await saAbrirAula();
     appAlert('✅ Profesor de Aula Abierta creado desde '+(p.numero||'')+(profId?'. Su ficha de facturación ya tiene los datos del cliente.':'. (No se pudo enlazar la ficha automáticamente; revísala en Facturación.)'));
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
@@ -2552,8 +2567,7 @@ function rsRender(){
   if(window._enPresu){ pxRender(); return; }
   const sub=window._rsSub||null;
   if(sub){ rsCargar(); return; }
-  let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 4px">Comercial</h2>
-    <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Todo lo de captación, desde aquí. Sin salir de Aptuvia.</p>`;
+  let h='';
   h+=`<div class="sa-cards-grid">`;
   h+=`<button class="fact-menu" onclick="rsAbrirPresu()" style="background:#eef8fe"><b>📝 Presupuestos</b><span>Preparar, enviar y aceptar presupuestos. El aceptado y firmado es el contrato</span></button>`;
   h+=`</div>`;
@@ -2585,7 +2599,7 @@ function saRenderFacturacionLista(){
   // Menú principal de Facturación.
   const sub=window._factSub||null;
   if(!sub){
-    let h=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:4px 2px 14px">Gestión</h2>`;
+    let h='';
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
@@ -2913,7 +2927,8 @@ function pxAddLibre(tipo){
   pxEdit.lineas[tipo].push({nombre:'',precio:0,cant:1});
   pxForm();
 }
-function pxDelLinea(tipo,i){
+async function pxDelLinea(tipo,i){
+  if(!await appConfirm('¿Quitar esta línea del presupuesto?')) return;
   pxLeerDOM();
   pxEdit.lineas[tipo].splice(i,1);
   pxForm();
@@ -4444,7 +4459,8 @@ function factAddLibre(tipo){
   window._fact[tipo].push({nombre:'', precio:0, cant:1});
   saRenderFacturacion();
 }
-function factDelLinea(tipo,i){
+async function factDelLinea(tipo,i){
+  if(!await appConfirm('¿Quitar esta línea de la factura?')) return;
   factLeerDOM();
   window._fact[tipo].splice(i,1);
   saRenderFacturacion();
@@ -4940,6 +4956,22 @@ function pintarTeacher(){
 }
 
 // Editar y guardar el nombre personalizado del aula (columna nombre_aula_abierta)
+// Renombrar una materia de Aula Abierta (solo su profesor). La tabla unidades
+// no se escribe directamente: va por RPC security definer.
+async function renombrarMateria(unitId){
+  const u=unidadesById[unitId]; if(!u) return;
+  const pm=partesMateria(u.titulo||'');
+  const nuevo=await appPrompt('Nombre de la materia:', pm.nombre||'');
+  if(nuevo===null) return;
+  const nom=nuevo.trim().slice(0,80);
+  if(!nom){ appAlert('El nombre no puede quedar vacío.'); return; }
+  const guardado = pm.etiqueta ? (pm.etiqueta+'|'+nom) : nom;
+  try{
+    await call('/rest/v1/rpc/aa_renombrar_materia',{method:'POST',body:impProf({p_unidad_id:unitId, p_titulo:guardado})});
+    u.titulo=guardado;
+    openUnit(unitId);
+  }catch(err){ appAlert('No se pudo cambiar el nombre: '+(err.message||'')); }
+}
 async function editarNombreAula(){
   const actual=(window._aulaNombre||'').trim();
   const nuevo=await appPrompt('Texto de la cabecera (ej.: "Historia", "Mis asignaturas"). Déjalo vacío para volver a "Materias propias":', actual);
@@ -5715,6 +5747,8 @@ async function guardarCabeceraUI(id){
 async function borrarMateriaUI(unidadId, titulo){
   const pm = partesMateria(titulo||'');
   if(!await appConfirm('¿Borrar la materia "'+(pm.nombre||titulo)+'" y todos sus exámenes y preguntas?\nEsta acción no se puede deshacer.')) return;
+  const nEx=(examsByUnit[unidadId]||[]).length;
+  if(!await appConfirm('Confirma otra vez: se borrarán '+nEx+' examen(es) y sus preguntas, y las notas asociadas.\n¿Seguro?')) return;
   try{
     await call('/rest/v1/rpc/borrar_materia',{method:'POST',body:impProf({p_unidad:unidadId})});
     delete unidadesById[unidadId];
@@ -6645,7 +6679,7 @@ function openUnit(unitId){
   const backLabel = (current.module && current.module.unidades.length>1) ? '← '+current.module.code : (window._activeCertId==='__aula_abierta' ? '← Materias' : '← Módulos');
   const backFn = (current.module && current.module.unidades.length>1) ? `openModule('${current.module.id}')` : (staff ? 'openModulosTeacher()' : 'goHome()');
   const head = `<button class="backbtn" onclick="${backFn}">${backLabel}</button>
-    <div class="unit-head"><div class="c">${u?u.codigo:unitId.toUpperCase()}</div><div class="n">${(u&&u.titulo)?u.titulo:(UF_TITULOS[unitId]||'')}</div></div>`;
+    <div class="unit-head"><div class="c">${u?u.codigo:unitId.toUpperCase()}</div><div class="n">${(u&&u.titulo)?escHtml(partesMateria(u.titulo).nombre):(UF_TITULOS[unitId]||'')}${(staff && window._activeCertId==='__aula_abierta' && u)?` <button onclick="renombrarMateria('${escAttr(unitId)}')" title="Cambiar el nombre de la materia" style="background:none;border:none;cursor:pointer;font-size:.9rem;padding:0 4px;opacity:.65">✏️</button>`:''}</div></div>`;
   const posterProx = `<div class="soon-screen"><div class="soon-emoji">📭</div><div class="soon-title">Aún no hay exámenes</div><div class="soon-text">Tu profesor activará los exámenes a medida que avance el temario.<br>Vuelve pronto.</div></div>`;
   if(est==='proximamente' && !staff){ $('unit').innerHTML=head+posterProx; return; }
   if(!list.length){ $('unit').innerHTML=head+posterProx; return; }
