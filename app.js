@@ -1187,6 +1187,7 @@ function renderHome(){
         </span>
       </button>
     </div>`;
+  html+=manualPill('docManualAlumno()','Manual del alumnado');
   $('home').innerHTML=html;
   document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
   const teacherBtn=$('dash-open-teacher');
@@ -1526,7 +1527,7 @@ const TRAZA_SECCIONES = [
   ]}
 ];
 
-function docPDFBase(titulo, subtitulo, secciones){
+function docPDFBase(titulo, subtitulo, secciones, pieTexto){
   if(typeof jsPDF==='undefined' && window.jspdf) window.jsPDF=window.jspdf.jsPDF;
   const doc=new jsPDF({unit:'mm',format:'a4'});
   const NAVY=[46,49,99], HONEY=[227,154,46], GRIS=[110,110,120];
@@ -1536,7 +1537,7 @@ function docPDFBase(titulo, subtitulo, secciones){
 
   function pie(){
     doc.setFontSize(7.5); doc.setTextColor(...GRIS);
-    doc.text('Aptuvia · Documento interno · Uso exclusivo del equipo', ML, 287);
+    doc.text(pieTexto||'Aptuvia · Documento interno · Uso exclusivo del equipo', ML, 287);
     doc.text(String(pag), MR, 287, {align:'right'});
   }
   function nuevaPag(){
@@ -1723,9 +1724,71 @@ function docManualProfe(){
     const doc=docPDFBase(
       'Manual del profesorado',
       esAula ? 'Aula Abierta · todo lo que puedes hacer, paso a paso' : 'Aptuvia · todo lo que puedes hacer, paso a paso',
-      manualProfeSecciones(esAula)
+      manualProfeSecciones(esAula),
+      'Aptuvia · aptuvia.es · Manual del profesorado'
     );
     doc.save(esAula?'Aptuvia-manual-profesorado-aula-abierta.pdf':'Aptuvia-manual-profesorado.pdf');
+  }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
+}
+
+// Pastilla discreta para el manual, con el mismo aire que la barra de documentos.
+function manualPill(fn, texto){
+  const est='background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--ink-soft);cursor:pointer;font-family:inherit';
+  return `<div style="display:flex;justify-content:flex-end;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+    <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual de usuario'}</button>
+  </div>`;
+}
+
+function manualAlumnoSecciones(esAula){
+  const s=[];
+  s.push({ t:'1. Entrar en la plataforma', p:[
+    'Se entra desde aptuvia.es con tu correo y tu contraseña. Si es la primera vez, tu profesor te habrá autorizado antes: hasta entonces el registro no te dejará entrar.',
+    'Si pierdes la contraseña, pídesela a tu profesor: él puede generarte una nueva.',
+    'Conviene cambiarla la primera vez desde "Cambiar contraseña", en la pantalla principal.'
+  ]});
+  s.push({ t:esAula?'2. Tus materias':'2. Módulos y unidades formativas', p:[
+    esAula
+      ? 'La pantalla principal muestra las materias que tu profesor te ha asignado. Si no ves ninguna, todavía no te ha dado clase asignada: díselo.'
+      : 'La pantalla principal muestra el certificado y sus módulos. Cada módulo se abre para ver sus unidades formativas.',
+    'Cada bloque tiene un estado: ACTIVO (se está dando), TERMINADO (ya se ha visto) o pendiente. Es solo informativo.',
+    'Dentro de cada unidad aparecen los exámenes que tu profesor ha publicado. Los que no ha publicado no se ven.'
+  ]});
+  s.push({ t:'3. Hacer un examen', p:[
+    'Se abre el examen y se responde pregunta a pregunta. Puedes cambiar la respuesta antes de entregar.',
+    'Al entregar se corrige solo y verás la nota al momento, con las preguntas acertadas y falladas.',
+    'Algunos exámenes cuentan para la nota final: aparece avisado antes de empezar.',
+    'Si tu profesor lo permite, un examen se puede repetir. Se guardan todos los intentos, no solo el último.',
+    'ATENCIÓN: si sales de un examen empezado, puedes perder lo respondido. Termínalo de una vez siempre que puedas.'
+  ]});
+  s.push({ t:'4. Exámenes de redacción', p:[
+    'Algunos exámenes no son tipo test: hay que escribir la respuesta, y a veces trabajar sobre un PDF adjunto que se descarga desde el propio examen.',
+    'Estos no se corrigen solos: los corrige tu profesor y la nota aparece cuando él la publica.',
+    'Si el examen tiene nota y vigilancia activada, se avisa antes de empezar de las normas: hay que leerlas y aceptarlas.'
+  ]});
+  s.push({ t:'5. Tus notas y tu progreso', p:[
+    'En cada unidad puedes ver tus intentos y la nota de cada uno.',
+    'También tienes el repaso de falladas: reúne las preguntas que has fallado para volver a intentarlas.',
+    'Cuando tu profesor lo activa, aparecen los megatests: exámenes largos de repaso de toda la unidad.'
+  ]});
+  s.push({ t:'6. Temario', p:[
+    'Si tu profesor ha subido apuntes, los tienes en el apartado de temario de la unidad. Se descargan y se pueden leer fuera de la plataforma.'
+  ]});
+  s.push({ t:'7. Qué NO es Aptuvia', p:[
+    'Aptuvia es una herramienta de apoyo al estudio. Las notas de la plataforma no son notas oficiales.',
+    'Aprobar aquí no expide ningún título ni certificación: la acreditación oficial la da el centro acreditado o el SEPE, con sus propias pruebas.'
+  ]});
+  return s;
+}
+function docManualAlumno(){
+  try{
+    const esAula=(window._activeCertId==='__aula_abierta');
+    const doc=docPDFBase(
+      'Manual del alumnado',
+      esAula?'Aula Abierta · cómo usar la plataforma, paso a paso':'Aptuvia · cómo usar la plataforma, paso a paso',
+      manualAlumnoSecciones(esAula),
+      'Aptuvia · aptuvia.es · Manual del alumnado'
+    );
+    doc.save('Aptuvia-manual-alumnado.pdf');
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
@@ -1886,10 +1949,10 @@ function docManualArea(area){
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
-// Barra discreta de documentos internos. Va arriba, pequeña, sin robar atención.
+// Barra discreta de documentos internos. Va al pie de cada área, sin robar atención.
 function docsBar(area){
   const est='background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--ink-soft);cursor:pointer;font-family:inherit';
-  return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:0 2px 10px;flex-wrap:wrap">
+  return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap">
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
     <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
   </div>`;
@@ -2296,7 +2359,6 @@ function saRenderLista(okMsg,errMsg){
     rsRender();
     return;
   }
-  h+=docsBar('soporte');
   h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
     <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
@@ -2311,6 +2373,7 @@ function saRenderLista(okMsg,errMsg){
   });
   h+=`</div>`;
   h+=`<div id="sa-mant-box" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)"></div>`;
+  h+=docsBar('soporte');
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
@@ -2407,6 +2470,8 @@ function saDetalle(msg){
   $('teacher').innerHTML=saShell(h);
   const g=(id)=>$(id);
   if(g('sa-prem-tog')) g('sa-prem-tog').onclick=()=>saPremiumToggle(a.academia_id);
+  if(g('sa-prem-link')) g('sa-prem-link').onclick=()=>saPremiumEnlazar(a.academia_id);
+  if(g('sa-prem-fact')) g('sa-prem-fact').onchange=(ev)=>saPremiumFacturada(a.academia_id, ev.target.checked);
   if(g('sa-prem-nueva')) g('sa-prem-nueva').onclick=()=>saPremiumCrearCuenta(a.academia_id,null,false);
   $('teacher').querySelectorAll('[data-prempass]').forEach(b=> b.onclick=()=>saResetPassUI(b.dataset.prempass,b.dataset.email));
   $('teacher').querySelectorAll('[data-premdel]').forEach(b=> b.onclick=()=>saBorrarUsuarioUI(b.dataset.premdel,b.dataset.email));
@@ -2426,20 +2491,31 @@ function saDetalle(msg){
 }
 /* ── Acceso academia (Premium): interruptor + cuentas de dirección ── */
 function saPremiumCard(a){
-  const st=window._saPremium||{activo:false,cuentas:[],presupuesto:null};
+  const st=window._saPremium||{activo:false,cuentas:[],presupuesto:null,candidatos:[],facturado:false};
   const on=!!st.activo;
   const cuentas=st.cuentas||[];
   const pr=st.presupuesto||null;
+  const cand=st.candidatos||[];
+  const fact=!!st.facturado;
   let h=`<div style="border:1.5px solid ${on?'#bfe3cb':'var(--line)'};border-radius:12px;padding:11px 13px;margin:0 0 12px;background:${on?'#f4fbf6':'#fff'}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <div><b style="font-size:.86rem;color:var(--navy)">🏫 Acceso academia</b>
         <div style="font-size:.7rem;color:var(--ink-soft);margin-top:2px">Premium · consulta de notas en solo lectura</div></div>
       <button id="sa-prem-tog" class="sa-mini" style="${on?'background:#e7f6ec;color:#15803d;border-color:#bfe3cb':'background:#fdecec;color:#b4232a;border-color:#f0c4c4'};font-weight:800;font-size:.7rem;padding:6px 11px;white-space:nowrap">${on?'ACTIVO':'DESACTIVADO'}</button>
-    </div>
-    <div style="font-size:.68rem;margin-top:7px;color:${pr?'var(--ink-soft)':'#b26a00'}">${pr
-      ? ('Contratado en el presupuesto <b>'+escHtml(pr.numero||'—')+'</b>'+(pr.fecha?(' · '+escHtml(pr.fecha)):''))
-      : 'Sin presupuesto que respalde este servicio.'}</div>`;
+    </div>`;
+  if(pr){
+    h+=`<div style="font-size:.68rem;margin-top:7px;color:var(--ink-soft)">Contratado en el presupuesto <b>${escHtml(pr.numero||'—')}</b>${pr.fecha?(' · '+escHtml(pr.fecha)):''}</div>`;
+  }else if(cand.length){
+    h+=`<div style="font-size:.68rem;margin-top:7px;color:#b26a00">Hay ${cand.length} presupuesto${cand.length===1?'':'s'} aceptado${cand.length===1?'':'s'} con esta partida sin enlazar a la academia.</div>
+      <button class="btn btn-ghost" id="sa-prem-link" style="width:100%;margin-top:7px">🔗 Tirar de un presupuesto</button>`;
+  }else{
+    h+=`<div style="font-size:.68rem;margin-top:7px;color:#b26a00">Sin presupuesto que respalde este servicio.</div>`;
+  }
   if(on){
+    h+=`<label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:.72rem;color:var(--ink);cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px">
+      <input type="checkbox" id="sa-prem-fact" ${fact?'checked':''} style="margin-top:2px;width:16px;height:16px;flex:0 0 auto">
+      <span><b>Ya facturada</b><br><span style="color:var(--ink-soft)">Márcala si esta partida va dentro de la factura del presupuesto. Si la dejas sin marcar, Administración recibe aviso para facturarla aparte.</span></span>
+    </label>`;
     h+=`<div style="margin-top:10px">`;
     if(!cuentas.length){ h+=`<p class="sa-empty" style="margin:0 0 8px">Sin cuenta de dirección todavía.</p>`; }
     else cuentas.forEach(c=>{
@@ -2456,11 +2532,40 @@ function saPremiumCard(a){
   h+=`</div>`;
   return h;
 }
+// Enlaza a esta academia un presupuesto aceptado que lleva la partida de acceso.
+async function saPremiumEnlazar(academiaId){
+  const st=window._saPremium||{};
+  const cand=st.candidatos||[];
+  if(!cand.length) return;
+  const menu=cand.map((p,i)=>(i+1)+' = '+(p.numero||'—')+' · '+(p.cliente_nombre||'—')+' · '+(p.fecha||'')).join('\n');
+  const r=await appPrompt('¿De qué presupuesto sale el acceso de dirección?\nEscribe el número:\n\n'+menu);
+  if(r===null) return;
+  const i=parseInt(r,10);
+  if(isNaN(i)||i<1||i>cand.length){ appAlert('Número no válido.'); return; }
+  const p=cand[i-1];
+  try{
+    await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body:{academia_id:academiaId}});
+    if(!st.activo) await call('/rest/v1/rpc/sa_acceso_toggle',{method:'POST',body:{p_academia:academiaId,p_on:true}});
+    await saAbrirAcademia(academiaId);
+    appAlert('✅ Enlazado con '+(p.numero||'')+'. El acceso de dirección queda activo: crea ahora su cuenta.');
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function saPremiumFacturada(academiaId, on){
+  try{
+    await call('/rest/v1/rpc/sa_acceso_facturada',{method:'POST',body:{p_academia:academiaId,p_on:!!on}});
+    if(!on){
+      const a=(saAcademias||[]).find(x=>String(x.academia_id)===String(academiaId));
+      const st=window._saPremium||{};
+      await avisarAdmin('💶 Facturar el acceso de dirección de "'+((a&&a.nombre)||('academia #'+academiaId))+'"'+((st.presupuesto&&st.presupuesto.numero)?(' (presupuesto '+st.presupuesto.numero+')'):'')+'. No va incluido en ninguna factura todavía.');
+    }
+    await saAbrirAcademia(academiaId);
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
 async function saPremiumToggle(academiaId){
   const st=window._saPremium||{activo:false};
   const nuevo=!st.activo;
   if(nuevo && !st.presupuesto){
-    if(!await appConfirm('Este servicio no aparece en ningún presupuesto de la academia.\nLo normal es contratarlo desde Comercial (línea "Acceso academia") y darlo de alta desde el presupuesto.\n\n¿Activarlo igualmente?')) return;
+    if(!await appConfirm('Este servicio no aparece en ningún presupuesto enlazado a la academia.\nLo normal es contratarlo desde Comercial (línea "Acceso academia") y tirar de ese presupuesto.\n\n¿Activarlo igualmente?')) return;
   }
   const msg=nuevo
     ? '¿Activar el acceso de dirección para esta academia?\nPodrá consultar (solo lectura) las notas de todos sus profesores.'
@@ -2580,7 +2685,40 @@ async function saBorrarAcademiaUI(id,nombre){
   try{ await call('/rest/v1/rpc/sa_borrar_academia',{method:'POST',body:{p_academia:id}}); await openSuperadmin('Academia borrada.'); }
   catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
+// Aviso suelto al departamento de Administración.
+async function avisarAdmin(texto){
+  try{
+    await call('/rest/v1/avisos_manuales',{method:'POST',body:{
+      area:'admin', texto:texto, repetir:'no',
+      fecha:new Date().toISOString().slice(0,10),
+      activo:true, dia_semana:null, dia_mes:null
+    }});
+  }catch(e){ /* nunca debe tumbar la operación */ }
+}
+// Elegir un presupuesto aceptado del que cuelga esta alta.
+// Devuelve el presupuesto, null (sin presupuesto) o false (cancelado).
+async function saElegirPresupuesto(academiaId){
+  let lista=[];
+  try{ lista=await call('/rest/v1/presupuestos?select=*&order=fecha.desc')||[]; }
+  catch(e){ appAlert('No se pudieron cargar los presupuestos: '+(e.message||'')); return false; }
+  const cand=lista.filter(p=>pxEstadoReal(p)==='aceptado' && !p.archivado &&
+    (academiaId==null || !p.academia_id || String(p.academia_id)===String(academiaId)));
+  if(!cand.length){ appAlert('No hay presupuestos aceptados disponibles. Se creará sin presupuesto.'); return null; }
+  const menu=cand.map((p,i)=>(i+1)+' = '+(p.numero||'—')+' · '+((p.cliente&&p.cliente.razon_social)||'—')+' · '+gxEur(p.total)).join('\n');
+  const r=await appPrompt('¿De qué presupuesto sale este alta?\nEscribe el número de la lista (o deja vacío para ninguno):\n\n'+menu);
+  if(r===null) return false;
+  if(!String(r).trim()) return null;
+  const i=parseInt(r,10);
+  if(isNaN(i)||i<1||i>cand.length){ appAlert('Número no válido.'); return false; }
+  return cand[i-1];
+}
 async function saCrearProfesorUI(academiaId, aaMode){
+  const conPresu=await appConfirm('¿Este profesor sale de un presupuesto aceptado?\n\nAceptar = elegir el presupuesto\nCancelar = darlo de alta sin presupuesto');
+  let presu=null;
+  if(conPresu){
+    presu=await saElegirPresupuesto(aaMode?null:academiaId);
+    if(presu===false) return;
+  }
   const nombre=await appPrompt('Nombre del profesor (aparecerá arriba):')||'';
   const email=await appPrompt('Email del nuevo profesor:'); if(email===null||!email.trim()) return;
   const pass=await appPrompt('Contraseña inicial (mín. 6):'); if(pass===null) return;
@@ -2593,6 +2731,12 @@ async function saCrearProfesorUI(academiaId, aaMode){
   }
   try{
     await call('/rest/v1/rpc/sa_crear_profesor',{method:'POST',body:{p_email:email.trim(),p_pass:pass,p_nombre:nombre,p_academia:academiaId,p_cert:cert,p_cert_codigo:cod,p_cert_nombre:nom}});
+    const quien=(nombre||'').trim()||email.trim();
+    if(presu){
+      await avisarAdmin('👤 Profesor de alta: "'+quien+'" ('+cod+'), del presupuesto '+(presu.numero||'')+'. Comprueba si su cuota ya está incluida en esa factura antes de emitir nada nuevo.');
+    }else{
+      await avisarAdmin('👤 Profesor de alta SIN presupuesto: "'+quien+'" ('+cod+'). Hay que facturar su cuota mensual.');
+    }
     if(aaMode){ await saAbrirAula(); } else { await saAbrirAcademia(academiaId); }
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
@@ -2678,7 +2822,8 @@ async function saAltaAcademia(id){
     if(presuConAccesoAcademia(p)){
       try{
         await call('/rest/v1/rpc/sa_acceso_toggle',{method:'POST',body:{p_academia:academiaId,p_on:true}});
-        msgPrem='\n\n🏫 Acceso academia ACTIVADO (venía en el presupuesto).';
+        try{ await call('/rest/v1/rpc/sa_acceso_facturada',{method:'POST',body:{p_academia:academiaId,p_on:true}}); }catch(_){}
+        msgPrem='\n\n🏫 Acceso academia ACTIVADO (venía en el presupuesto, marcado como ya facturado).';
         const hecho=await saPremiumCrearCuenta(academiaId, c, true);
         msgPrem += hecho ? ' Su cuenta de dirección ya está creada.' : ' Crea su cuenta de dirección desde la ficha cuando quieras.';
       }catch(e){ msgPrem='\n\n⚠️ No se pudo activar el acceso de dirección: '+(e.message||''); }
@@ -3127,7 +3272,7 @@ function rsRender(){
   if(window._enPresu){ pxRender(); return; }
   const sub=window._rsSub||null;
   if(sub){ rsCargar(); return; }
-  let h=docsBar('comercial');
+  let h='';
   h+=`<div class="sa-cards-grid">`;
   h+=`<button class="fact-menu" onclick="rsAbrirPresu()" style="background:#eef8fe"><b>📝 Presupuestos</b><span>Preparar, enviar y aceptar presupuestos. El aceptado y firmado es el contrato</span></button>`;
   h+=`</div>`;
@@ -3143,6 +3288,7 @@ function rsRender(){
     <button class="fact-menu" onclick="abrirFuera('https://search.google.com/search-console/performance/search-analytics?resource_id=sc-domain%3Aaptuvia.es')"><b>📈 Rendimiento en Google</b><span>Clics, impresiones y consultas de los últimos 3 meses</span></button>
   </div>`;
   h+=`<p style="font-size:.72rem;color:var(--ink-soft);background:#f6f1e6;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:12px 2px 0;line-height:1.6">Se abre en otra pestaña y pide la cuenta de Google. La propiedad está a nombre de <b>aptuvia@gmail.com</b>.</p>`;
+  h+=docsBar('comercial');
   $('teacher').innerHTML=saShell(h);
 }
 
@@ -3159,7 +3305,7 @@ function saRenderFacturacionLista(){
   // Menú principal de Facturación.
   const sub=window._factSub||null;
   if(!sub){
-    let h=docsBar('admin');
+    let h='';
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
@@ -3168,6 +3314,7 @@ function saRenderFacturacionLista(){
     h+=`<button class="fact-menu" onclick="saFactSub('gastos')"><b>Gastos y balance</b><span>Facturas de proveedores, gastos previstos y evolución del negocio</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('conta')"><b>🧾 Contabilidad</b><span>Libros, IVA (303), IRPF (130) y resúmenes anuales (390, 347)</span></button>`;
     h+=`</div>`;
+    h+=docsBar('admin');
     $('teacher').innerHTML=saShell(h);
     return;
   }
@@ -3176,7 +3323,7 @@ function saRenderFacturacionLista(){
   if(sub==='emitidas'){ saRenderFacturasEmitidas(); return; }
   if(sub==='gastos'){ gxRender(); return; }
   if(sub==='academias'){
-    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
+    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>
       <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🏫 Facturar Aptuvia</h2>`;
     const acs = (saAcademias||[]).slice().sort((x,y)=>((y.activa!==false)-(x.activa!==false)) || x.academia_id-y.academia_id);
     if(!acs.length) h+=`<p class="sa-empty">No hay academias.</p>`;
@@ -3193,7 +3340,7 @@ function saRenderFacturacionLista(){
     return;
   }
   if(sub==='aa'){
-    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
+    let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>
       <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🎨 Aula Abierta · clientes</h2>
       <div id="fact-aa-lista"><p class="sa-empty" style="font-size:.82rem">Cargando…</p></div>`;
     $('teacher').innerHTML=saShell(h);
@@ -3271,21 +3418,30 @@ async function pxRender(){
 
 function pxPintar(){
   if(pxEdit){ pxForm(); return; }
+  const verArch=!!window._pxArch;
   let h=`<button class="backbtn" onclick="saSetMain('rs')" style="margin-bottom:10px">← Comercial</button>
-    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Presupuestos</h2>
-    <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">El presupuesto aceptado y firmado por el cliente <b>es el contrato</b>. Sin él, ante un impago no hay nada que reclamar.</p>`;
+    <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Presupuestos${verArch?' archivados':''}</h2>
+    <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">${verArch?'Presupuestos retirados del escritorio. Se conservan enteros: puedes verlos, descargarlos y devolverlos.':'El presupuesto aceptado y firmado por el cliente <b>es el contrato</b>. Sin él, ante un impago no hay nada que reclamar.'}</p>`;
 
-  h+=`<button class="btn btn-honey" onclick="pxNuevo()" style="margin-bottom:14px">+ Nuevo presupuesto</button>`;
+  const nArch=pxLista.filter(p=>p.archivado).length;
+  h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    ${verArch?'':`<button class="btn btn-honey" onclick="pxNuevo()" style="flex:1;margin:0;min-width:150px">+ Nuevo presupuesto</button>`}
+    <button class="btn btn-ghost" onclick="pxVerArchivados(${verArch?'false':'true'})" style="flex:${verArch?'1':'0 0 auto'};margin:0">${verArch?'← Volver a los activos':'🗄 Archivados'+(nArch?(' ('+nArch+')'):'')}</button>
+  </div>`;
 
+  const lista=pxLista.filter(p=>!!p.archivado===verArch);
   if(!pxLista.length) return void($('teacher').innerHTML=saShell(h+`<p class="sa-empty">Todavía no hay presupuestos.</p>`));
+  if(!lista.length) return void($('teacher').innerHTML=saShell(h+`<p class="sa-empty">${verArch?'No hay presupuestos archivados.':'No hay presupuestos activos.'}</p>`));
 
-  const acep=pxLista.filter(p=>pxEstadoReal(p)==='aceptado');
-  const pend=pxLista.filter(p=>['borrador','enviado'].includes(pxEstadoReal(p)));
-  h+=`<div class="gx-kpis"><div class="gx-kpi"><span>Total</span><b>${pxLista.length}</b></div>
-    <div class="gx-kpi"><span>Pendientes</span><b>${pend.length}</b></div>
-    <div class="gx-kpi"><span>Aceptados</span><b style="color:#15803d">${gxEur(acep.reduce((t,p)=>t+Number(p.total||0),0))}</b></div></div>`;
+  if(!verArch){
+    const acep=lista.filter(p=>pxEstadoReal(p)==='aceptado');
+    const pend=lista.filter(p=>['borrador','enviado'].includes(pxEstadoReal(p)));
+    h+=`<div class="gx-kpis"><div class="gx-kpi"><span>Total</span><b>${lista.length}</b></div>
+      <div class="gx-kpi"><span>Pendientes</span><b>${pend.length}</b></div>
+      <div class="gx-kpi"><span>Aceptados</span><b style="color:#15803d">${gxEur(acep.reduce((t,p)=>t+Number(p.total||0),0))}</b></div></div>`;
+  }
 
-  pxLista.forEach(p=>{
+  lista.forEach(p=>{
     const est=pxEstadoReal(p), e=PX_ESTADOS[est]||PX_ESTADOS.borrador;
     const cli=(p.cliente&&p.cliente.razon_social)||'—';
     h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
@@ -3296,19 +3452,90 @@ function pxPintar(){
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
+        <button onclick="pxVer('${p.id}')" class="gx-mini">👁 Ver</button>
         <button onclick="pxPDF('${p.id}')" class="gx-mini">📄 PDF</button>
-        <button onclick="pxAbrir('${p.id}')" class="gx-mini">✏️ Editar</button>
+        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="gx-mini">✏️ Editar</button>
         <button onclick="pxEnviar('${p.id}')" class="gx-mini">✉️ Enviar</button>
         <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="padding:3px 5px">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
         </select>
-        ${est==='aceptado'?(p.facturado_en?`<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Facturado</span>`:`<span class="gx-mini" style="background:#eef4fb;color:#2563a8;cursor:default">→ Lo factura Administración</span>`):''}
-        <button onclick="pxBorrar('${p.id}')" class="gx-mini del" style="margin-left:auto">🗑</button>
+        ${est==='aceptado'?(p.facturado_en?`<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Facturado</span>`:`<span class="gx-mini" style="background:#eef4fb;color:#2563a8;cursor:default">→ Lo factura Administración</span>`):''}`}
+        <span style="margin-left:auto;display:flex;gap:5px">
+          <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="gx-mini" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
+          ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="gx-mini del">🗑</button>`}
+        </span>
       </div>
     </div>`;
   });
   $('teacher').innerHTML=saShell(h);
 }
+
+// Ficha del presupuesto en pantalla, para consultarlo sin descargar el PDF.
+function presuFichaHTML(p){
+  const c=p.cliente||{}, lin=p.lineas||{};
+  const rec=lin.rec||[], uni=lin.uni||[];
+  const sum=a=>a.reduce((t,l)=>t+((Number(l.precio)||0)*(Number(l.cant)||0)),0);
+  const subtotal=sum(rec)+sum(uni);
+  const desc=subtotal*((Number(p.descuento_pct)||0)/100);
+  const base=subtotal-desc;
+  const iva=base*((Number(p.iva_pct)||0)/100);
+  const est=pxEstadoReal(p), e=PX_ESTADOS[est]||PX_ESTADOS.borrador;
+  const fila=l=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:.78rem;padding:4px 0;border-bottom:1px dashed var(--line)">
+    <span>${escHtml(l.nombre||'—')}<br><span style="font-size:.68rem;color:var(--ink-soft)">${(Number(l.precio)||0).toFixed(2)} € × ${escHtml(String(l.cant||0))}</span></span>
+    <b style="white-space:nowrap">${((Number(l.precio)||0)*(Number(l.cant)||0)).toFixed(2)} €</b></div>`;
+  const tot=(et,v,b)=>`<div style="display:flex;justify-content:space-between;font-size:${b?'.95rem':'.78rem'};padding:3px 0${b?';border-top:1px solid var(--line);margin-top:4px':''}"><span>${b?'<b>'+et+'</b>':et}</span><${b?'b':'span'} style="color:var(--navy)">${v.toFixed(2)} €</${b?'b':'span'}></div>`;
+  let h=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:13px;background:#fff">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+      <div><b style="font-size:1rem;color:var(--navy)">${escHtml(p.numero||'—')}</b>
+        <span style="font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;color:${e.col};background:${e.bg}">${e.lab}</span>
+        <div style="font-size:.72rem;color:var(--ink-soft);margin-top:3px">${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</div></div>
+    </div>
+    <div style="font-size:.78rem;line-height:1.55;background:#f8f6f1;border-radius:9px;padding:9px 11px;margin-bottom:10px">
+      <b>${escHtml(c.razon_social||'—')}</b>${c.nif?('<br>NIF: '+escHtml(c.nif)):''}
+      ${c.direccion?('<br>'+escHtml(c.direccion)):''}
+      ${(c.cp||c.poblacion||c.provincia)?('<br>'+escHtml([c.cp,c.poblacion,c.provincia].filter(Boolean).join(' '))):''}
+      ${c.email?('<br>'+escHtml(c.email)):''}${c.telefono?('<br>'+escHtml(c.telefono)):''}
+    </div>`;
+  if(rec.length){ h+=`<div style="font-size:.68rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);margin:8px 0 2px">Cuota mensual</div>${rec.map(fila).join('')}`; }
+  if(uni.length){ h+=`<div style="font-size:.68rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);margin:10px 0 2px">Pago único</div>${uni.map(fila).join('')}`; }
+  h+=`<div style="margin-top:10px">${tot('Subtotal',subtotal)}${desc?tot('Descuento ('+(p.descuento_pct||0)+'%)',-desc):''}${tot('Base imponible',base)}${tot('IVA ('+(p.iva_pct||0)+'%)',iva)}${tot('TOTAL',base+iva,true)}</div>`;
+  if(p.notas) h+=`<div style="font-size:.72rem;color:var(--ink-soft);white-space:pre-wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);line-height:1.55">${escHtml(p.notas)}</div>`;
+  const al=pxAltaLabel(p);
+  if(al) h+=`<div style="font-size:.72rem;color:#15803d;font-weight:700;margin-top:8px">✅ ${escHtml(al)}</div>`;
+  if(p.facturado_en) h+=`<div style="font-size:.72rem;color:#15803d;font-weight:700;margin-top:4px">✅ Facturado${p.factura_numero?(' · '+escHtml(p.factura_numero)):''}</div>`;
+  h+=`</div>`;
+  return h;
+}
+function pxVer(id){
+  const p=pxLista.find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="pxPintar()" style="margin-bottom:10px">← Presupuestos</button>
+    ${presuFichaHTML(p)}
+    <button class="btn btn-ghost" onclick="pxPDF('${p.id}')" style="margin-top:12px">📄 Descargar PDF</button>`);
+  window.scrollTo(0,0);
+}
+function saPresuVer(id){
+  const p=(window._presuAcep||[]).find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saRenderPresuAceptados()" style="margin-bottom:10px">← Presupuestos aceptados</button>
+    ${presuFichaHTML(p)}
+    <button class="btn btn-ghost" onclick="saPresuPDF('${p.id}')" style="margin-top:12px">📄 Descargar PDF</button>`);
+  window.scrollTo(0,0);
+}
+async function pxArchivar(id, archivar){
+  const p=pxLista.find(x=>String(x.id)===String(id));
+  if(!p) return;
+  const msg=archivar
+    ? '¿Archivar '+(p.numero||'')+'?\nDesaparece del escritorio pero se conserva. Lo tienes en "Archivados".'
+    : '¿Devolver '+(p.numero||'')+' al escritorio?';
+  if(!await appConfirm(msg)) return;
+  try{
+    await call('/rest/v1/presupuestos?id=eq.'+id,{method:'PATCH',body:{archivado:!!archivar}});
+    p.archivado=!!archivar;
+    pxPintar();
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+function pxVerArchivados(v){ window._pxArch=!!v; pxPintar(); }
 
 function pxNuevo(){
   pxEdit={
@@ -3676,13 +3903,13 @@ async function saRenderPresuAceptados(){
   let lista=[];
   try{ lista=await call('/rest/v1/presupuestos?select=*&order=fecha.desc,creado_en.desc')||[]; }
   catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>
       <div class="center-msg">No se pudieron cargar los presupuestos.<br><small>${escHtml(e.message||'')}</small></div>`);
     return;
   }
   window._presuAcep=lista;
-  const acep=lista.filter(p=>pxEstadoReal(p)==='aceptado');
-  let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Gestión</button>
+  const acep=lista.filter(p=>pxEstadoReal(p)==='aceptado' && !p.archivado);
+  let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Presupuestos aceptados</h2>
     <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">Presupuestos aceptados por el cliente, listos para emitir su <b>primera</b> factura. Al facturar se bloquean para no duplicarlos. Las facturas mensuales recurrentes se emiten desde <b>Facturar Aptuvia</b>.</p>`;
   if(!acep.length){ $('teacher').innerHTML=saShell(h+`<p class="sa-empty">No hay presupuestos aceptados.</p>`); return; }
@@ -3696,8 +3923,10 @@ async function saRenderPresuAceptados(){
           <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')}${fact&&p.factura_numero?(' · '+escHtml(p.factura_numero)):''}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
-      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center">
+        <button onclick="saPresuVer('${p.id}')" class="gx-mini">👁 Ver</button>
         <button onclick="saPresuPDF('${p.id}')" class="gx-mini">📄 PDF</button>
+        <button onclick="saPresuArchivar('${p.id}')" class="gx-mini" title="Quitar del escritorio sin borrarlo">🗄 Archivar</button>
         ${fact
           ? `<span class="gx-mini" style="background:#f1f1f4;color:#6e6e78;cursor:default">Facturado</span><button onclick="saPresuDesbloquear('${p.id}')" class="gx-mini del" style="margin-left:auto">↩ Desbloquear</button>`
           : `<button onclick="saPresuFacturar('${p.id}')" class="gx-mini ok" style="margin-left:auto">→ Facturar</button>`}
@@ -3705,6 +3934,16 @@ async function saRenderPresuAceptados(){
     </div>`;
   });
   $('teacher').innerHTML=saShell(h);
+}
+async function saPresuArchivar(id){
+  const p=(window._presuAcep||[]).find(x=>String(x.id)===String(id));
+  if(!p) return;
+  if(!p.facturado_en && !await appConfirm('⚠️ '+(p.numero||'')+' todavía NO está facturado.\n\nSi lo archivas desaparece de esta lista. ¿Archivarlo igualmente?')) return;
+  if(p.facturado_en && !await appConfirm('¿Archivar '+(p.numero||'')+'?\nSe conserva entero; solo deja de ocupar sitio aquí.')) return;
+  try{
+    await call('/rest/v1/presupuestos?id=eq.'+id,{method:'PATCH',body:{archivado:true}});
+    await saRenderPresuAceptados();
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 function saPresuPDF(id){
   const p=(window._presuAcep||[]).find(x=>String(x.id)===String(id));
@@ -3831,19 +4070,19 @@ async function ctRender(){
       catch(e){ window._factTodas=[]; }
     }
   }catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Administración</button>
       <div class="center-msg">No se pudieron cargar los datos.<br><small>${escHtml(e.message||'')}</small></div>`);
     return;
   }
   try{ ctPintar(); }
   catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Administración</button>
       <div class="center-msg">Error al pintar la pantalla.<br><small>${escHtml(e.message||String(e))}</small></div>`);
   }
 }
 
 function ctPintar(){
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Administración</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🧾 Contabilidad</h2>
     <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">Todo se calcula solo, a partir de las facturas emitidas y de los gastos. Los importes los valida tu gestoría.</p>`;
 
@@ -4139,21 +4378,21 @@ async function gxRender(){
       catch(e){ window._factTodas=[]; }
     }
   }catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Administración</button>
       <div class="center-msg">No se pudo cargar.<br><small>${escHtml(e.message||'')}</small><br><small>¿Ejecutaste el SQL de gastos?</small></div>`);
     return;
   }
   try{
     gxPintar();
   }catch(e){
-    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Gestión</button>
+    $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('fact')">← Administración</button>
       <div class="center-msg">Error al pintar la pantalla.<br><small>${escHtml(e.message||String(e))}</small></div>`);
   }
 }
 
 function gxPintar(){
   if(gxTab==='avisos') gxTab='facturas';
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Administración</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">Gastos y balance</h2>`;
   h+=`<div class="t-toggle" style="margin-bottom:14px">
     ${[['facturas','Facturas'],['prev','Previstos'],['provs','Proveedores'],['balance','Balance']]
@@ -4886,7 +5125,7 @@ function factLineHtml(tipo, i, l){
 
 function saRenderFacturacion(){
   const f=window._fact; const d=f.datos||{};
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Administración</button>
     <h2 style="font-size:1.1rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">Factura · ${escHtml(f.academiaNombre)}</h2>${f.presuNumero?`<p style="font-size:.72rem;color:#2563a8;font-weight:700;margin:0 2px 6px">📝 Origen: presupuesto ${escHtml(f.presuNumero)}</p>`:''}`;
 
   // Tirar del presupuesto de origen: copia partidas, precios, descuento, IVA y condiciones.
@@ -5246,7 +5485,7 @@ function saPintarFacturasEmitidas(){
   const clientesDisp=[...new Set(todas.map(f=>f.academia_nombre||'—'))].sort((a,b)=>a.localeCompare(b,'es'));
   const mesNomSel=(mk)=>{ const [y,m]=mk.split('-'); const n=new Date(+y,+m-1,1).toLocaleDateString('es-ES',{month:'long',year:'numeric'}); return n.charAt(0).toUpperCase()+n.slice(1); };
 
-  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Gestión</button>
+  let h=`<button class="backbtn" onclick="saSetMain('fact')" style="margin-bottom:10px">← Administración</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 10px">📊 Facturas emitidas</h2>
     <div id="fr-box" style="margin:2px 0 12px"></div>`;
 
@@ -5501,15 +5740,12 @@ function pintarTeacher(){
         <span class="ic" style="background:var(--navy-tint)">📚</span><span class="tt">Módulos</span><span class="ts">Evolución de la clase</span></button>
       <button class="t-tile" onclick="openAlumnos()">
         <span class="ic-row"><span class="ic" style="background:var(--navy-tint)">👥</span><span class="t-online-pill" id="t-sub-count"><span class="online-dot" style="background:#94a3b8;box-shadow:none;animation:none"></span>… en línea</span></span><span class="tt">Alumnos y notas</span><span class="ts">Registrados: ${nAl}</span></button>
-      <div style="grid-column:span 2;display:flex;gap:10px">
-        <button class="t-tile" onclick="openPassword()" style="flex:1;margin:0">
-          <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
-        <button class="t-tile" onclick="docManualProfe()" style="flex:1;margin:0">
-          <span class="ic" style="background:var(--navy-tint)">📘</span><span class="tt">Manual de usuario</span><span class="ts">Guía en PDF, paso a paso</span></button>
-      </div>
+      <button class="t-tile" onclick="openPassword()">
+        <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
-    </div>`;
+    </div>
+    ${manualPill('docManualProfe()')}`;
   // Badge de alumnos en línea — pastilla bajo "Matriculados" en la tarjeta Alumnos
   fetchOnlineCount().then(n=>{
     const el=$('t-sub-count'); if(!el) return;
