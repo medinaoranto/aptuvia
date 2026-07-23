@@ -741,7 +741,7 @@ async function cargarTemario(){
 }
 
 // Sube un archivo al bucket 'temario' y registra la fila. Devuelve true si ok.
-async function temarioSubir(unidad, file, titulo, nota){
+async function temarioSubir(unidad, file, titulo, nota, temaId){
   const cert=certBD();
   const miProf = window._saImpersona ? window._saImpersonaProf : userId;
   const ext=(file.name.split('.').pop()||'bin').toLowerCase();
@@ -755,11 +755,12 @@ async function temarioSubir(unidad, file, titulo, nota){
   });
   if(!up.ok){ const t=await up.text().catch(()=>''); throw new Error('Subida: '+(t||up.status)); }
   // 2) Registrar en tabla
-  await call('/rest/v1/temario',{method:'POST',body:impProf({
+  await call('/rest/v1/temario',{method:'POST',body:{
     profesor_id:miProf, academia_id:(window._saImpersona?window._saImpersonaAcademia:userAcademia)||null,
     certificado_id:cert, unidad:unidad, titulo:titulo||file.name, nota:nota||null,
-    archivo_path:path, archivo_nombre:file.name, mime:file.type||null
-  })});
+    archivo_path:path, archivo_nombre:file.name, mime:file.type||null,
+    tema_id:temaId||null
+  }});
   return true;
 }
 
@@ -790,6 +791,8 @@ async function temarioBorrar(id, path){
 
 // ---- Panel del PROFESOR: gestionar temario por unidad ----
 let teacherUnidadTem=null;
+let temarioTemas=[];   // temas de Aula Abierta de la unidad mostrada (en EV queda vacío)
+
 function openTemarioProfesor(){
   teacherView='temario';
   const mods=getModulos();
@@ -797,45 +800,86 @@ function openTemarioProfesor(){
   renderTemarioProfesor(teacherUnidadTem);
 }
 
-function renderTemarioProfesor(unidad){
+async function temarioCargarTemas(unidad){
+  temarioTemas=[];
+  if(!esAulaAbierta()||!unidad) return;
+  try{ temarioTemas=await call('/rest/v1/rpc/aa_temas_listar',{method:'POST',body:impProf({p_unidad:unidad})})||[]; }
+  catch(e){ temarioTemas=[]; }
+}
+
+function temarioNombreTema(temaId){
+  const t=(temarioTemas||[]).find(x=>String(x.id)===String(temaId));
+  return t?t.titulo:'';
+}
+
+// Mover un material a otro tema (solo Aula Abierta)
+async function temarioMover(unidad, id){
+  const temas=temarioTemas||[];
+  if(!temas.length){ appAlert('Esta materia todavía no tiene temas.\n\nCréalos desde la pantalla de la materia y vuelve aquí.'); return; }
+  const menu=temas.map((t,i)=>(i+1)+' = '+t.titulo).join('\n');
+  const r=await appPrompt('¿A qué tema lo llevamos?\nEscribe el número (0 = dejarlo sin tema):\n\n'+menu);
+  if(r===null) return;
+  const i=parseInt(r,10);
+  if(isNaN(i)||i<0||i>temas.length){ appAlert('Número no válido.'); return; }
+  const destino=i===0?null:temas[i-1].id;
+  try{
+    await call('/rest/v1/rpc/temario_tema',{method:'POST',body:impProf({p_material:id,p_tema:destino})});
+    renderTemarioProfesor(unidad);
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+
+async function renderTemarioProfesor(unidad){
   teacherUnidadTem=unidad;
-  cargarTemario().then(()=>{
+  try{
+    await cargarTemario();
+    await temarioCargarTemas(unidad);
+    const aa=esAulaAbierta();
     const mods=getModulos();
     // Selector de unidad
     let opts='';
     mods.forEach(m=>{ (m.unidades||[]).forEach(uid=>{
-      const u=unidadesById[uid]; const nom=(u&&(u.codigo||u.titulo))||uid;
-      opts+=`<option value="${escAttr(uid)}"${uid===unidad?' selected':''}>${escHtml(nom)}</option>`;
+      const u=unidadesById[uid];
+      const cod=(u&&u.codigo)||uid;
+      const nom=(u&&u.titulo)?partesMateria(u.titulo).nombre:'';
+      opts+=`<option value="${escAttr(uid)}"${uid===unidad?' selected':''}>${escHtml(nom?cod+' · '+nom:cod)}</option>`;
     }); });
+    // Selector de tema (solo Aula Abierta)
+    let optsTema='<option value="">Sin tema</option>';
+    temarioTemas.forEach(t=>{ optsTema+=`<option value="${escAttr(t.id)}">${escHtml(t.titulo)}</option>`; });
     const lista=(temarioByUnit[unidad]||[]);
     let h=`<button class="backbtn" onclick="openTeacher()" style="margin-bottom:12px">← Panel</button>
       <h2 style="font-size:1.1rem;font-weight:800;color:var(--navy);margin:2px 2px 6px">📚 Temario</h2>
-      <p style="font-size:.85rem;color:var(--ink-soft);margin-bottom:12px">Sube apuntes, temas o ejercicios. El alumno los verá y descargará dentro de cada unidad.</p>
+      <p style="font-size:.85rem;color:var(--ink-soft);margin-bottom:12px">Sube apuntes, temas o ejercicios. El alumno los verá y descargará dentro de cada ${aa?'tema':'unidad'}.</p>
       <button onclick="driveAbrir()" style="width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;margin-bottom:12px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive (subir/descargar materiales)</button>
-      <label style="font-size:.75rem;color:var(--ink-soft)">Unidad</label>
+      <label style="font-size:.75rem;color:var(--ink-soft)">${aa?'Materia':'Unidad'}</label>
       <select id="tem-unidad" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin:4px 0 14px;font-size:.9rem;background:#fff">${opts}</select>
       <div style="border:1.5px solid var(--honey);background:var(--honey-tint);border-radius:14px;padding:14px;margin-bottom:16px">
         <label style="font-size:.75rem;color:var(--ink-soft)">Título</label>
         <input id="tem-tit" placeholder="Ej.: Apuntes tema 1" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 8px;box-sizing:border-box">
         <label style="font-size:.75rem;color:var(--ink-soft)">Nota (opcional)</label>
         <input id="tem-nota" placeholder="Breve descripción" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 8px;box-sizing:border-box">
+        ${aa?`<label style="font-size:.75rem;color:var(--ink-soft)">Tema</label>
+        <select id="tem-tema" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 8px;font-size:.9rem;background:#fff">${optsTema}</select>`:''}
         <input type="file" id="tem-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" style="width:100%;font-size:.82rem;margin:4px 0 10px">
         <button class="btn btn-honey" id="tem-subir" style="width:100%">Subir material</button>
         <div id="tem-status" style="font-size:.8rem;text-align:center;margin-top:8px;min-height:18px"></div>
       </div>
-      <h3 style="font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin:4px 2px 8px">Materiales de esta unidad (${lista.length})</h3>`;
-    if(!lista.length) h+=`<p class="sa-empty" style="font-size:.85rem">Aún no has subido nada a esta unidad.</p>`;
+      <h3 style="font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin:4px 2px 8px">Materiales de esta ${aa?'materia':'unidad'} (${lista.length})</h3>`;
+    if(!lista.length) h+=`<p class="sa-empty" style="font-size:.85rem">Aún no has subido nada aquí.</p>`;
     lista.forEach(t=>{
+      const nomTema=aa?(t.tema_id?temarioNombreTema(t.tema_id):'Sin tema'):'';
       h+=`<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div style="min-width:0"><b style="font-size:.9rem">${escHtml(t.titulo||t.archivo_nombre)}</b>${t.nota?`<br><span style="font-size:.78rem;color:var(--ink-soft)">${escHtml(t.nota)}</span>`:''}<br><span style="font-size:.72rem;color:var(--ink-soft)">${escHtml(t.archivo_nombre||'')}</span></div>
+          <div style="min-width:0"><b style="font-size:.9rem">${escHtml(t.titulo||t.archivo_nombre)}</b>${t.visible===false?` <span class="rbadge" style="background:#ececec;color:#8a8a8a">Oculto</span>`:''}${t.nota?`<br><span style="font-size:.78rem;color:var(--ink-soft)">${escHtml(t.nota)}</span>`:''}<br><span style="font-size:.72rem;color:var(--ink-soft)">${escHtml(t.archivo_nombre||'')}</span>${aa?`<br><span style="font-size:.7rem;color:var(--ink-soft)">📂 ${escHtml(nomTema)}</span>`:''}</div>
           <span style="display:flex;gap:6px;flex:0 0 auto">
+            ${aa?`<button onclick="temarioMover('${escAttr(unidad)}','${t.id}')" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:5px 8px;cursor:pointer">📂</button>`:''}
             <button onclick="temarioDescargar('${escAttr(t.archivo_path)}','${escAttr(t.archivo_nombre||'')}')" style="background:#eef0fb;border:1px solid #c9cef0;border-radius:8px;padding:5px 8px;cursor:pointer">⬇</button>
             <button onclick="temarioBorrar('${t.id}','${escAttr(t.archivo_path)}')" style="background:#fdeaea;border:1px solid #f3c4c4;border-radius:8px;padding:5px 8px;cursor:pointer">🗑</button>
           </span>
         </div>
       </div>`;
     });
+    if(aa) h+=`<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin:10px 2px 0">Toca 📂 en un material para moverlo a otro tema.</p>`;
     $('teacher').innerHTML=h;
     $('tem-unidad').onchange=(e)=>renderTemarioProfesor(e.target.value);
     $('tem-subir').onclick=async ()=>{
@@ -844,12 +888,16 @@ function renderTemarioProfesor(unidad){
       if(f.size>25*1024*1024){ $('tem-status').textContent='Máximo 25 MB por archivo.'; return; }
       $('tem-status').textContent='Subiendo…'; $('tem-subir').disabled=true;
       try{
-        await temarioSubir(unidad, f, $('tem-tit').value.trim(), $('tem-nota').value.trim());
+        const tid = $('tem-tema') ? ($('tem-tema').value||null) : null;
+        await temarioSubir(unidad, f, $('tem-tit').value.trim(), $('tem-nota').value.trim(), tid);
         $('tem-status').textContent='✅ Subido.';
         renderTemarioProfesor(unidad);
       }catch(e){ $('tem-status').textContent='❌ '+(e.message||'Error'); $('tem-subir').disabled=false; }
     };
-  });
+  }catch(e){
+    $('teacher').innerHTML=`<button class="backbtn" onclick="openTeacher()" style="margin-bottom:12px">← Panel</button>
+      <div class="center-msg">No se pudo cargar el temario.<br><small>${escHtml(e.message||'')}</small></div>`;
+  }
 }
 
 
@@ -1743,8 +1791,7 @@ function manualAlumnoSecciones(esAula){
   const s=[];
   s.push({ t:'1. Entrar en la plataforma', p:[
     'Se entra desde aptuvia.es con tu correo y tu contraseña. Si es la primera vez, tu profesor te habrá autorizado antes: hasta entonces el registro no te dejará entrar.',
-    'Si pierdes la contraseña, pídesela a tu profesor: él puede generarte una nueva.',
-    'Conviene cambiarla la primera vez desde "Cambiar contraseña", en la pantalla principal.'
+    'Si pierdes la contraseña, pídesela a tu profesor: él puede generarte una nueva.'
   ]});
   s.push({ t:esAula?'2. Tus materias':'2. Módulos y unidades formativas', p:[
     esAula
@@ -5938,28 +5985,42 @@ async function cambiarPasswordUI(){
 }
 
 // ---- Publicar / ocultar exámenes para el alumno ----
-function openPublicar(okMsg){
+async function openPublicar(okMsg){
   showView('teacher'); window.scrollTo(0,0);
+  try{ await cargarTemario(); }catch(e){}
   const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
   h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Exámenes visibles</h1>`);
-  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Activa solo los exámenes que quieres que vea el alumno. Los apagados no le aparecen.</p>`);
+  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Activa solo los exámenes y materiales que quieres que vea el alumno. Los apagados no le aparecen.</p>`);
   if(okMsg) h.push(`<div class="t-note ok">${escHtml(okMsg)}</div>`);
   let any=false;
   getModulos().forEach(m=>{
     m.unidades.forEach(uid=>{
       const exs=(examsByUnit[uid]||[]).slice().sort(_cmpEx);
-      if(!exs.length) return;
+      const mats=(temarioByUnit[uid]||[]);
+      if(!exs.length && !mats.length) return;
       const u=unidadesById[uid];
       any=true;
       h.push(`<div class="pub-unit">${u?escHtml(u.codigo):uid} · ${u?escHtml(partesMateria(u.titulo).nombre):''}</div>`);
-      h.push(`<div class="pub-bulk"><button class="pub-allbtn" data-all="${uid}" data-val="1">Activar todas</button><button class="pub-allbtn ghost" data-all="${uid}" data-val="0">Quitar todas</button></div>`);
-      exs.forEach(e=>{
-        const on=!!e.publicado;
-        h.push(`<div class="pub-row">
-            <span class="pub-info"><b>${escHtml(e.titulo)}</b><span>${escHtml(e.tema||'')}</span></span>
-            <button class="switch${on?' on':''}" data-pub="${e.id}" data-on="${on?1:0}" aria-label="${on?'Visible':'Oculto'}"><span class="knob"></span></button>
-          </div>`);
-      });
+      if(exs.length){
+        h.push(`<div class="pub-bulk"><button class="pub-allbtn" data-all="${uid}" data-val="1">Activar todas</button><button class="pub-allbtn ghost" data-all="${uid}" data-val="0">Quitar todas</button></div>`);
+        exs.forEach(e=>{
+          const on=!!e.publicado;
+          h.push(`<div class="pub-row">
+              <span class="pub-info"><b>${escHtml(e.titulo)}</b><span>${escHtml(e.tema||'')}</span></span>
+              <button class="switch${on?' on':''}" data-pub="${e.id}" data-on="${on?1:0}" aria-label="${on?'Visible':'Oculto'}"><span class="knob"></span></button>
+            </div>`);
+        });
+      }
+      if(mats.length){
+        h.push(`<div class="pub-unit" style="font-size:.72rem;opacity:.85">📚 Temario de la unidad</div>`);
+        mats.forEach(t=>{
+          const on=t.visible!==false;
+          h.push(`<div class="pub-row">
+              <span class="pub-info"><b>${escHtml(t.titulo||t.archivo_nombre||'Material')}</b><span>${escHtml(t.nota||t.archivo_nombre||'')}</span></span>
+              <button class="switch${on?' on':''}" data-tem="${t.id}" data-on="${on?1:0}" aria-label="${on?'Visible':'Oculto'}"><span class="knob"></span></button>
+            </div>`);
+        });
+      }
       const vMT=(u? u.ver_megatest!==false : true), vFA=(u? u.ver_falladas!==false : true);
       h.push(`<div class="pub-row pub-extra">
           <span class="pub-info"><b>🔁 Mega test de repaso</b><span>2 partes de 50 preguntas al azar de la unidad</span></span>
@@ -5974,8 +6035,17 @@ function openPublicar(okMsg){
   if(!any) h.push(`<div class="center-msg" style="padding:18px">No hay exámenes todavía.</div>`);
   $('teacher').innerHTML=h.join('');
   $('teacher').querySelectorAll('[data-pub]').forEach(b=> b.onclick=()=>togglePublicado(b));
+  $('teacher').querySelectorAll('[data-tem]').forEach(b=> b.onclick=()=>toggleTemarioVisible(b));
   $('teacher').querySelectorAll('[data-extra]').forEach(b=> b.onclick=()=>toggleExtra(b));
   $('teacher').querySelectorAll('[data-all]').forEach(b=> b.onclick=()=>togglePublicadoTodos(b.dataset.all, b.dataset.val==='1'));
+}
+async function toggleTemarioVisible(btn){
+  const id=btn.dataset.tem, nuevo=btn.dataset.on==='0';
+  try{
+    await call('/rest/v1/rpc/temario_visible',{method:'POST',body:impProf({p_material:id, p_visible:nuevo})});
+    Object.values(temarioByUnit).forEach(arr=>{ const t=arr.find(x=>String(x.id)===String(id)); if(t) t.visible=nuevo; });
+    setSwitch(btn, nuevo);
+  }catch(err){ appAlert('No se pudo cambiar: '+(err.message||'')); }
 }
 function setSwitch(btn, on){ if(!btn) return; btn.classList.toggle('on', on); btn.dataset.on = on?'1':'0'; btn.setAttribute('aria-label', on?'Visible':'Oculto'); }
 async function togglePublicadoTodos(unitId, nuevo){
@@ -7683,7 +7753,7 @@ async function openAATemas(unitId){
           <b style="font-size:.86rem;color:var(--navy);display:block;line-height:1.35">${escHtml(t.titulo)}</b>
           <span style="font-size:.68rem;color:var(--ink-soft)">${n} examen${n===1?'':'es'}</span>
         </button>
-        ${aps.length?`<button data-aps="${escAttr(t.id)}" aria-label="Ver apartados" style="background:none;border:0;font-size:.8rem;color:var(--ink-soft);cursor:pointer;padding:4px 6px">▾</button>`:''}
+        ${aps.length?`<button data-aps="${escAttr(t.id)}" aria-label="Ver apartados" style="background:none;border:0;font-size:1.15rem;line-height:1;color:var(--navy);cursor:pointer;padding:4px 8px">▾</button>`:''}
         ${staff?`<button class="ce-del" data-ren="${escAttr(t.id)}" aria-label="Renombrar" style="background:#eef2ff;border-color:#c7d2fe">✏️</button>
         <button class="ce-del" data-delt="${escAttr(t.id)}" aria-label="Borrar">🗑</button>`:'<span class="arrow" style="color:var(--ink-soft)">›</span>'}
       </div>
@@ -7814,7 +7884,7 @@ function openUnit(unitId){
         return;
       }
       const st=statsExamen(e.id);
-      let cellCls='', avgLabel='—', subTxt='Sin intentos';
+      let cellCls='', avgLabel='—', subTxt='Sin intentos · Tipo test';
       if(st){
         const pct=st.media;
         cellCls = pct>=65?'avg-ok':pct>=50?'avg-mid':'avg-no';
@@ -7933,9 +8003,11 @@ function openUnit(unitId){
     }
   }
   // Temario: materiales que el profesor ha colgado en esta unidad (bajo preguntas falladas).
-  const mats=(temarioByUnit[unitId]||[]);
+  const mats=(temarioByUnit[unitId]||[])
+    .filter(t=> staff || t.visible!==false)
+    .filter(t=> !temaSel || (temaSel==='__sin' ? !t.tema_id : String(t.tema_id)===String(temaSel)));
   if(mats.length){
-    html+=`<div class="section"><h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:14px 2px 8px">📚 Temario de la unidad</h3>`;
+    html+=`<div class="section"><h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:14px 2px 8px">📚 Temario ${temaSel?'del tema':'de la unidad'}</h3>`;
     mats.forEach(t=>{
       html+=`<button class="exam-row" data-mat="${t.id}" data-path="${escAttr(t.archivo_path)}" data-nom="${escAttr(t.archivo_nombre||'')}">
           <span class="cell">⬇</span>
@@ -8075,7 +8147,7 @@ async function cargarPreviewPreguntas(examId){
       h+=`<div class="pvq-card">
         <div class="pvq-top"><span class="pvq-num">Pregunta ${qi+1}</span>
         <span class="pvq-nivel ${q.nivel==='alto'?'alto':''}">${escHtml(q.nivel||'medio')}</span></div>
-        <div class="pvq-enun" style="white-space:pre-wrap">${escHtmlNL(q.enunciado)}</div>`;
+        <div class="pvq-enun" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word">${escHtmlNL(String(q.enunciado||'').replace(/^[ \t]+/gm,'').trim())}</div>`;
       ops.forEach((o,i)=>{
         const ok=i===q.respuesta_correcta;
         h+=`<div class="pvq-opt${ok?' ok':''}"><span class="pvq-letra">${LET[i]||i+1}</span><span>${escHtml(o)}${ok?' ✓':''}</span></div>`;
@@ -8318,7 +8390,7 @@ async function toggleBancoPreguntas(examId){
         <div class="pvq-top"><span class="pvq-num">${escHtml(q.tema||'')}</span>
         <span>${q.en_otro_examen?'<span class="pvq-uso">En otro examen</span>':''}
         <span class="pvq-nivel ${q.nivel==='alto'?'alto':''}">${escHtml(q.nivel||'medio')}</span></span></div>
-        <div class="pvq-enun" style="white-space:pre-wrap">${escHtmlNL(q.enunciado)}</div>`;
+        <div class="pvq-enun" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word">${escHtmlNL(String(q.enunciado||'').replace(/^[ \t]+/gm,'').trim())}</div>`;
       ops.forEach((o,i)=>{
         const ok=i===q.respuesta_correcta;
         h+=`<div class="pvq-opt${ok?' ok':''}"><span class="pvq-letra">${LET[i]||i+1}</span><span>${escHtml(o)}${ok?' ✓':''}</span></div>`;
