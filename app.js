@@ -1605,7 +1605,7 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
 function docTrazabilidad(){
   try{
     const doc=docPDFBase('Trazabilidad del circuito','Del presupuesto a la baja del cliente · quién hace qué en cada paso',TRAZA_SECCIONES);
-    doc.save('Aptuvia-trazabilidad.pdf');
+    docVer(doc,'Aptuvia-trazabilidad.pdf','Trazabilidad del circuito');
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
@@ -1727,7 +1727,7 @@ function docManualProfe(){
       manualProfeSecciones(esAula),
       'Aptuvia · aptuvia.es · Manual del profesorado'
     );
-    doc.save(esAula?'Aptuvia-manual-profesorado-aula-abierta.pdf':'Aptuvia-manual-profesorado.pdf');
+    docVer(doc, esAula?'Aptuvia-manual-profesorado-aula-abierta.pdf':'Aptuvia-manual-profesorado.pdf','Manual del profesorado');
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
@@ -1788,7 +1788,7 @@ function docManualAlumno(){
       manualAlumnoSecciones(esAula),
       'Aptuvia · aptuvia.es · Manual del alumnado'
     );
-    doc.save('Aptuvia-manual-alumnado.pdf');
+    docVer(doc,'Aptuvia-manual-alumnado.pdf','Manual del alumnado');
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
@@ -1945,7 +1945,7 @@ function docManualArea(area){
   try{
     const m=MANUAL_AREAS[area]; if(!m) return;
     const doc=docPDFBase(m.titulo, m.sub, m.secs);
-    doc.save('Aptuvia-manual-'+area+'.pdf');
+    docVer(doc,'Aptuvia-manual-'+area+'.pdf','Manual · '+(m.titulo||area));
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
@@ -6161,6 +6161,9 @@ async function refrescarExamenes(){
   });
 }
 function escHtml(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+// Los enunciados de redacción se escriben en varias líneas. escHtml() las
+// pierde y el texto sale apelmazado: aquí se conservan como <br>.
+function escHtmlNL(t){ return escHtml(t||'').replace(/\r\n|\r|\n/g,'<br>'); }
 function escAttr(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 let builder={mode:'auto',kind:'test',unidad:'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline'};
@@ -6809,7 +6812,7 @@ function renderEntrega(e){
   h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:16px">${escHtml(e.examen)} · ${fmtFecha(e.creado_en)} · ${e.estado==='corregido'?'Ya corregido':'Pendiente'}</p>`);
   resp.forEach((r,i)=>{
     const txt=(r.texto||'').trim();
-    h.push(`<div class="red-q"><div class="rq-num">Pregunta ${i+1}</div><div class="rq-txt">${escHtml(r.enunciado||'')}</div><div class="ans-box">${txt?escHtml(txt):'<i style="color:var(--ink-soft)">(sin respuesta)</i>'}</div></div>`);
+    h.push(`<div class="red-q"><div class="rq-num">Pregunta ${i+1}</div><div class="rq-txt" style="white-space:pre-wrap">${escHtmlNL(r.enunciado)}</div><div class="ans-box">${txt?escHtml(txt):'<i style="color:var(--ink-soft)">(sin respuesta)</i>'}</div></div>`);
   });
   h.push(`<div class="t-toggle" style="margin:18px 0 12px">
     <button class="${crTab==='manual'?'on':''}" onclick="crSetTab('manual')">✍️ Corrección manual</button>
@@ -7934,7 +7937,7 @@ async function cargarPreviewPreguntas(examId){
       h+=`<div class="pvq-card">
         <div class="pvq-top"><span class="pvq-num">Pregunta ${qi+1}</span>
         <span class="pvq-nivel ${q.nivel==='alto'?'alto':''}">${escHtml(q.nivel||'medio')}</span></div>
-        <div class="pvq-enun">${escHtml(q.enunciado||'')}</div>`;
+        <div class="pvq-enun" style="white-space:pre-wrap">${escHtmlNL(q.enunciado)}</div>`;
       ops.forEach((o,i)=>{
         const ok=i===q.respuesta_correcta;
         h+=`<div class="pvq-opt${ok?' ok':''}"><span class="pvq-letra">${LET[i]||i+1}</span><span>${escHtml(o)}${ok?' ✓':''}</span></div>`;
@@ -8177,7 +8180,7 @@ async function toggleBancoPreguntas(examId){
         <div class="pvq-top"><span class="pvq-num">${escHtml(q.tema||'')}</span>
         <span>${q.en_otro_examen?'<span class="pvq-uso">En otro examen</span>':''}
         <span class="pvq-nivel ${q.nivel==='alto'?'alto':''}">${escHtml(q.nivel||'medio')}</span></span></div>
-        <div class="pvq-enun">${escHtml(q.enunciado||'')}</div>`;
+        <div class="pvq-enun" style="white-space:pre-wrap">${escHtmlNL(q.enunciado)}</div>`;
       ops.forEach((o,i)=>{
         const ok=i===q.respuesta_correcta;
         h+=`<div class="pvq-opt${ok?' ok':''}"><span class="pvq-letra">${LET[i]||i+1}</span><span>${escHtml(o)}${ok?' ✓':''}</span></div>`;
@@ -8239,6 +8242,29 @@ async function openRedaccion(examId){
 }
 // Visor de material del examen: overlay a pantalla completa DENTRO de la pestaña.
 // No usa target="_blank": así no oculta la pestaña y no dispara el antifraude.
+// Muestra un PDF generado con jsPDF dentro de la app en vez de descargarlo.
+// El visor incluye su propio botón de descarga por si el usuario lo quiere.
+function docVer(doc, nombre, titulo){
+  try{
+    const url=doc.output('bloburl');
+    verDocumentoPDF(url, titulo||nombre, nombre);
+  }catch(e){ try{ doc.save(nombre); }catch(_){ appAlert('No se pudo abrir el PDF.'); } }
+}
+function verDocumentoPDF(url, titulo, nombre){
+  if(document.getElementById('doc-overlay')) return;
+  const ov=document.createElement('div');
+  ov.id='doc-overlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(20,22,40,.94);display:flex;flex-direction:column;padding:10px;box-sizing:border-box';
+  ov.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;color:#fff">
+      <b style="font-size:.88rem">\u{1F4D8} ${escHtml(titulo||'Documento')}</b>
+      <button type="button" onclick="cerrarDocumentoPDF()" style="background:#fff;border:0;border-radius:9px;padding:7px 14px;font-family:inherit;font-weight:700;cursor:pointer;color:var(--navy);white-space:nowrap">\u2715 Cerrar</button>
+    </div>
+    <iframe src="${escAttr(url)}" style="flex:1;width:100%;border:0;border-radius:10px;background:#fff"></iframe>
+    <div style="margin-top:6px;text-align:center"><a href="${escAttr(url)}" download="${escAttr(nombre||'documento.pdf')}" style="color:#cbd5e1;font-size:.78rem;text-decoration:underline">Descargar el PDF</a></div>`;
+  document.body.appendChild(ov);
+}
+function cerrarDocumentoPDF(){ const ov=document.getElementById('doc-overlay'); if(ov) ov.remove(); }
+
 function verMaterialExamen(url){
   if(!url) return;
   if(document.getElementById('mat-overlay')) return;
@@ -8318,7 +8344,7 @@ function renderRedaccion(entrega){
   redCurrent.preguntas.forEach((q,i)=>{
     h.push(`<div class="red-q">
       <div class="rq-num">Pregunta ${i+1}</div>
-      <div class="rq-txt">${escHtml(q.enunciado)}</div>
+      <div class="rq-txt" style="white-space:pre-wrap">${escHtmlNL(q.enunciado)}</div>
       ${q.material_url?materialViewerHtml(q.material_url,q.material_modo,'Ver material de la pregunta'):''}
       <textarea class="red-a" data-pid="${q.pregunta_id}" placeholder="Escribe aquí tu respuesta…" ${editable?'':'disabled'}>${escHtml(prev[q.pregunta_id]||'')}</textarea>
     </div>`);
