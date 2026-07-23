@@ -1082,15 +1082,21 @@ async function loadData(){
     const [unidades, examenes, perfil] = await Promise.all([
       fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id,profesor_id&order=orden.asc').catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id&order=orden.asc')).catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden&order=orden.asc')),
       fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id&order=orden.asc').catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,material_url,material_modo&order=orden.asc')).catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id&order=orden.asc')),
-      fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id,profesor_id').catch(()=>fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id')),
+      fetchR(_perfilPath()).catch(()=>fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id')),
     ]);
 
-    userId=(perfil&&perfil[0]&&perfil[0].id)?perfil[0].id:'';
-    userName=(perfil&&perfil[0]&&perfil[0].nombre)?perfil[0].nombre:'';
+    // Si el filtro por uid no devolvió nada (token raro, RLS), se reintenta sin filtro.
+    let perfilFila = (perfil&&perfil[0]) ? perfil[0] : null;
+    if(!perfilFila){
+      try{ const p2=await fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id,profesor_id'); perfilFila=(p2&&p2[0])?p2[0]:null; }catch(e){}
+    }
+
+    userId=(perfilFila&&perfilFila.id)?perfilFila.id:'';
+    userName=(perfilFila&&perfilFila.nombre)?perfilFila.nombre:'';
     if(!window._saImpersona){
-      userRol=(perfil&&perfil[0]&&perfil[0].rol)?perfil[0].rol:'';
-      userAcademia=(perfil&&perfil[0]&&perfil[0].academia_id!=null)?perfil[0].academia_id:null;
-      userProfesorId=(perfil&&perfil[0]&&perfil[0].profesor_id)?perfil[0].profesor_id:null;
+      userRol=(perfilFila&&perfilFila.rol)?perfilFila.rol:'';
+      userAcademia=(perfilFila&&perfilFila.academia_id!=null)?perfilFila.academia_id:null;
+      userProfesorId=(perfilFila&&perfilFila.profesor_id)?perfilFila.profesor_id:null;
     }
     // Nombre personalizado de la pastilla en Aula Abierta (columna nombre_aula_abierta)
     window._aulaNombre='';
@@ -1174,6 +1180,22 @@ function unitEstado(uid){
   return 'proximamente';
 }
 function isStaff(){ return userRol==='profesor'||userRol==='admin'; }
+// uid real del usuario autenticado, leído del propio token (claim 'sub').
+function _authUid(){
+  try{
+    const p=String(token||'').split('.')[1];
+    if(!p) return '';
+    const j=JSON.parse(decodeURIComponent(escape(atob(p.replace(/-/g,'+').replace(/_/g,'/')))));
+    return j.sub||'';
+  }catch(e){ return ''; }
+}
+// El perfil SIEMPRE se pide filtrado por el uid del token: sin filtro, RLS puede
+// devolver la fila de otro usuario y la app cargaría con el rol equivocado.
+function _perfilPath(){
+  const uid=_authUid();
+  const cols='select=id,nombre,rol,academia_id,profesor_id';
+  return uid ? ('/rest/v1/perfiles?id=eq.'+encodeURIComponent(uid)+'&'+cols) : ('/rest/v1/perfiles?'+cols);
+}
 function mediaMisTodos(unitId){
   const ids=new Set((examsByUnit[unitId]||[]).map(e=>String(e.id)));
   const rel=(window._misIntentos||[]).filter(a=>ids.has(String(a.examen_id)) && a.total>0);
@@ -7252,14 +7274,16 @@ function aaChips(r){
   const mias=aaAsigna[r.id]||new Set();
   const chips=mats.map(u=>{
     const on=mias.has(u.id);
-    const nom=(tituloMateria(u)||u.codigo||u.id);
+    const p=partesMateria(u.titulo||'');
+    const corto=(p.etiqueta && p.etiqueta!=='MATERIA') ? p.etiqueta : (p.nombre||u.codigo||u.id);
+    const largo=(tituloMateria(u)||u.codigo||u.id);
     const est = on
       ? 'background:#e8f0ff;border:1.5px solid #7d9bd8;color:#1c2a55;font-weight:700'
       : 'background:#fff;border:1.5px solid #cfd8e8;color:#33406b';
-    return `<button data-amu="${escAttr(r.id)}" data-amuni="${escAttr(u.id)}" data-amon="${on?'1':'0'}" title="${on?'Quitar de esta clase':'Asignar a esta clase'}" style="font-size:.75rem;padding:4px 9px;border-radius:999px;cursor:pointer;line-height:1.2;${est}">${on?'✓ ':''}${escHtml(nom)}</button>`;
+    return `<button data-amu="${escAttr(r.id)}" data-amuni="${escAttr(u.id)}" data-amon="${on?'1':'0'}" title="${escAttr(largo+' — '+(on?'quitar de esta clase':'asignar a esta clase'))}" style="font-size:.75rem;padding:4px 9px;border-radius:999px;cursor:pointer;line-height:1.2;white-space:nowrap;flex:0 0 auto;${est}">${on?'✓ ':''}${escHtml(corto)}</button>`;
   }).join('');
-  const aviso = mias.size ? '' : '<span style="font-size:.72rem;color:#b4232a;font-weight:700">⚠️ sin clase: no ve nada</span>';
-  return `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 4px"><span style="font-size:.74rem;color:var(--ink-soft);font-weight:700;margin-right:2px">Clases:</span>${chips}${aviso}</div>`;
+  const aviso = mias.size ? '' : '<span style="font-size:.72rem;color:#b4232a;font-weight:700;white-space:nowrap">⚠️ sin clase</span>';
+  return `<div style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;align-items:center;margin:8px 0 4px;padding-bottom:2px"><span style="font-size:.74rem;color:var(--ink-soft);font-weight:700;margin-right:2px;flex:0 0 auto">Clases:</span>${chips}${aviso}</div>`;
 }
 async function toggleMateriaAlumno(userIdAl, unidadId, estaba){
   const fn = estaba ? 'aa_quitar_materia' : 'aa_asignar_materia';
@@ -7270,7 +7294,19 @@ async function toggleMateriaAlumno(userIdAl, unidadId, estaba){
     await renderAlumnosShell();
   }catch(err){ appAlert('No se pudo cambiar la clase: '+(err.message||'')); }
 }
+// Estilos de los botones de icono de la ficha de alumno (se inyectan una vez)
+function _cssRegIco(){
+  if(document.getElementById('css-reg-ico')) return;
+  const st=document.createElement('style'); st.id='css-reg-ico';
+  st.textContent='.reg-ico{width:40px;height:40px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;line-height:1;background:#fff;border:1.5px solid var(--line,#e2e8f0);border-radius:10px;cursor:pointer;font-family:inherit;padding:0;transition:background .15s,border-color .15s,transform .1s}'
+    +'.reg-ico:hover{background:#eef2ff;border-color:#7d9bd8;transform:translateY(-1px)}'
+    +'.reg-ico.danger:hover{background:#fdeaea;border-color:#e3a1a1}'
+    +'.reg-ico.ok:hover{background:#e9f7ee;border-color:#8ec7a3}'
+    +'.reg-ico:active{transform:none}';
+  document.head.appendChild(st);
+}
 function regBody(rows,errMsg,okMsg){
+  _cssRegIco();
   let h='';
   if(okMsg) h+=`<div class="t-note ok">${escHtml(okMsg)}</div>`;
   if(errMsg) h+=`<div class="t-note err">No se pudo cargar: ${escHtml(errMsg)}</div>`;
@@ -7290,12 +7326,12 @@ function regBody(rows,errMsg,okMsg){
         <span class="reg-badges">${badge}${act}</span>
       </div>
       ${aaChips(r)}
-      <div class="reg-actions">
-        <button class="reg-pass" data-pass="${r.id}" data-email="${escHtml(r.email)}">🔑 Nueva contraseña</button>
+      <div class="reg-actions" style="display:flex;flex-wrap:nowrap;gap:8px;align-items:center">
+        <button class="reg-ico" title="Nueva contraseña" aria-label="Nueva contraseña" data-pass="${r.id}" data-email="${escHtml(r.email)}">🔑</button>
         ${r.autorizado
-          ? `<button class="reg-revoke" data-revoke="${escHtml(r.email)}">Revocar acceso</button>`
-          : `<button class="reg-reauth" data-reauth="${escHtml(r.email)}" data-nombre="${escHtml(r.nombre||'')}">Autorizar de nuevo</button>`}
-        <button class="reg-del" data-borrar="${r.id}" data-email="${escHtml(r.email)}">Borrar cuenta</button>
+          ? `<button class="reg-ico danger" title="Revocar acceso" aria-label="Revocar acceso" data-revoke="${escHtml(r.email)}">🚫</button>`
+          : `<button class="reg-ico ok" title="Autorizar de nuevo" aria-label="Autorizar de nuevo" data-reauth="${escHtml(r.email)}" data-nombre="${escHtml(r.nombre||'')}">✅</button>`}
+        <button class="reg-ico danger" title="Borrar cuenta" aria-label="Borrar cuenta" data-borrar="${r.id}" data-email="${escHtml(r.email)}">🗑</button>
       </div>
     </div>`;
   });
