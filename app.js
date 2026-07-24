@@ -864,12 +864,18 @@ async function temarioMover(unidad, id){
 }
 
 async function renderTemarioProfesor(unidad){
+  // La materia guardada puede ya no existir (borrada, otro profesor, otro certificado).
+  // Si no está en la lista real, el <select> enseñaría la primera y el código filtraría
+  // por la vieja: 0 materiales y subidas a una materia que no ves.
+  const mods=getModulos();
+  const disponibles=[];
+  mods.forEach(m=>(m.unidades||[]).forEach(uid=>disponibles.push(uid)));
+  if(!unidad || disponibles.indexOf(unidad)<0) unidad = disponibles[0]||null;
   teacherUnidadTem=unidad;
   try{
     await cargarTemario();
     await temarioCargarTemas(unidad);
     const aa=esAulaAbierta();
-    const mods=getModulos();
     // Selector de unidad
     let opts='';
     mods.forEach(m=>{ (m.unidades||[]).forEach(uid=>{
@@ -899,7 +905,7 @@ async function renderTemarioProfesor(unidad){
         <button class="btn btn-honey" id="tem-subir" style="width:100%">Subir material</button>
         <div id="tem-status" style="font-size:.8rem;text-align:center;margin-top:8px;min-height:18px"></div>
       </div>
-      <h3 style="font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin:4px 2px 8px">Materiales de esta ${aa?'materia':'unidad'} (${lista.length})</h3>`;
+      <h3 style="font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin:4px 2px 8px">Materiales de ${escHtml((unidadesById[unidad]&&unidadesById[unidad].codigo)||unidad||'')} (${lista.length})</h3>`;
     if(!lista.length) h+=`<p class="sa-empty" style="font-size:.85rem">Aún no has subido nada aquí.</p>`;
     lista.forEach(t=>{
       const nomTema=aa?(t.tema_id?temarioNombreTema(t.tema_id):'Sin tema'):'';
