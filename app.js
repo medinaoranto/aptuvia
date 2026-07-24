@@ -61,7 +61,7 @@ async function loadPortal(){
     // (es_cuenta_academia / admin) decide a qué pantalla van.
     const gestOpt = document.createElement('div');
     gestOpt.className = 'cp-option cp-special';
-    gestOpt.style.cssText = 'font-weight:700';
+    gestOpt.style.cssText = 'font-weight:700;background:#fdf1dd;color:var(--navy)';
     gestOpt.textContent = '🔑 Acceso de dirección / administración';
     gestOpt.onclick = ()=>selectCert('__gestion', '🔑 Acceso de dirección / administración');
     drop.appendChild(gestOpt);
@@ -1783,7 +1783,7 @@ function manualProfeSecciones(esAula){
   const QUIEN = esAula ? 'tus materias' : 'tu certificado';
   const s = [];
   s.push({ t:'1. Antes de empezar', p:[
-    'Se entra desde aptuvia.es con el correo y la contraseña que te han facilitado. Conviene cambiarla la primera vez desde "Cambiar contraseña".',
+    'Se entra desde aptuvia.es con el correo y la contraseña que te han facilitado.',
     'La pantalla principal es el Área Docente: una tarjeta por cada cosa que puedes hacer. Desde cualquier pantalla se vuelve con el botón de arriba a la izquierda.',
     'Todo se guarda al momento y queda visible para tu alumnado en cuanto lo publicas. Mientras no publiques un examen, el alumno no lo ve.'
   ]});
@@ -1801,7 +1801,7 @@ function manualProfeSecciones(esAula){
       'DÓNDE: Área Docente → Alumnos y notas.',
       'Pestaña Invitaciones: se autoriza a un alumno escribiendo su correo. Con eso ya puede registrarse él mismo desde la portada.',
       'Pestaña Registrados: aparecen los que ya han entrado alguna vez.',
-      'IMPORTANTE: cada alumno registrado tiene una fila de "Clases" con un botón por materia. Solo ve las materias que le marques. Un alumno sin ninguna clase marcada sale con el aviso "sin clase: no ve nada" y no puede entrar en ningún sitio.',
+      'IMPORTANTE: cada alumno registrado tiene una fila de "Clases" con un botón por materia (aparece solo el curso: 1º ESO, 2º ESO...). Solo ve las materias que le marques. Un alumno sin ninguna clase marcada sale con un aviso "sin clase" y no puede entrar en ningún sitio.',
       'Así un alumno de un curso no entra en el de otro. Se marca y se desmarca en cualquier momento, y el cambio es inmediato.',
       'Desde ahí también puedes generarle una contraseña nueva si la pierde.'
     ]});
@@ -1822,11 +1822,12 @@ function manualProfeSecciones(esAula){
   s.push({ t:'4. Crear un examen', p:[
     'DÓNDE: Área Docente → Crear y gestionar exámenes.',
     'Hay tres formas, con los botones de arriba:',
-    'TEST: se escriben las preguntas una a una, cada una con sus cuatro opciones, la respuesta correcta y, si quieres, una explicación que el alumno ve al corregirse.',
-    'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla.',
+    'TEST: se escriben las preguntas una a una, cada una con sus cuatro opciones, la respuesta correcta y, si quieres, una explicación que el alumno ve al corregirse. También puedes tirar de tu banco con "📋 Del banco" para reutilizar preguntas ya escritas.',
+    'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla. Igual que en test, con "📋 Del banco" reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo.',
     'PEGAR EXAMEN: para cargar de golpe un examen que ya tengas escrito, sin teclearlo pregunta a pregunta.',
-    'En todos los casos se elige la unidad o materia, el título y el nivel.',
+    'En todos los casos se elige la unidad o materia, el título y el nivel. Debajo del constructor de redacción sale un aviso de a qué unidad se va a crear, para no equivocarte.',
     'CUENTA PARA LA NOTA FINAL: casilla importante. Si la marcas, el alumno solo tiene UN intento, se le muestran las normas antes de empezar y se vigila que no se salga de la pantalla. Si no la marcas, puede repetirlo tantas veces como quiera.',
+    'DESCARGAR PARA PAPEL: en la lista de exámenes de abajo, el botón 🖨 genera un PDF del examen para hacerlo impreso. En los test te pregunta si añadir la hoja de soluciones (una para ti, otra sin soluciones para repartir); en los de redacción salen renglones para escribir.',
     'Recomendación: máximo 25 preguntas por examen de tema nuevo. Para repasos largos, mejor partirlos en dos.'
   ]});
 
@@ -1841,7 +1842,8 @@ function manualProfeSecciones(esAula){
   s.push({ t:'6. Decidir qué ve el alumno', p:[
     'DÓNDE: Área Docente → Exámenes visibles.',
     'Cada examen tiene un interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
-    'Esta es la pantalla que se usa para ir abriendo exámenes a medida que avanza el temario.'
+    'En esta misma pantalla, bajo cada unidad, aparece el temario subido con su propio interruptor: así decides qué materiales ve el alumno y cuáles no. El material recién subido nace apagado.',
+    'Esta es la pantalla que se usa para ir abriendo exámenes y materiales a medida que avanza el temario.'
   ]});
 
   s.push({ t:'7. Estados de la unidad', p:[
@@ -1855,9 +1857,11 @@ function manualProfeSecciones(esAula){
 
   s.push({ t:'8. Corregir redacciones', p:[
     'DÓNDE: Área Docente → Correcciones.',
-    'Aquí llegan las redacciones entregadas. La tarjeta del Área Docente muestra cuántas tienes pendientes.',
-    'Se abre la entrega, se lee el texto del alumno, se le pone la nota y se le escribe un comentario. Al guardar, el alumno lo ve en su pantalla.',
-    'La corrección la haces tú. La plataforma no corrige textos automáticamente: solo corrige los test.'
+    'Aquí llegan las redacciones entregadas. La tarjeta del Área Docente muestra cuántas tienes pendientes. Abres la entrega y ves el texto del alumno.',
+    'CORRECCIÓN MANUAL: le pones la nota y le escribes un comentario. Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá resaltado, como una anotación a mano.',
+    'CORRECCIÓN CON IA (asistida): la plataforma NO corrige sola, pero te prepara el trabajo. Va en cinco pasos: (1) repartes la nota en apartados con su peso —contenido, expresión, ortografía...— y puedes guardar tu reparto para las próximas; (2) eliges la respuesta modelo del banco (si la actividad la tiene) para que la IA corrija contra ella; (3) revisas los criterios; (4) copias el prompt, lo pegas en Claude o Gemini adjuntando el examen resuelto, y traes su respuesta; (5) la nota final la pones tú.',
+    'La IA solo propone. La nota que cuenta es siempre la tuya. Nada se guarda hasta que tú lo confirmas.',
+    'Al guardar, el alumno ve su corrección en dos bloques: su respuesta y, debajo, tus anotaciones. Puede descargarse su examen corregido en PDF.'
   ]});
 
   s.push({ t:'9. Notas y seguimiento', p:[
@@ -1931,6 +1935,7 @@ function manualAlumnoSecciones(esAula){
   s.push({ t:'4. Exámenes de redacción', p:[
     'Algunos exámenes no son tipo test: hay que escribir la respuesta, y a veces trabajar sobre un PDF adjunto que se descarga desde el propio examen.',
     'Estos no se corrigen solos: los corrige tu profesor y la nota aparece cuando él la publica.',
+    'Cuando esté corregido, verás tu texto y, debajo, las anotaciones de tu profesor. Puedes descargar tu examen corregido en PDF con el botón que aparece.',
     'Si el examen tiene nota y vigilancia activada, se avisa antes de empezar de las normas: hay que leerlas y aceptarlas.'
   ]});
   s.push({ t:'5. Tus notas y tu progreso', p:[
