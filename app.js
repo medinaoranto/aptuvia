@@ -795,7 +795,7 @@ async function temarioSubir(unidad, file, titulo, nota, temaId){
     profesor_id:miProf, academia_id:(window._saImpersona?window._saImpersonaAcademia:userAcademia)||null,
     certificado_id:cert, unidad:unidad, titulo:titulo||file.name, nota:nota||null,
     archivo_path:path, archivo_nombre:file.name, mime:file.type||null,
-    tema_id:temaId||null
+    tema_id:temaId||null, visible:false
   }});
   return true;
 }
