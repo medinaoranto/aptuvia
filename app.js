@@ -6361,10 +6361,13 @@ function renderExamMgmt(okMsg,errMsg){
   if(errMsg) h.push(`<div class="t-note err">${errMsg}</div>`);
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button></div>`);
   if(builder.kind==='redaccion'){
+    h.push('<div class="mgmt-2col"><div class="mgmt-left">');
         h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label>Nivel</label><select id="ce-nivel"><option value="medio"'+(builder.nivel==='medio'?' selected':'')+'>Medio</option><option value="alto"'+(builder.nivel==='alto'?' selected':'')+'>Alto</option></select><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
     h.push(renderRedSection());
+    h.push('</div><div class="mgmt-right">');
     h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
     h.push(listaProfHtml(units));
+    h.push('</div></div>');
     $('teacher').innerHTML=h.join('');
     const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
     $('kd-test').onclick=()=>setKind('test'); $('kd-red').onclick=()=>setKind('redaccion');
@@ -6376,6 +6379,7 @@ function renderExamMgmt(okMsg,errMsg){
   }
   // ── Bloque IMPORTAR ──
   if(builder.kind==='importar'){
+    h.push('<div class="mgmt-2col"><div class="mgmt-left">');
     h.push(`<div class="t-card">
       <label style="margin-top:6px">Unidad de destino</label>
       <select id="ce-unidad">${uOpts}</select>
@@ -6403,8 +6407,10 @@ D) Opción
       <div id="imp-preview" style="margin-top:8px;"></div>
       <button class="btn btn-primary" id="imp-analizar-btn" style="margin-top:12px;background:var(--navy);">🔍 Analizar y crear examen</button>
     </div>`);
+    h.push('</div><div class="mgmt-right">');
     h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
     h.push(listaProfHtml(units));
+    h.push('</div></div>');
     $('teacher').innerHTML=h.join('');
     const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
     $('kd-test').onclick=()=>setKind('test');
@@ -6415,6 +6421,7 @@ D) Opción
     $('teacher').querySelectorAll('[data-edit]').forEach(b=> b.onclick=()=>editarCabeceraUI(b.dataset.edit));
     return;
   }
+  h.push('<div class="mgmt-2col"><div class="mgmt-left">');
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="md-auto" class="${builder.mode==='auto'?'on':''}">Automático</button><button id="md-med" class="${builder.mode==='medida'?'on':''}">A medida</button></div>`);
   h.push(`<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">${uOpts}</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen sorpresa" value="${escAttr(builder.titulo)}"><div style="display:flex;gap:10px"><div style="flex:1"><label>Nivel</label><select id="ce-nivel"><option value="medio"${builder.nivel==='medio'?' selected':''}>Medio</option><option value="alto"${builder.nivel==='alto'?' selected':''}>Alto</option></select></div>`);
   if(builder.mode==='auto') h.push(`<div style="flex:1"><label>Nº de preguntas</label><input id="ce-n" type="number" min="1" max="100" value="${builder.n}"></div>`);
@@ -6426,8 +6433,10 @@ h.push(`<label>Tema</label><select id="ce-tema">${tOpts}</select><button class="
   }
   h.push(`</div>`);
   if(builder.mode==='medida') h.push(renderBuilderSection(temas));
+  h.push('</div><div class="mgmt-right">');
   h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
   h.push(listaProfHtml(units));
+  h.push('</div></div>');
   $('teacher').innerHTML=h.join('');
   const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
   $('kd-test').onclick=()=>setKind('test'); $('kd-red').onclick=()=>setKind('redaccion');
@@ -7294,19 +7303,7 @@ async function toggleMateriaAlumno(userIdAl, unidadId, estaba){
     await renderAlumnosShell();
   }catch(err){ appAlert('No se pudo cambiar la clase: '+(err.message||'')); }
 }
-// Estilos de los botones de icono de la ficha de alumno (se inyectan una vez)
-function _cssRegIco(){
-  if(document.getElementById('css-reg-ico')) return;
-  const st=document.createElement('style'); st.id='css-reg-ico';
-  st.textContent='.reg-ico{width:40px;height:40px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;line-height:1;background:#fff;border:1.5px solid var(--line,#e2e8f0);border-radius:10px;cursor:pointer;font-family:inherit;padding:0;transition:background .15s,border-color .15s,transform .1s}'
-    +'.reg-ico:hover{background:#eef2ff;border-color:#7d9bd8;transform:translateY(-1px)}'
-    +'.reg-ico.danger:hover{background:#fdeaea;border-color:#e3a1a1}'
-    +'.reg-ico.ok:hover{background:#e9f7ee;border-color:#8ec7a3}'
-    +'.reg-ico:active{transform:none}';
-  document.head.appendChild(st);
-}
 function regBody(rows,errMsg,okMsg){
-  _cssRegIco();
   let h='';
   if(okMsg) h+=`<div class="t-note ok">${escHtml(okMsg)}</div>`;
   if(errMsg) h+=`<div class="t-note err">No se pudo cargar: ${escHtml(errMsg)}</div>`;
