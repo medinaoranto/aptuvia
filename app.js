@@ -6305,7 +6305,7 @@ function escHtml(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;
 function escHtmlNL(t){ return escHtml(t||'').replace(/\r\n|\r|\n/g,'<br>'); }
 function escAttr(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
-let builder={mode:'auto',kind:'test',unidad:'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline'};
+let builder={mode:'auto',kind:'test',unidad:'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
 
 async function ensureTemas(unidad){
   if(!unidad) return [];
@@ -6506,13 +6506,80 @@ function renderRedSection(){
     const it=(raw&&typeof raw==='object')?raw:{enun:raw||'',file:null,matName:'',matMode:'inline'};
     h.push(`<div class="red-q" style="margin-bottom:14px"><div class="rq-num" style="display:flex;justify-content:space-between;align-items:center">Pregunta ${i+1}${builder.redItems.length>1?`<button class="ce-del" data-rmred="${i}" aria-label="Quitar" style="background:none">✕</button>`:''}</div><textarea class="red-q-in" rows="2" placeholder="Escribe el enunciado a redactar">${escHtml(it.enun)}</textarea><div style="margin-top:6px"><label style="font-size:.72rem;color:var(--ink-soft)">PDF de la pregunta (opcional)${it.matName?` · <b>📎 ${escHtml(it.matName)}</b>`:''}</label><input class="red-q-file" type="file" accept="application/pdf" style="font-size:.75rem;display:block;margin-top:4px"></div></div>`);
   });
-  h.push(`<button class="btn btn-ghost" id="red-add" style="margin-top:6px">Añadir pregunta</button>`);
+  h.push(`<div style="display:flex;gap:8px;margin-top:6px"><button class="btn btn-ghost" id="red-add" style="flex:1">✏️ Pregunta nueva</button><button class="btn btn-ghost" id="red-bank" style="flex:1">📋 Del banco</button></div>`);
   h.push(`<button class="btn btn-honey" id="red-create" style="margin-top:12px">Crear examen de redacción</button>`);
+  h.push(`</div>`);
+  if(builder.redPicking) h.push(renderRedBankPicker());
+  return h.join('');
+}
+
+// ---- Banco de actividades de redacción (mismo papel que "Del banco" en Test) ----
+async function ensureRedBank(unidad){
+  if(builder.redBankUnidad===unidad && builder.redBank.length) return builder.redBank;
+  try{ builder.redBank=await call('/rest/v1/rpc/banco_redaccion',{method:'POST',body:impProf({p_unidad:unidad})})||[]; }
+  catch(e){ builder.redBank=[]; }
+  builder.redBankUnidad=unidad;
+  return builder.redBank;
+}
+async function openRedPicker(){
+  captureFields(); captureRed();
+  const sel=$('ce-unidad'); if(sel && sel.value) builder.unidad=sel.value;
+  if(!builder.unidad){ appAlert('Primero selecciona una unidad.'); return; }
+  builder.redBankTema='';
+  await ensureRedBank(builder.unidad);
+  builder.redPicking=true;
+  renderExamMgmt();
+  setTimeout(()=>{ const el=document.querySelector('.rbk-list'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },50);
+}
+function renderRedBankPicker(){
+  const banco=builder.redBank||[];
+  const bloques=[]; banco.forEach(q=>{ const t=q.tema||'Sin bloque'; if(bloques.indexOf(t)<0) bloques.push(t); });
+  let opts='<option value="">Todos los bloques ('+banco.length+')</option>';
+  bloques.forEach(t=>{ const n=banco.filter(q=>(q.tema||'Sin bloque')===t).length; opts+=`<option value="${escAttr(t)}"${builder.redBankTema===t?' selected':''}>${escHtml(t)} (${n})</option>`; });
+  const lista=banco.filter(q=>!builder.redBankTema||(q.tema||'Sin bloque')===builder.redBankTema);
+  const puestos=builder.redItems.map(it=>String((it&&it.enun)||'').trim());
+  const h=[`<div class="t-card rbk-list" style="margin-top:12px">`];
+  h.push(`<label style="margin-top:6px">Banco de actividades</label>`);
+  h.push(`<select id="rbk-tema">${opts}</select>`);
+  if(!lista.length) h.push(`<p class="sa-empty" style="font-size:.82rem;margin-top:10px">No hay actividades de redacción en el banco de esta unidad.</p>`);
+  lista.forEach(q=>{
+    const txt=String(q.enunciado||'');
+    const titulo=txt.split('\n')[0];
+    const resto=txt.slice(titulo.length).trim();
+    const ya=puestos.indexOf(txt.trim())>=0;
+    h.push(`<label style="display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-top:8px;${ya?'opacity:.45':''}">
+      <input type="checkbox" name="rbk-pick" value="${q.id}"${ya?' disabled':''} style="margin-top:4px;flex:0 0 auto">
+      <span style="min-width:0"><b style="font-size:.86rem">${escHtml(titulo)}</b>${resto?`<br><span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(resto.length>140?resto.slice(0,140)+'…':resto)}</span>`:''}<br><span style="font-size:.68rem;color:${q.explicacion?'#1c7a44':'#b4232a'}">${q.explicacion?'✔ con respuesta modelo':'sin respuesta modelo'}</span></span>
+    </label>`);
+  });
+  h.push(`<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" id="rbk-cancel" style="flex:1">Cancelar</button><button class="btn btn-honey" id="rbk-add" style="flex:1">Añadir seleccionadas</button></div>`);
   h.push(`</div>`);
   return h.join('');
 }
+function addRedBankSelected(){
+  captureRed();
+  const banco=builder.redBank||[];
+  const checks=document.querySelectorAll('input[name="rbk-pick"]:checked');
+  let n=0;
+  checks.forEach(c=>{
+    if(c.disabled) return;
+    const q=banco.find(x=>String(x.id)===String(c.value));
+    if(!q) return;
+    builder.redItems.push({enun:String(q.enunciado||''),file:null,matName:'',matMode:'inline'});
+    n++;
+  });
+  // Fuera los huecos vacíos si se ha rellenado desde el banco
+  if(n) builder.redItems=builder.redItems.filter(it=>String((it&&it.enun)||'').trim());
+  if(!builder.redItems.length) builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}];
+  builder.redPicking=false;
+  renderExamMgmt();
+}
 function wireRed(){
   const add=$('red-add'); if(add) add.onclick=()=>{ captureRed(); builder.redItems.push({enun:'',file:null,matName:'',matMode:'inline'}); renderExamMgmt(); };
+  const bk=$('red-bank'); if(bk) bk.onclick=openRedPicker;
+  const rc=$('rbk-cancel'); if(rc) rc.onclick=()=>{ captureRed(); builder.redPicking=false; renderExamMgmt(); };
+  const ra=$('rbk-add'); if(ra) ra.onclick=addRedBankSelected;
+  const rt=$('rbk-tema'); if(rt) rt.onchange=(e)=>{ captureRed(); builder.redBankTema=e.target.value; renderExamMgmt(); };
   const cr=$('red-create'); if(cr) cr.onclick=crearRedUI;
   $('teacher').querySelectorAll('[data-rmred]').forEach(b=> b.onclick=()=>{ captureRed(); builder.redItems.splice(+b.dataset.rmred,1); if(!builder.redItems.length) builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}]; renderExamMgmt(); });
 }
@@ -6839,6 +6906,15 @@ function crSetTab(t){ crTab=t; renderEntrega(crEnt); }
 function crPromptTexto(){
   const e=crEnt||{}; const resp=Array.isArray(e.respuestas)?e.respuestas:[];
   const crit=(($('cr-crit')||{}).value||'').trim();
+  let reparto='';
+  try{
+    const ps=crLeerPartidas().filter(x=>x.t&&x.p>0);
+    if(ps.length){
+      reparto='\nREPARTO DE LA NOTA (puntúa cada apartado de 0 a 10 y aplica su peso)\n'
+        +ps.map(x=>'- '+x.t+' — '+x.p+' %').join('\n')
+        +'\nEn la valoración final indica la nota de cada apartado antes de la nota global.\n';
+    }
+  }catch(err){}
   let ex='';
   resp.forEach((r,i)=>{
     ex+='\n--- PREGUNTA '+(i+1)+' ---\n'+String(r.enunciado||'').trim()+
@@ -6851,6 +6927,7 @@ Te adjunto el PDF con el examen resuelto (la plantilla del profesor). Úsalo com
 
 CRITERIOS DE CORRECCIÓN DEL PROFESOR
 ${crit||'(el profesor no ha indicado criterios: corrige por contenido, precisión y expresión)'}
+${reparto}
 
 EXAMEN DEL ALUMNO
 Alumno: ${e.nombre||e.alumno||''}
@@ -6925,11 +7002,151 @@ function crPasarANota(){
   if($('cr-com')) $('cr-com').value=com;
   appAlert('Pasado a la pestaña Manual. Revísalo antes de guardar.');
 }
+// ===== Respuestas modelo del banco + reparto de la nota =====
+let crBanco=[];
+const CR_PARTIDAS_DEF=[
+  {t:'Contenido: los datos son correctos y están completos',p:50},
+  {t:'Explicación: no se enumera, se relaciona y se razona',p:30},
+  {t:'Expresión: vocabulario preciso, orden y claridad',p:10},
+  {t:'Ortografía y presentación',p:10}
+];
+function crPartidasGuardadas(){
+  try{
+    const raw=localStorage.getItem('aptuvia_partidas');
+    if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)&&a.length) return a.map(x=>({t:String(x.t||''),p:Number(x.p)||0})); }
+  }catch(e){}
+  return CR_PARTIDAS_DEF.map(x=>({t:x.t,p:x.p}));
+}
+async function crCargarBanco(){
+  try{ crBanco=await call('/rest/v1/rpc/banco_redaccion',{method:'POST',body:impProf({})})||[]; }
+  catch(e){ crBanco=[]; }
+  crPintarModelos();
+}
+function crTitulo(q){ return String(q&&q.enunciado||'').split('\n')[0].trim(); }
+function crPintarModelos(){
+  const sel=$('cr-modelo'); if(!sel) return;
+  const con=crBanco.filter(q=>String(q.explicacion||'').trim());
+  if(!con.length){ sel.innerHTML='<option value="">(no hay respuestas modelo en tu banco)</option>'; return; }
+  const temas=[]; con.forEach(q=>{ const t=q.tema||'Sin bloque'; if(temas.indexOf(t)<0) temas.push(t); });
+  let h='<option value="">Elige una actividad…</option>';
+  temas.forEach(t=>{
+    h+=`<optgroup label="${escAttr(t)}">`;
+    con.filter(q=>(q.tema||'Sin bloque')===t).forEach(q=>{ h+=`<option value="${q.id}">${escHtml(crTitulo(q))}</option>`; });
+    h+='</optgroup>';
+  });
+  sel.innerHTML=h;
+}
+function crAnexarCriterio(txt){
+  const ta=$('cr-crit'); if(!ta) return;
+  const actual=(ta.value||'').replace(/\s+$/,'');
+  ta.value=(actual?actual+'\n\n':'')+txt;
+  ta.scrollTop=ta.scrollHeight;
+}
+function crAddModelo(){
+  const sel=$('cr-modelo'); if(!sel||!sel.value){ appAlert('Elige antes una actividad del desplegable.'); return; }
+  const q=crBanco.find(x=>String(x.id)===String(sel.value));
+  if(!q){ appAlert('No encuentro esa actividad.'); return; }
+  crAnexarCriterio('RESPUESTA MODELO · '+crTitulo(q)+'\n'+String(q.explicacion||'').trim());
+}
+function crAddModelosDelExamen(){
+  const resp=Array.isArray(crEnt&&crEnt.respuestas)?crEnt.respuestas:[];
+  if(!resp.length){ appAlert('Esta entrega no tiene preguntas.'); return; }
+  let n=0;
+  resp.forEach(r=>{
+    const e1=String(r.enunciado||'').trim();
+    if(!e1) return;
+    const t1=e1.split('\n')[0].trim();
+    const q=crBanco.find(x=>{
+      const e2=String(x.enunciado||'').trim();
+      return e2===e1 || crTitulo(x)===t1;
+    });
+    if(q && String(q.explicacion||'').trim()){ crAnexarCriterio('RESPUESTA MODELO · '+crTitulo(q)+'\n'+String(q.explicacion).trim()); n++; }
+  });
+  appAlert(n? ('Añadidas '+n+' respuesta(s) modelo a los criterios.') : 'Ninguna pregunta de esta entrega coincide con una actividad del banco con respuesta modelo.');
+}
+// ---- Reparto de la nota ----
+function crFilaPartida(t,p,n){
+  const d=document.createElement('div');
+  d.className='cr-pt-row';
+  d.style.cssText='display:flex;gap:6px;align-items:center;margin-bottom:6px';
+  d.innerHTML='<input class="cr-pt" type="text" placeholder="Apartado" style="flex:1;min-width:0">'
+    +'<input class="cr-pp" type="number" min="0" max="100" step="1" placeholder="%" style="width:58px" title="Peso en %">'
+    +'<input class="cr-pn" type="number" min="0" max="10" step="0.1" placeholder="0-10" style="width:68px" title="Nota de este apartado">'
+    +'<button type="button" class="cr-px" title="Quitar" style="background:#fdeaea;border:1px solid #f3c4c4;border-radius:8px;padding:6px 9px;cursor:pointer;flex:0 0 auto">✕</button>';
+  d.querySelector('.cr-pt').value=t||'';
+  d.querySelector('.cr-pp').value=(p==null?'':p);
+  d.querySelector('.cr-pn').value=(n==null?'':n);
+  d.querySelector('.cr-px').onclick=()=>{ d.remove(); crRecalc(); };
+  d.querySelectorAll('input').forEach(i=> i.oninput=crRecalc);
+  return d;
+}
+function crPintarPartidas(){
+  const cont=$('cr-pt-rows'); if(!cont) return;
+  cont.innerHTML='';
+  crPartidasGuardadas().forEach(x=> cont.appendChild(crFilaPartida(x.t,x.p,'')));
+  crRecalc();
+}
+function crLeerPartidas(){
+  const out=[];
+  document.querySelectorAll('#cr-pt-rows .cr-pt-row').forEach(r=>{
+    const t=(r.querySelector('.cr-pt').value||'').trim();
+    const p=parseFloat(String(r.querySelector('.cr-pp').value).replace(',','.'));
+    const nv=String(r.querySelector('.cr-pn').value).replace(',','.').trim();
+    const n=nv===''?null:parseFloat(nv);
+    if(t||!isNaN(p)) out.push({t:t,p:isNaN(p)?0:p,n:(n==null||isNaN(n))?null:n});
+  });
+  return out;
+}
+function crNotaPonderada(){
+  const ps=crLeerPartidas();
+  let pesoTotal=0, pesoUsado=0, suma=0;
+  ps.forEach(x=>{ pesoTotal+=x.p; if(x.n!=null){ pesoUsado+=x.p; suma+=x.n*x.p; } });
+  return {ps:ps, pesoTotal:pesoTotal, pesoUsado:pesoUsado, nota:(pesoUsado>0? (suma/pesoUsado) : null)};
+}
+function crRecalc(){
+  const box=$('cr-pt-res'); if(!box) return;
+  const r=crNotaPonderada();
+  let avisos='';
+  if(r.pesoTotal!==100) avisos=`<span style="color:#b4232a;font-weight:700">Los pesos suman ${r.pesoTotal} %, no 100 %.</span><br>`;
+  if(r.nota==null){ box.innerHTML=avisos+'<span style="color:var(--ink-soft)">Pon una nota de 0 a 10 en cada apartado.</span>'; return; }
+  const det=r.ps.filter(x=>x.n!=null).map(x=>`${escHtml(x.t||'(sin nombre)')}: ${x.n} × ${x.p} %`).join('<br>');
+  box.innerHTML=avisos+det+`<div style="margin-top:8px;font-size:1.05rem;font-weight:800;color:var(--navy)">Nota ponderada: ${(Math.round(r.nota*100)/100)}/10</div>`
+    +(r.pesoUsado!==r.pesoTotal?`<div style="font-size:.7rem;color:var(--ink-soft)">Calculada solo sobre los apartados puntuados (${r.pesoUsado} % de ${r.pesoTotal} %).</div>`:'');
+}
+function crUsarPonderada(){
+  const r=crNotaPonderada();
+  if(r.nota==null){ appAlert('Pon primero la nota de cada apartado.'); return; }
+  const c=$('cr-ia-notaprof'); if(c){ c.value=Math.round(r.nota*100)/100; crPreview(); }
+}
+function crGuardarPartidasDef(){
+  const ps=crLeerPartidas().map(x=>({t:x.t,p:x.p}));
+  if(!ps.length){ appAlert('No hay apartados que guardar.'); return; }
+  try{ localStorage.setItem('aptuvia_partidas', JSON.stringify(ps)); appAlert('Guardado. Estos apartados saldrán por defecto en las próximas correcciones.'); }
+  catch(e){ appAlert('No se pudo guardar en este navegador.'); }
+}
+
 function crTabIA(e){
   return `<div class="t-card">
-    <label style="margin-top:6px">Criterios de corrección (lo que le dirías tú a la IA)</label>
-    <textarea id="cr-crit" rows="3" placeholder="Ej.: valora contenido sobre forma; cada pregunta vale 2,5 puntos; penaliza las faltas de ortografía hasta 1 punto…"></textarea>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 10px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini, <b>adjunta ahí el PDF del examen resuelto</b> y pega el prompt. Después trae la respuesta aquí abajo.</p>
+    <label style="margin-top:6px">1 · Reparto de la nota</label>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">Peso de cada apartado y la nota que le pones de 0 a 10. Va también dentro del prompt, para que la IA puntúe por apartados.</p>
+    <div id="cr-pt-rows"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="gx-mini" onclick="document.getElementById('cr-pt-rows').appendChild(crFilaPartida('',0,''));crRecalc()" style="flex:1;padding:9px">+ Apartado</button>
+      <button class="gx-mini" onclick="crGuardarPartidasDef()" style="flex:1;padding:9px">💾 Predeterminado</button>
+    </div>
+    <div id="cr-pt-res" style="font-size:.76rem;line-height:1.6;margin-top:10px;background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:10px 12px"></div>
+    <button class="gx-mini" onclick="crUsarPonderada()" style="width:100%;padding:10px;margin-top:8px">Usar esta nota como nota final</button>
+
+    <label style="margin-top:18px">2 · Respuesta modelo del banco</label>
+    <select id="cr-modelo"><option value="">Cargando…</option></select>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="gx-mini" onclick="crAddModelo()" style="flex:1;padding:9px">➕ Añadir esta</button>
+      <button class="gx-mini" onclick="crAddModelosDelExamen()" style="flex:1;padding:9px">➕ Las de este examen</button>
+    </div>
+
+    <label style="margin-top:18px">3 · Criterios de corrección (lo que le dirías tú a la IA)</label>
+    <textarea id="cr-crit" rows="4" placeholder="Ej.: valora contenido sobre forma; penaliza las faltas de ortografía hasta 1 punto…"></textarea>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 10px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini, <b>adjunta ahí el PDF del examen resuelto</b> si lo hay, y pega el prompt. Después trae la respuesta aquí abajo.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="gx-mini" onclick="crCopiarPrompt()" style="flex:1;padding:10px">📋 Copiar prompt</button>
       <button class="gx-mini" onclick="crCompartirPrompt()" style="flex:1;padding:10px">📤 Compartir</button>
@@ -6938,10 +7155,10 @@ function crTabIA(e){
       <a href="https://claude.ai/new" target="_blank" rel="noopener" class="gx-mini" style="flex:1;padding:10px;text-align:center;text-decoration:none;line-height:1.6">Abrir Claude ↗</a>
       <a href="https://gemini.google.com/app" target="_blank" rel="noopener" class="gx-mini" style="flex:1;padding:10px;text-align:center;text-decoration:none;line-height:1.6">Abrir Gemini ↗</a>
     </div>
-    <label style="margin-top:16px">Pega aquí la corrección de la IA</label>
+    <label style="margin-top:16px">4 · Pega aquí la corrección de la IA</label>
     <textarea id="cr-ia-out" rows="7" placeholder="El texto del alumno con las correcciones entre [[ ]] y la última línea NOTA: X/10"></textarea>
     <div id="cr-ia-nota" style="font-size:.75rem;color:var(--ink-soft);text-align:right;margin-top:-2px"></div>
-    <label style="margin-top:10px">Nota final — la pones TÚ (0 a 10)</label>
+    <label style="margin-top:10px">5 · Nota final — la pones TÚ (0 a 10)</label>
     <div style="display:flex;gap:8px;align-items:center">
       <input id="cr-ia-notaprof" type="number" min="0" max="10" step="0.1" inputmode="decimal" placeholder="Ej.: 7.5" style="flex:1" value="${e.nota!=null?(+e.nota):''}">
       <button class="gx-mini" onclick="crUsarNotaIA()" style="padding:10px;white-space:nowrap">Usar la de la IA</button>
@@ -6976,6 +7193,8 @@ function renderEntrega(e){
   if($('cr-ia-out')){ $('cr-ia-out').oninput=crPreview; }
   if($('cr-ia-notaprof')) $('cr-ia-notaprof').oninput=crPreview;
   if($('cr-ia-prev')) crPreview();
+  if($('cr-pt-rows')) crPintarPartidas();
+  if($('cr-modelo')){ crPintarModelos(); if(!crBanco.length) crCargarBanco(); }
 }
 async function reabrirEntregaUI(id){
   if(!await appConfirm('¿Permitir que el alumno repita este examen? Se borrará la nota actual y podrá volver a entregar.')) return;
