@@ -56,6 +56,16 @@ async function loadPortal(){
     if(!drop){ return; }
     drop.innerHTML = '';
 
+    // Acceso para dirección de academia y administración: no son alumnos de
+    // ningún certificado, así que entran por aquí, sin elegir curso. El gate
+    // (es_cuenta_academia / admin) decide a qué pantalla van.
+    const gestOpt = document.createElement('div');
+    gestOpt.className = 'cp-option cp-special';
+    gestOpt.style.cssText = 'font-weight:700';
+    gestOpt.textContent = '🔑 Acceso de dirección / administración';
+    gestOpt.onclick = ()=>selectCert('__gestion', '🔑 Acceso de dirección / administración');
+    drop.appendChild(gestOpt);
+
     // Aula Abierta va primera en el listado, con el mismo formato que un certificado
     const aulaLabel = 'AULA-ABIERTA · Materias Propias / Exámenes Libres';
     const aulaOpt = document.createElement('div');
@@ -99,7 +109,12 @@ function portalEntrar(){
   currentCertificado = val;
   window._activeCertId = val;
 
-  if(val==='__aula_abierta'){
+  if(val==='__gestion'){
+    // Acceso de dirección/administración: sin certificado. gateAccess decide destino.
+    window._certCodigo = '';
+    window._certNombre = '';
+    $('login').classList.remove('aula-celeste');
+  }else if(val==='__aula_abierta'){
     window._certCodigo = 'Aula Abierta';
     window._certNombre = 'Materias Propias / Exámenes Libres';
     $('login').classList.add('aula-celeste');
@@ -630,6 +645,12 @@ async function gateAccess(){
     if(esAc===true){ window._acadModo=true; applyTema(window._activeCertId); return; }
     if(esAc==='off'){ token=null; refreshToken=null; throw new Error('El acceso de dirección de tu academia está desactivado. Contacta con Aptuvia.'); }
   }catch(e){ if(/desactivado/.test(e.message||'')) throw e; }
+  // Acceso de dirección/administración: solo admin o cuenta de academia pueden
+  // usar esta puerta. Cualquier otro (profesor/alumno) que la elija por error, fuera.
+  if(window._activeCertId==='__gestion'){
+    token=null; refreshToken=null;
+    throw new Error('Esta entrada es solo para dirección de academia o administración. Si eres profesor o alumno, vuelve atrás y elige tu curso.');
+  }
   const certId = certBD();
   try{
     const ok = await call('/rest/v1/rpc/puedo_acceder',{method:'POST',body:{p_cert:certId}});
