@@ -200,12 +200,11 @@ async function cargarAsignacionesAA(){
   aaAsigna={};
   const meter=rows=>{ (rows||[]).forEach(r=>{ (aaAsigna[r.user_id]=aaAsigna[r.user_id]||new Set()).add(r.unidad_id); }); };
   // Por RPC: la lectura directa de alumno_materia la corta RLS y vuelve vacía sin error.
-  try{
-    const rows=await call('/rest/v1/rpc/aa_asignaciones',{method:'POST',body:impProf({})});
-    if(rows && rows.length){ meter(rows); return; }
-    if(rows){ return; }   // devolvió lista vacía de verdad
-  }catch(e){}
-  try{ meter(await call('/rest/v1/alumno_materia?select=user_id,unidad_id')); }catch(e){}
+  try{ meter(await call('/rest/v1/rpc/aa_asignaciones',{method:'POST',body:impProf({})})); }catch(e){}
+  // Si la RPC no ha traído nada (no existe, o no cubre este rol), se intenta por REST.
+  if(!Object.keys(aaAsigna).length){
+    try{ meter(await call('/rest/v1/alumno_materia?select=user_id,unidad_id')); }catch(e){}
+  }
 }
 function aaProfActual(){
   return window._saImpersona ? window._saImpersonaProf
