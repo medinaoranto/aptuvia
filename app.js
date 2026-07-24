@@ -642,7 +642,8 @@ async function gateAccess(){
   window._acadModo=false;
   try{
     const esAc=await call('/rest/v1/rpc/es_cuenta_academia',{method:'POST',body:{}});
-    if(esAc===true){ window._acadModo=true; applyTema(window._activeCertId); return; }
+    // La RPC devuelve el texto 'si' / 'no' / 'off' (no un booleano).
+    if(esAc==='si' || esAc===true){ window._acadModo=true; applyTema(window._activeCertId); return; }
     if(esAc==='off'){ token=null; refreshToken=null; throw new Error('El acceso de dirección de tu academia está desactivado. Contacta con Aptuvia.'); }
   }catch(e){ if(/desactivado/.test(e.message||'')) throw e; }
   // Acceso de dirección/administración: solo admin o cuenta de academia pueden
@@ -669,7 +670,7 @@ async function gateAccess(){
 
 async function doLogin(){
   if(authMode==='signup') return doSignup();
-  const email=$('email').value.trim(), pass=$('pass').value, btn=$('loginBtn');
+  const email=$('email').value.trim().toLowerCase(), pass=$('pass').value, btn=$('loginBtn');
   showMsg($('loginMsg'),'');
   if(!email||!pass){ showMsg($('loginMsg'),'Escribe tu correo y tu contraseña.'); return; }
 
@@ -701,7 +702,7 @@ function mostrarAvisoDemoAula(){
 }
 
 async function doSignup(){
-  const email=$('email').value.trim(), pass=$('pass').value, btn=$('loginBtn');
+  const email=$('email').value.trim().toLowerCase(), pass=$('pass').value, btn=$('loginBtn');
   showMsg($('loginMsg'),'');
   if(!email||!pass){ showMsg($('loginMsg'),'Escribe tu correo y una contraseña.'); return; }
   if(pass.length<6){ showMsg($('loginMsg'),'La contraseña debe tener al menos 6 caracteres.'); return; }
