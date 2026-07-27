@@ -7576,6 +7576,7 @@ function crTabIA(e){
     <button class="gx-mini" onclick="crUsarPonderada()" style="width:100%;padding:10px;margin-top:8px">Usar esta nota como nota final</button>
 
     <label style="margin-top:18px">2 · Respuesta modelo del banco</label>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">Si la actividad está en tu banco con respuesta modelo, elígela y pulsa «Añadir esta»; con «Las de este examen» la localiza automáticamente. Así la IA corrige contra la solución correcta, no contra su criterio.</p>
     <select id="cr-modelo"><option value="">Cargando…</option></select>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="gx-mini" onclick="crAddModelo()" style="flex:1;padding:9px">➕ Añadir esta</button>
@@ -7588,10 +7589,6 @@ function crTabIA(e){
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="gx-mini" onclick="crCopiarPrompt()" style="flex:1;padding:10px">📋 Copiar prompt</button>
       <button class="gx-mini" onclick="crCompartirPrompt()" style="flex:1;padding:10px">📤 Compartir</button>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <a href="https://claude.ai/new" target="_blank" rel="noopener" class="gx-mini" style="flex:1;padding:10px;text-align:center;text-decoration:none;line-height:1.6">Abrir Claude ↗</a>
-      <a href="https://gemini.google.com/app" target="_blank" rel="noopener" class="gx-mini" style="flex:1;padding:10px;text-align:center;text-decoration:none;line-height:1.6">Abrir Gemini ↗</a>
     </div>
     <label style="margin-top:16px">4 · Pega aquí la corrección de la IA</label>
     <textarea id="cr-ia-out" rows="7" placeholder="El texto del alumno con las correcciones entre [[ ]] y la última línea NOTA: X/10"></textarea>
@@ -8815,9 +8812,12 @@ async function openAATemas(unitId){
     return;
   }
   window._aaTemas=temas;
+  try{ await cargarTemario(); }catch(e){}
 
   const todos=(examsByUnit[unitId]||[]).filter(e=> staff || e.publicado);
+  const mats=(temarioByUnit[unitId]||[]).filter(t=> staff || t.visible!==false);
   const cuenta=id=> todos.filter(e=> id==='__sin' ? !e.tema_id : String(e.tema_id)===String(id)).length;
+  const cuentaMat=id=> mats.filter(t=> id==='__sin' ? !t.tema_id : String(t.tema_id)===String(id)).length;
   const sinTema=cuenta('__sin');
 
   let h=head;
@@ -8832,12 +8832,13 @@ async function openAATemas(unitId){
   h+=`<div class="section">`;
   temas.forEach(t=>{
     const n=cuenta(t.id);
+    const m=cuentaMat(t.id);
     const aps=Array.isArray(t.apartados)?t.apartados:[];
     h+=`<div class="aa-tema" style="border:1.5px solid var(--line);border-radius:11px;margin-bottom:7px;background:#fff;overflow:hidden">
       <div style="display:flex;align-items:center;gap:6px;padding:9px 11px">
         <button data-tema="${escAttr(t.id)}" style="flex:1;text-align:left;background:none;border:0;padding:0;font-family:inherit;cursor:pointer">
           <b style="font-size:.86rem;color:var(--navy);display:block;line-height:1.35">${escHtml(t.titulo)}</b>
-          <span style="font-size:.68rem;color:var(--ink-soft)">${n} examen${n===1?'':'es'}</span>
+          <span style="font-size:.68rem;color:var(--ink-soft)">${n} examen${n===1?'':'es'} · ${m} material${m===1?'':'es'}</span>
         </button>
         ${aps.length?`<button data-aps="${escAttr(t.id)}" aria-label="Ver apartados" style="background:none;border:0;font-size:1.15rem;line-height:1;color:var(--navy);cursor:pointer;padding:4px 8px">▾</button>`:''}
         ${staff?`<button class="ce-del" data-ren="${escAttr(t.id)}" aria-label="Renombrar" style="background:#eef2ff;border-color:#c7d2fe">✏️</button>
@@ -9142,7 +9143,7 @@ function openUnit(unitId){
     .filter(t=> staff || t.visible!==false)
     .filter(t=> !temaSel || (temaSel==='__sin' ? !t.tema_id : String(t.tema_id)===String(temaSel)));
   if(mats.length){
-    html+=`<div class="section"><h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:14px 2px 8px">📚 Temario ${temaSel?'del tema':'de la unidad'}</h3>`;
+    html+=`<div class="section"><h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:14px 2px 8px">📚 Temario de la unidad</h3>`;
     mats.forEach(t=>{
       html+=`<button class="exam-row" data-mat="${t.id}" data-path="${escAttr(t.archivo_path)}" data-nom="${escAttr(t.archivo_nombre||'')}">
           <span class="cell">⬇</span>
