@@ -1283,8 +1283,16 @@ function _perfilPath(){
 function mediaMisTodos(unitId){
   const ids=new Set((examsByUnit[unitId]||[]).map(e=>String(e.id)));
   const rel=(window._misIntentos||[]).filter(a=>ids.has(String(a.examen_id)) && a.total>0);
-  if(!rel.length) return null;
   const notas=rel.map(a=>a.correctas/a.total*10);
+  // + redacciones corregidas de esta unidad (para que la media del alumno coincida
+  // con la del profesor)
+  (examsByUnit[unitId]||[]).forEach(e=>{
+    if(e.tipo==='redaccion'){
+      const en=entregasByExam[e.id];
+      if(en && en.estado==='corregido' && en.nota!=null) notas.push(+en.nota);
+    }
+  });
+  if(!notas.length) return null;
   return notas.reduce((x,y)=>x+y,0)/notas.length;
 }
 function estLabel(s){ return s==='activo'?'Activo':s==='terminado'?'Terminado':'Próximamente'; }
@@ -8928,7 +8936,27 @@ function openUnit(unitId){
     <div class="unit-head"><div class="c">${u?u.codigo:unitId.toUpperCase()}</div><div class="n">${(u&&u.titulo)?escHtml(tituloMateria(u)):(UF_TITULOS[unitId]||'')}${(staff && window._activeCertId==='__aula_abierta' && u)?` <button onclick="renombrarMateria('${escAttr(unitId)}')" title="Cambiar el nombre de la materia" style="background:none;border:none;cursor:pointer;font-size:.9rem;padding:0 4px;opacity:.65">✏️</button>`:''}</div></div>`;
   const posterProx = `<div class="soon-screen"><div class="soon-emoji">📭</div><div class="soon-title">Aún no hay exámenes</div><div class="soon-text">Tu profesor activará los exámenes a medida que avance el temario.<br>Vuelve pronto.</div></div>`;
   if(est==='proximamente' && !staff){ $('unit').innerHTML=head+posterProx; return; }
-  if(!list.length){ $('unit').innerHTML=head+posterProx; return; }
+  if(!list.length){
+    // Sin exámenes: si la materia/tema tiene temario visible, se muestra igualmente
+    // (una materia como "Programación didáctica" puede llevar solo materiales).
+    const soloMats=(temarioByUnit[unitId]||[])
+      .filter(t=> staff || t.visible!==false)
+      .filter(t=> !temaSel || (temaSel==='__sin' ? !t.tema_id : String(t.tema_id)===String(temaSel)));
+    if(soloMats.length){
+      let hm=head+`<div class="section"><h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:14px 2px 8px">📚 ${temaSel?'Material del tema':'Material de la materia'}</h3>`;
+      soloMats.forEach(t=>{
+        hm+=`<button class="exam-row" data-mat="${t.id}" data-path="${escAttr(t.archivo_path)}" data-nom="${escAttr(t.archivo_nombre||'')}">
+            <span class="cell">⬇</span>
+            <span class="meta"><span class="et">${escHtml(t.titulo||t.archivo_nombre)}</span><span class="es">${escHtml(t.nota||t.archivo_nombre||'')}</span></span>
+            <span class="arrow">›</span></button>`;
+      });
+      hm+=`</div>`;
+      $('unit').innerHTML=hm;
+      document.querySelectorAll('.exam-row[data-mat]').forEach(b=> b.onclick=()=>temarioDescargar(b.dataset.path, b.dataset.nom));
+      return;
+    }
+    $('unit').innerHTML=head+posterProx; return;
+  }
 
   // ── VISTA PROFESOR: media de clase por examen ──
   if(staff){
@@ -8954,10 +8982,28 @@ function openUnit(unitId){
     list.forEach(e=>{
       const oc=!e.publicado?` <span class="rbadge" style="background:#ececec;color:#8a8a8a">Oculto</span>`:'';
       if(e.tipo==='redaccion'){
-        html+=`<button class="exam-row" data-id="${e.id}">
-            <span class="cell-avg" style="font-size:1rem">✍️</span>
+        // Las notas de redacción están en teacherRows como filas _red (ca1nueva).
+        // Se casan por TÍTULO (la unidad puede venir con otro formato desde
+        // export_intentos, por eso no se exige que coincida).
+        const rr=teacherRows.filter(r=> r._red && (r.examen||'').trim()===(e.titulo||'').trim());
+        let st=null;
+        if(rr.length){
+          const alumnos=new Set(rr.map(r=>r.alumno_email||r.alumno));
+          const suma=rr.reduce((s,r)=>s+(r.total>0?r.correctas/r.total*100:0),0);
+          st={media:Math.round(suma/rr.length), alumnos:alumnos.size, intentos:rr.length};
+        }
+        let cellCls='', avgLabel='✍️', subTxt='Examen de redacción', avgStyle=' style="font-size:1rem"';
+        if(st){
+          const pct=st.media;
+          cellCls = pct>=65?'avg-ok':pct>=50?'avg-mid':'avg-no';
+          avgLabel = (pct/10).toFixed(1);
+          subTxt = `Media clase · ${st.alumnos} alumno${st.alumnos!==1?'s':''} · ${st.intentos} entrega${st.intentos!==1?'s':''}`;
+          avgStyle='';
+        }
+        html+=`<button class="exam-row ${cellCls}" data-id="${e.id}">
+            <span class="cell-avg"${avgStyle}>${avgLabel}</span>
             <span class="meta"><span class="et">${escHtml(e.titulo)} <span class="rbadge">Redacción</span>${oc}</span>
-            <span class="es avg-sub">Examen de redacción</span></span>
+            <span class="es avg-sub">${subTxt}</span></span>
             ${esAulaAbierta()?`<span class="ce-del" role="button" data-mover="${e.id}" aria-label="Mover de tema" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:4px 8px;flex:0 0 auto;font-size:.95rem;line-height:1;display:inline-flex;align-items:center">📂</span>`:'<span class="arrow">›</span>'}</button>`;
         return;
       }
@@ -8994,6 +9040,15 @@ function openUnit(unitId){
   // Media final = igual, pero solo con los exámenes que cuentan para la nota.
   let mSum=0,mN=0, fSum=0,fN=0;
   list.forEach(e=>{
+    if(e.tipo==='redaccion'){
+      const en=entregasByExam[e.id];
+      if(en && en.estado==='corregido' && en.nota!=null){
+        const frac=(+en.nota)/10;
+        mSum += frac; mN++;
+        if(e.cuenta_final){ fSum += frac; fN++; }
+      }
+      return;
+    }
     const at=attemptsByExam[e.id];
     if(!at || !at.count || !at.total) return;
     mSum += (at.mejor/at.total); mN++;
@@ -9014,16 +9069,18 @@ function openUnit(unitId){
     if(e.tipo==='redaccion'){
       const en=entregasByExam[e.id];
       let cell='✍️', sub='Examen para redactar', res='', cls='';
-      if(en && en.estado==='corregido'){
+      const corr = !!(en && en.estado==='corregido');
+      if(corr){
         const n=(en.nota!=null)?(+en.nota).toFixed(1):'—', pass=(+en.nota>=5);
-        cell=n; cls=pass?' done':' done fail'; sub='Corregido'; res=`<span class="res ${pass?'ok':'no'}">${pass?'✓ '+n:'✗ '+n}</span>`;
+        cell=n; cls=pass?' done':' done fail'; sub='Corregido';
+        res=`<span class="res ${pass?'ok':'no'}">${pass?'✓ Apto':'✗ No apto'}</span>`;
       }else if(en && en.estado==='reabierto'){
         cls=' pend'; sub='Reabierto · puedes repetirlo'; res=`<span class="res pend">↻ Reabierto</span>`;
       }else if(en){
         cls=' pend'; sub='Entregado'; res=`<span class="res pend">⏳ Pendiente</span>`;
       }
-      html+=`<button class="exam-row red${cls}" data-red="${e.id}">
-          <span class="cell red">${cell}</span>
+      html+=`<button class="exam-row${corr?'':' red'}${cls}" data-red="${e.id}">
+          <span class="cell${corr?'':' red'}">${cell}</span>
           <span class="meta"><span class="et">${e.titulo} <span class="rbadge">Redacción</span></span><span class="es">${sub}</span></span>
           ${res||'<span class="arrow">›</span>'}
         </button>`;
