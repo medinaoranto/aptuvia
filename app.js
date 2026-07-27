@@ -7455,8 +7455,15 @@ function crPartidasGuardadas(){
   }catch(e){}
   return CR_PARTIDAS_DEF.map(x=>({t:x.t,p:x.p}));
 }
+function crUnidadDeEntrega(){
+  if(!crEnt) return null;
+  const all=[].concat(...Object.values(examsByUnit||{}));
+  const ex=all.find(e=> (e.titulo||'').trim()===(crEnt.examen||'').trim());
+  return ex? ex.unidad : null;
+}
 async function crCargarBanco(){
-  try{ crBanco=await call('/rest/v1/rpc/banco_redaccion',{method:'POST',body:impProf({})})||[]; }
+  const uni=crUnidadDeEntrega();
+  try{ crBanco=await call('/rest/v1/rpc/banco_redaccion',{method:'POST',body:impProf(uni?{p_unidad:uni}:{})})||[]; }
   catch(e){ crBanco=[]; }
   crPintarModelos();
 }
@@ -9026,11 +9033,27 @@ function openUnit(unitId){
     if(esAulaAbierta()){
       html+=`<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin:10px 2px 0">Toca 📂 en un examen para moverlo a otro tema.</p>`;
     }
+    // Temario del tema/unidad (también para el profesor, con su estado de visibilidad)
+    const matsT=(temarioByUnit[unitId]||[])
+      .filter(t=> !temaSel || (temaSel==='__sin' ? !t.tema_id : String(t.tema_id)===String(temaSel)));
+    if(matsT.length){
+      html+=`<div class="section"><h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:16px 2px 6px">📚 Temario de la unidad</h3>`;
+      html+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:0 2px 8px;line-height:1.5">Materiales que has subido a este tema. Toca uno para descargarlo. Su visibilidad para el alumno se controla en «Exámenes y estados».</p>`;
+      matsT.forEach(t=>{
+        const vis=t.visible!==false;
+        html+=`<button class="exam-row" data-mat="${t.id}" data-path="${escAttr(t.archivo_path)}" data-nom="${escAttr(t.archivo_nombre||'')}">
+            <span class="cell">⬇</span>
+            <span class="meta"><span class="et">${escHtml(t.titulo||t.archivo_nombre)}${vis?'':' <span class="rbadge" style="background:#ececec;color:#8a8a8a">Oculto</span>'}</span><span class="es">${escHtml(t.nota||t.archivo_nombre||'')}</span></span>
+            <span class="arrow">›</span></button>`;
+      });
+      html+=`</div>`;
+    }
     $('unit').innerHTML=html;
     document.querySelectorAll('.exam-row[data-id]').forEach(b=>b.onclick=(ev)=>{
       if(ev.target.closest('[data-mover]')) return;
       openExamProfesor(b.dataset.id, unitId);
     });
+    document.querySelectorAll('.exam-row[data-mat]').forEach(b=> b.onclick=()=>temarioDescargar(b.dataset.path, b.dataset.nom));
     document.querySelectorAll('[data-mover]').forEach(b=> b.onclick=(ev)=>{ ev.stopPropagation(); aaMoverExamen(unitId, b.dataset.mover); });
     return;
   }
