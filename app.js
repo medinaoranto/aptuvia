@@ -551,7 +551,8 @@ function guardarSesion(){
       rt:refreshToken, email:userEmail,
       cert:window._activeCertId||null, cod:window._certCodigo||'', nom:window._certNombre||'',
       view:window._curView||'', unit:current&&current.unit||null,
-      mod:(current&&current.module&&current.module.id)||null
+      mod:(current&&current.module&&current.module.id)||null,
+      ts:window._teacherScreen||''
     }));
   }catch(e){}
 }
@@ -583,6 +584,9 @@ async function restaurarSesion(){
     $('login').classList.add('hidden');
     $('app').classList.remove('hidden');
     sbRender();
+    // Para el profesorado, la pantalla exacta del panel la restaura openTeacher()
+    // (que carga sus datos) leyendo esta instantánea; así no rebota al panel.
+    window._restoreSess = s;
     await loadData();
     try{ restaurarVista(s); }catch(e){}
     return true;
@@ -591,6 +595,9 @@ async function restaurarSesion(){
 // Vuelve a abrir la pantalla en la que estaba el usuario antes de refrescar.
 function restaurarVista(s){
   if(!s || window._acadModo) return;
+  // El profesorado restaura su pantalla dentro de openTeacher() (vía _restoreSess).
+  if(isStaff()){ return; }
+  window._restoreSess=null;
   const v=s.view||'';
   if(v==='home'||v===''||v==='teacher') return; // loadData ya deja Inicio/Panel
   if(s.mod){ const m=getModulos().find(x=>x.id===s.mod); if(m) current.module=m; }
@@ -871,7 +878,16 @@ async function temarioBorrar(id, path){
 let teacherUnidadTem=null;
 let temarioTemas=[];   // temas de Aula Abierta de la unidad mostrada (en EV queda vacío)
 
+// Orden de temas: "Programación didáctica" siempre primera; el resto conserva
+// el orden que devuelve el servidor (sort estable).
+function _temasProgPrimero(arr){
+  const es=t=>/programaci[óo]n\s+did[áa]ctica/i.test((t&&t.titulo)||'')?0:1;
+  return (arr||[]).slice().sort((a,b)=> es(a)-es(b));
+}
+
 function openTemarioProfesor(){
+  window._teacherScreen='temario';
+  try{ guardarSesion(); }catch(e){}
   teacherView='temario';
   const mods=getModulos();
   teacherUnidadTem = teacherUnidadTem || (mods[0] && mods[0].unidades && mods[0].unidades[0]) || null;
@@ -881,7 +897,7 @@ function openTemarioProfesor(){
 async function temarioCargarTemas(unidad){
   temarioTemas=[];
   if(!esAulaAbierta()||!unidad) return;
-  try{ temarioTemas=await call('/rest/v1/rpc/aa_temas_listar',{method:'POST',body:impProf({p_unidad:unidad})})||[]; }
+  try{ temarioTemas=_temasProgPrimero(await call('/rest/v1/rpc/aa_temas_listar',{method:'POST',body:impProf({p_unidad:unidad})})||[]); }
   catch(e){ temarioTemas=[]; }
 }
 
@@ -1391,7 +1407,7 @@ async function openTeacher(){
     pendientesCount = Array.isArray(pend)?pend.length:0;
     teacherRows=[]; resumenRows=null;
     teacherMode='best'; teacherView='panel';
-    pintarTeacher(); // Panel visible de inmediato
+    if(!window._restoreSess) pintarTeacher(); // Panel visible de inmediato (salvo si restauramos otra pantalla)
 
     // Fase 2: cargar datos pesados con reintento
     const [det, res] = await Promise.all([
@@ -1419,6 +1435,37 @@ async function openTeacher(){
       if(esAA!==rowEsAula) return false;
       return unidadEnCert(u);
     });
+    // ── ca1nueva: las notas de REDACCIÓN (entregas corregidas) no vienen en
+    // resultados_alumnado, así que no contaban en las medias. Se traen de
+    // export_intentos (fuente unificada: nombre, correo, unidad, examen, nota,
+    // estado) y se añaden como filas equivalentes (nota sobre 10 => correctas/total
+    // = nota/10). Marcadas con _red para que en el detalle no sean pinchables.
+    try{
+      const expo=await call('/rest/v1/rpc/export_intentos',{method:'POST',body:{}}).catch(()=>null);
+      if(Array.isArray(expo)){
+        const esAA = window._activeCertId==='__aula_abierta';
+        let k=0;
+        expo.forEach(r=>{
+          const esRed = String(r.tipo||'').toLowerCase().indexOf('redac')>=0 || (r.aciertos==null && r.nota!=null);
+          if(!esRed) return;
+          if(String(r.estado||'')!=='corregido') return;
+          const nota=parseFloat(String(r.nota).replace(',','.'));
+          if(isNaN(nota)) return;
+          const u=String(r.unidad||''); if(!u) return;
+          const rowEsAula = u.indexOf('aula-')===0;
+          if(esAA!==rowEsAula) return;
+          if(!unidadEnCert(u)) return;
+          const email=String(r.alumno||'').toLowerCase().trim(); if(!email) return;
+          teacherRows.push({
+            id:'red-'+(k++)+'-'+email,
+            alumno:email, alumno_email:email, _nombre:(r.nombre||'').trim(),
+            unidad:u, examen:r.examen||'Redacción',
+            correctas:nota, total:10, porcentaje:Math.round(nota*10),
+            apto:nota>=5, creado_en:r.fecha||null, _red:true
+          });
+        });
+      }
+    }catch(e){}
     const emailsDelCert=new Set(teacherRows.map(r=>r.alumno_email));
     resumenRows=(res||[]).map(x=>{
       const email=((x.email||x.alumno||'')+'').toLowerCase().trim();
@@ -1437,9 +1484,7 @@ async function openTeacher(){
       window._nRegistrados = Array.isArray(reg) ? reg.length : null;
     }catch(e){ window._nRegistrados = null; }
     window._teacherDataReady=true;
-    pintarTeacher(); // Re-renderizar con datos completos
-    // Si el profesor estaba viendo una UF específica, re-renderizarla con datos reales
-    if(current.unit && teacherView==='unit') openUnit(current.unit);
+    _teacherLandRestore(); // Panel, la UF actual, o la pantalla guardada tras recargar
 
   }catch(err){
     const noauth=/docente|denied|permission|policy|not authenticated|no autenticado/i.test(err.message||'');
@@ -1450,9 +1495,31 @@ async function openTeacher(){
       }</div>`;
   }
 }
+// Tras cargar los datos del profesor: vuelve al panel, a la UF que estaba viendo,
+// o —si se acaba de recargar la página— a la pantalla en la que estaba (_restoreSess).
+function _teacherLandRestore(){
+  const s=window._restoreSess; window._restoreSess=null;
+  if(s){
+    const ts=s.ts||'', unit=s.unit||null;
+    const map={examgmt:openExamMgmt,correcciones:openCorrecciones,publicar:openPublicar,estados:openEstados,modulos:openModulosTeacher,temario:openTemarioProfesor,alumnos:openAlumnos};
+    if(ts==='unit' && unit && (unidadEnCert(unit)||unidadesById[unit])){ teacherView='unit'; openUnit(unit); return; }
+    if(map[ts]){ try{ map[ts](); return; }catch(e){} }
+  }
+  if(current.unit && teacherView==='unit'){ openUnit(current.unit); return; }
+  pintarTeacher();
+}
 function setTeacherMode(m){ teacherMode=m; if(teacherView==='alumno'&&teacherAl){ openAlumnoDetalle(teacherAl); } else { pintarTeacher(); } }
 function tRow(r, exLabel, sub){
   const pass=!!r.apto;
+  if(r._red){
+    // Redacción: se muestra la nota (0-10), no es un intento pinchable.
+    const nota=(r.total? (r.correctas/r.total*10):0);
+    return `<div class="t-row t-row--red">
+      <span class="t-cell ${pass?'ok':'no'}">${nota.toFixed(1)}</span>
+      <span class="t-meta"><span class="t-ex">✍️ ${exLabel}</span><span class="t-date">${sub}</span></span>
+      <span class="t-badge ${pass?'ok':'no'}">Redacción</span>
+    </div>`;
+  }
   teacherById[r.id]={alumno:r.alumno,alumno_email:r.alumno_email||r.alumno,nombre:r._nombre||r.nombre||'',label:exLabel,porcentaje:r.porcentaje,apto:r.apto};
   return `<button class="t-row" data-int="${r.id}">
       <span class="t-cell ${pass?'ok':'no'}">${r.correctas}/${r.total}</span>
@@ -1839,15 +1906,16 @@ function manualProfeSecciones(esAula){
     'Cuidado al cambiar un examen que ya han hecho: los que lo hicieron antes conservan la nota del examen antiguo.'
   ]});
 
-  s.push({ t:'6. Decidir qué ve el alumno', p:[
-    'DÓNDE: Área Docente → Exámenes visibles.',
+  s.push({ t:'6. Qué ve el alumno y situación de la unidad', p:[
+    'DÓNDE: Área Docente → Exámenes y estados. La visibilidad y la situación de cada unidad están juntas en la misma pantalla.',
+    'Encima de cada unidad está su selector de situación (Activo / Terminado / Próximamente); debajo, los interruptores de sus exámenes y materiales.',
     'Cada examen tiene un interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
     'En esta misma pantalla, bajo cada unidad, aparece el temario subido con su propio interruptor: así decides qué materiales ve el alumno y cuáles no. El material recién subido nace apagado.',
     'Esta es la pantalla que se usa para ir abriendo exámenes y materiales a medida que avanza el temario.'
   ]});
 
-  s.push({ t:'7. Estados de la unidad', p:[
-    'DÓNDE: Área Docente → Estados.',
+  s.push({ t:'7. Situación de la unidad', p:[
+    'DÓNDE: Área Docente → Exámenes y estados (misma pantalla, encima de cada unidad).',
     'Cada unidad o materia puede estar en uno de tres estados:',
     'ACTIVO: el alumno entra y trabaja con normalidad.',
     'PRÓXIMAMENTE: el alumno la ve en la lista pero no puede entrar. Sirve para anunciar lo que viene.',
@@ -1859,9 +1927,9 @@ function manualProfeSecciones(esAula){
     'DÓNDE: Área Docente → Correcciones.',
     'Aquí llegan las redacciones entregadas. La tarjeta del Área Docente muestra cuántas tienes pendientes. Abres la entrega y ves el texto del alumno.',
     'CORRECCIÓN MANUAL: le pones la nota y le escribes un comentario. Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá resaltado, como una anotación a mano.',
-    'CORRECCIÓN CON IA (asistida): la plataforma NO corrige sola, pero te prepara el trabajo. Va en cinco pasos: (1) repartes la nota en apartados con su peso —contenido, expresión, ortografía...— y puedes guardar tu reparto para las próximas; (2) eliges la respuesta modelo del banco (si la actividad la tiene) para que la IA corrija contra ella; (3) revisas los criterios; (4) copias el prompt, lo pegas en Claude o Gemini adjuntando el examen resuelto, y traes su respuesta; (5) la nota final la pones tú.',
+    'CORRECCIÓN CON IA (asistida): la plataforma NO corrige sola, pero te prepara el trabajo. Va en cinco pasos: (1) repartes la nota en apartados con su peso —contenido, expresión, ortografía...— y puedes guardar tu reparto para las próximas; (2) eliges la respuesta modelo del banco (si la actividad la tiene) para que la IA corrija contra ella; (3) revisas los criterios; (4) copias el prompt y lo pegas en Claude o Gemini (ya lleva dentro la respuesta modelo y los criterios, no hace falta adjuntar ningún PDF) y traes su respuesta; (5) la nota final la pones tú.',
     'La IA solo propone. La nota que cuenta es siempre la tuya. Nada se guarda hasta que tú lo confirmas.',
-    'Al guardar, el alumno ve su corrección en dos bloques: su respuesta y, debajo, tus anotaciones. Puede descargarse su examen corregido en PDF.'
+    'Al guardar, el alumno ve su respuesta con tus anotaciones intercaladas justo debajo del párrafo que corrigen. Puede descargarse su examen corregido en PDF.'
   ]});
 
   s.push({ t:'9. Notas y seguimiento', p:[
@@ -1880,7 +1948,7 @@ function manualProfeSecciones(esAula){
   ]});
 
   s.push({ t:'11. Dudas frecuentes', p:[
-    'EL ALUMNO NO VE UN EXAMEN: comprueba en "Exámenes visibles" que esté encendido, y en "Estados" que la unidad no esté en Próximamente o Terminado.'
+    'EL ALUMNO NO VE UN EXAMEN: en "Exámenes y estados" comprueba que su interruptor esté encendido y que la unidad no esté en Próximamente o Terminado.'
       + (esAula ? ' En Aula Abierta, comprueba además que el alumno tenga marcada esa clase en "Alumnos y notas".' : ''),
     'EL ALUMNO NO PUEDE REPETIR UN EXAMEN: será uno que cuenta para la nota final. Solo permite un intento. Si procede, reábrele el intento.',
     'NO ME SALE EL AVISO DE NORMAS AL EMPEZAR: ese aviso solo aparece en los exámenes marcados como que cuentan para la nota.',
@@ -1935,7 +2003,7 @@ function manualAlumnoSecciones(esAula){
   s.push({ t:'4. Exámenes de redacción', p:[
     'Algunos exámenes no son tipo test: hay que escribir la respuesta, y a veces trabajar sobre un PDF adjunto que se descarga desde el propio examen.',
     'Estos no se corrigen solos: los corrige tu profesor y la nota aparece cuando él la publica.',
-    'Cuando esté corregido, verás tu texto y, debajo, las anotaciones de tu profesor. Puedes descargar tu examen corregido en PDF con el botón que aparece.',
+    'Cuando esté corregido, verás tu texto con las anotaciones de tu profesor intercaladas justo debajo del párrafo que corrigen. Puedes descargar tu examen corregido en PDF con el botón que aparece.',
     'Si el examen tiene nota y vigilancia activada, se avisa antes de empezar de las normas: hay que leerlas y aceptarlas.'
   ]});
   s.push({ t:'5. Tus notas y tu progreso', p:[
@@ -6008,6 +6076,7 @@ async function factRectificar(id){
 }
 
 function pintarTeacher(){
+  window._teacherScreen='';
   showView('teacher'); window.scrollTo(0,0);
   teacherView='panel';
   let nAl;
@@ -6037,9 +6106,7 @@ function pintarTeacher(){
       <button class="t-tile" onclick="openCorrecciones()">
         <span class="ic" style="background:var(--honey-tint)">✍️</span><span class="tt">Correcciones</span><span class="ts">Redacciones por corregir</span>${pendientesCount>0?`<span class="tile-badge">${pendientesCount}</span>`:''}</button>
       <button class="t-tile" onclick="openPublicar()">
-        <span class="ic" style="background:var(--honey-tint)">👁️</span><span class="tt">Exámenes visibles</span><span class="ts">Qué ve el alumno</span></button>
-      <button class="t-tile" onclick="openEstados()">
-        <span class="ic" style="background:var(--navy-tint)">🚦</span><span class="tt">Estados</span><span class="ts">Módulos y UF</span></button>
+        <span class="ic" style="background:var(--honey-tint)">👁️</span><span class="tt">Exámenes y estados</span><span class="ts">Qué ve el alumno · situación</span></button>
       <button class="t-tile" onclick="openModulosTeacher()">
         <span class="ic" style="background:var(--navy-tint)">📚</span><span class="tt">Módulos</span><span class="ts">Evolución de la clase</span></button>
       <button class="t-tile" onclick="openAlumnos()">
@@ -6097,6 +6164,7 @@ async function editarNombreAula(){
 // para que el profesor entre a un módulo/UF con los datos ya precargados
 // (la carga arrancó en cuanto entró en el Área Docente tras el login).
 function openModulosTeacher(okMsg, errMsg){
+  window._teacherScreen='modulos';
   showView('teacher'); window.scrollTo(0,0);
   teacherView='modulos';
   const esAula = window._activeCertId==='__aula_abierta';
@@ -6227,21 +6295,34 @@ async function cambiarPasswordUI(){
 
 // ---- Publicar / ocultar exámenes para el alumno ----
 async function openPublicar(okMsg){
+  window._teacherScreen='publicar';
   showView('teacher'); window.scrollTo(0,0);
   try{ await cargarTemario(); }catch(e){}
+  const esAula = window._activeCertId==='__aula_abierta';
   const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
-  h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Exámenes visibles</h1>`);
-  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Activa solo los exámenes y materiales que quieres que vea el alumno. Los apagados no le aparecen.</p>`);
+  h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Exámenes y estados</h1>`);
+  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Marca la situación de cada ${esAula?'materia':'unidad'} y activa lo que quieres que vea el alumno. <b>Próximamente</b> queda bloqueado; lo apagado no le aparece.</p>`);
   if(okMsg) h.push(`<div class="t-note ok">${escHtml(okMsg)}</div>`);
   let any=false;
   getModulos().forEach(m=>{
+    const me=moduleEstado(m);
+    h.push(`<div class="est-mod">${m.code} · ${m.title} <span class="chip state ${estCls(me)}" data-modchip="${m.id}">${estLabel(me)}</span></div>`);
     m.unidades.forEach(uid=>{
+      const u=unidadesById[uid];
+      const codigo = u ? u.codigo : uid.toUpperCase();
+      const titulo = (u&&u.titulo) ? tituloMateria(u) : (UF_TITULOS[uid]||'');
+      const est=unitEstado(uid);
+      any=true;
+      // Cabecera del aula + selector de SITUACIÓN (encima)
+      h.push(`<div class="pub-unit">${escHtml(codigo)}${titulo?' · '+escHtml(titulo):''}</div>`);
+      h.push(`<div class="est-seg" style="margin:2px 0 10px">${['activo','terminado','proximamente'].map(s=>`<button class="est-b ${s}${est===s?' on':''}" data-uid="${uid}" data-est="${s}">${estLabel(s)}</button>`).join('')}</div>`);
+      // Debajo: VISIBILIDAD de exámenes y materiales de este aula
       const exs=(examsByUnit[uid]||[]).slice().sort(_cmpEx);
       const mats=(temarioByUnit[uid]||[]);
-      if(!exs.length && !mats.length) return;
-      const u=unidadesById[uid];
-      any=true;
-      h.push(`<div class="pub-unit">${u?escHtml(u.codigo):uid} · ${u?escHtml(tituloMateria(u)):''}</div>`);
+      if(!exs.length && !mats.length){
+        h.push(`<p class="sa-empty" style="font-size:.78rem;margin:0 0 6px;color:var(--ink-soft)">Aún no hay exámenes ni materiales en esta ${esAula?'materia':'unidad'}.</p>`);
+        return;
+      }
       if(exs.length){
         h.push(`<div class="pub-bulk"><button class="pub-allbtn" data-all="${uid}" data-val="1">Activar todas</button><button class="pub-allbtn ghost" data-all="${uid}" data-val="0">Quitar todas</button></div>`);
         exs.forEach(e=>{
@@ -6273,8 +6354,9 @@ async function openPublicar(okMsg){
         </div>`);
     });
   });
-  if(!any) h.push(`<div class="center-msg" style="padding:18px">No hay exámenes todavía.</div>`);
+  if(!any) h.push(`<div class="center-msg" style="padding:18px">No hay ${esAula?'materias':'unidades'} todavía.</div>`);
   $('teacher').innerHTML=h.join('');
+  $('teacher').querySelectorAll('.est-b').forEach(b=> b.onclick=()=>setEstadoUI(b.dataset.uid,b.dataset.est));
   $('teacher').querySelectorAll('[data-pub]').forEach(b=> b.onclick=()=>togglePublicado(b));
   $('teacher').querySelectorAll('[data-tem]').forEach(b=> b.onclick=()=>toggleTemarioVisible(b));
   $('teacher').querySelectorAll('[data-extra]').forEach(b=> b.onclick=()=>toggleExtra(b));
@@ -6518,6 +6600,7 @@ function temaLabelGlobal(t){
 }
 
 async function openExamMgmt(){
+  window._teacherScreen='examgmt';
   const units=unidadesParaCrearExamen();
   builder={mode:'auto',kind:'test',unidad:units[0]||'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
   showView('teacher'); window.scrollTo(0,0);
@@ -6909,6 +6992,7 @@ async function crearRedUI(){
   captureFields(); captureRed();
   const items=builder.redItems.map(it=>({enun:((it&&it.enun)||'').trim(), file:(it&&it.file)||null, matMode:(it&&it.matMode)||'inline'})).filter(x=>x.enun);
   if(!items.length){ renderExamMgmt(null,'Añade al menos una pregunta.'); return; }
+  const vis=await pedirVisibilidad(); if(vis===null) return;
   const btn=$('red-create'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
   try{
     const folder='red/'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
@@ -6927,9 +7011,11 @@ async function crearRedUI(){
     })});
     const nuevo={id:(typeof id==='string'?id:(id&&id[0])||'prof-x'),unidad:builder.unidad,numero:'R',titulo:builder.titulo||'Examen de redacción',tema:'Redacción',nivel:builder.nivel,orden:8000,tipo:'redaccion',material_url:examUrl,material_modo:examMode};
     (examsByUnit[builder.unidad]=examsByUnit[builder.unidad]||[]).push(nuevo);
+    const visible = vis==='si';
+    try{ await call('/rest/v1/rpc/set_examen_publicado',{method:'POST',body:impProf({p_examen_id:nuevo.id, p_publicado:visible})}); nuevo.publicado=visible; }catch(_){}
     builder.titulo=''; builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}]; builder.cuentaFinal=false;
     builder.examFile=null; builder.examMatName=''; builder.examMatMode='inline';
-    renderExamMgmt('✅ Examen de redacción creado. Ya aparece para el alumnado.');
+    renderExamMgmt(visible ? '✅ Examen de redacción creado. Ya aparece para el alumnado.' : '✅ Examen de redacción creado (oculto). Actívalo en «Exámenes y estados» cuando quieras.');
   }catch(err){ if(btn){ btn.disabled=false; btn.textContent='Crear examen de redacción'; } renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
 }
 
@@ -7011,32 +7097,55 @@ function addBankSelected(){
   builder.picking=false; renderExamMgmt();
 }
 
+// Pregunta si publicar el examen recién creado. Devuelve 'si' | 'no' | null (cancelar).
+async function pedirVisibilidad(){
+  return await appPicker('¿Publicar el examen para el alumnado?', [
+    {label:'Sí, visible', sub:'El alumno lo verá al momento', value:'si'},
+    {label:'No, dejarlo oculto', sub:'Podrás activarlo luego en «Exámenes y estados»', value:'no'}
+  ]);
+}
+// Fija la visibilidad de los exámenes nuevos de una unidad (los que no estaban antes de crear).
+async function fijarVisibilidadNuevos(unidad, antesIds, visible){
+  const nuevos=(examsByUnit[unidad]||[]).filter(e=>!antesIds.has(String(e.id)));
+  for(const e of nuevos){
+    try{ await call('/rest/v1/rpc/set_examen_publicado',{method:'POST',body:impProf({p_examen_id:e.id, p_publicado:!!visible})}); e.publicado=!!visible; }
+    catch(_){}
+  }
+}
 async function crearAutoUI(){
   captureFields();
+  const vis=await pedirVisibilidad(); if(vis===null) return;
   const btn=$('ce-btn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
   try{
+    const antes=new Set((examsByUnit[builder.unidad]||[]).map(e=>String(e.id)));
     const body={p_unidad:builder.unidad,p_titulo:builder.titulo||'Examen del profesor',p_nivel:builder.nivel,p_n:builder.n,p_cuenta_final:builder.cuentaFinal};
     if(builder.tema) body.p_tema=builder.tema;
     await call('/rest/v1/rpc/crear_examen',{method:'POST',body:impProf(body)});
     await refrescarExamenes();
+    await fijarVisibilidadNuevos(builder.unidad, antes, vis==='si');
     builder.cuentaFinal=false;
     const temaTxt=builder.tema?(' · '+builder.tema):'';
-    renderExamMgmt(`Examen creado: "${builder.titulo||'Examen del profesor'}" · ${unidadesById[builder.unidad]?unidadesById[builder.unidad].codigo:builder.unidad}${temaTxt} · ${builder.n} preguntas.`);
+    const ocultoTxt = vis==='si' ? '' : ' · (oculto — actívalo en «Exámenes y estados»)';
+    renderExamMgmt(`Examen creado: "${builder.titulo||'Examen del profesor'}" · ${unidadesById[builder.unidad]?unidadesById[builder.unidad].codigo:builder.unidad}${temaTxt} · ${builder.n} preguntas.${ocultoTxt}`);
   }catch(err){ renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
 }
 async function crearMedidaUI(){
   captureFields();
   if(!builder.items.length){ appAlert('Añade al menos una pregunta.'); return; }
+  const vis=await pedirVisibilidad(); if(vis===null) return;
   const payload=builder.items.map(it=> it.tipo==='nueva'
     ? {tipo:'nueva',enunciado:it.enunciado,opciones:it.opciones,correcta:it.correcta,explicacion:it.explicacion||''}
     : {tipo:'banco',id:it.id});
   const btn=$('cm-btn'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
   try{
+    const antes=new Set((examsByUnit[builder.unidad]||[]).map(e=>String(e.id)));
     await call('/rest/v1/rpc/crear_examen_medida',{method:'POST',body:impProf({p_unidad:builder.unidad,p_titulo:builder.titulo||'Examen del profesor',p_nivel:builder.nivel,p_preguntas:payload,p_cuenta_final:builder.cuentaFinal})});
     await refrescarExamenes();
+    await fijarVisibilidadNuevos(builder.unidad, antes, vis==='si');
     const titulo=builder.titulo||'Examen del profesor', nq=builder.items.length;
     builder.items=[]; builder.adding=false; builder.picking=false; builder.cuentaFinal=false;
-    renderExamMgmt(`Examen a medida creado: "${titulo}" · ${nq} pregunta${nq!==1?'s':''}.`);
+    const ocultoTxt = vis==='si' ? '' : ' · (oculto — actívalo en «Exámenes y estados»)';
+    renderExamMgmt(`Examen a medida creado: "${titulo}" · ${nq} pregunta${nq!==1?'s':''}.${ocultoTxt}`);
   }catch(err){ if(btn){ btn.disabled=false; } renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
 }
 async function borrarExamenUI(id){
@@ -7173,6 +7282,7 @@ async function exportIntentosCSV(){
 // ---- Gestión de alumnos (autorizaciones) ----
 // ============ CORRECCIONES (profesor) ============
 async function openCorrecciones(okMsg){
+  window._teacherScreen='correcciones';
   showView('teacher'); window.scrollTo(0,0);
   $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="loader"><span class="spin"></span></div>';
   let rows=[], err=null;
@@ -7232,9 +7342,6 @@ function crPromptTexto(){
   });
   return `Actúa como el profesor que corrige este examen de redacción.
 
-ADJUNTO
-Te adjunto el PDF con el examen resuelto (la plantilla del profesor). Úsalo como referencia de lo que se considera correcto. Si no hay PDF adjunto, dímelo y corrige solo con los criterios de abajo.
-
 CRITERIOS DE CORRECCIÓN DEL PROFESOR
 ${crit||'(el profesor no ha indicado criterios: corrige por contenido, precisión y expresión)'}
 ${reparto}
@@ -7256,7 +7363,7 @@ REGLAS
 - Devuelve solo el texto corregido y la nota, sin explicaciones previas.`;
 }
 async function crCopiarPrompt(){
-  try{ await navigator.clipboard.writeText(crPromptTexto()); appAlert('Prompt copiado.\n\nÁbrelo en Claude o Gemini, ADJUNTA el PDF del examen resuelto y pega el prompt.'); }
+  try{ await navigator.clipboard.writeText(crPromptTexto()); appAlert('Prompt copiado.\n\nÁbrelo en Claude o Gemini y pega el prompt. Ya lleva dentro la respuesta modelo y los criterios: no hace falta adjuntar ningún PDF.'); }
   catch(e){ appAlert('No se pudo copiar. Usa Compartir.'); }
 }
 async function crCompartirPrompt(){
@@ -7264,21 +7371,26 @@ async function crCompartirPrompt(){
   if(navigator.share){ try{ await navigator.share({text:t}); return; }catch(e){} }
   crCopiarPrompt();
 }
-// Pinta una corrección: el texto del alumno en negro y lo que va entre [[ ]]
-// en rojo con letra manuscrita. La usan la vista previa del profesor y el alumno.
+// Pinta una corrección INTERCALADA: el texto del alumno en negro y, justo debajo
+// del párrafo que corrige, la anotación del profesor (lo que va entre [[ ]]) en
+// azul y con letra manuscrita. La usan la vista previa del profesor y el alumno.
 function pintarCorreccion(txt, nota){
   let t=String(txt||'');
   const m=t.match(/NOTA:\s*([\d.,]+)\s*\/\s*10/i);
   if(m) t=t.replace(m[0],'').trim();
-  // Se separa lo que escribió el alumno de lo que anotó el profesor: arriba su
-  // respuesta limpia, debajo la corrección. Nada de rojo sobre el texto del alumno.
-  const notas=[];
-  t.replace(/\[\[([\s\S]*?)\]\]/g,(_,c)=>{ const v=String(c).trim(); if(v) notas.push(v); return ''; });
-  const alumno=t.replace(/\[\[[\s\S]*?\]\]/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
-  let html='';
-  if(alumno) html+=`<div class="ia-bloque"><div class="ia-rot">Tu respuesta</div><div class="ia-alum">${escHtml(alumno)}</div></div>`;
-  if(notas.length) html+=`<div class="ia-bloque"><div class="ia-rot">Corrección</div>${notas.map(n=>`<p class="ia-corr">${escHtml(n)}</p>`).join('')}</div>`;
-  if(!html) html='';
+  const emitAlum=(s)=>{
+    const v=String(s).replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+    return v ? `<div class="ia-alum">${escHtml(v).replace(/\n/g,'<br>')}</div>` : '';
+  };
+  let cuerpo=''; let last=0; const re=/\[\[([\s\S]*?)\]\]/g; let mm;
+  while((mm=re.exec(t))){
+    cuerpo+=emitAlum(t.slice(last, mm.index));
+    const c=String(mm[1]).trim();
+    if(c) cuerpo+=`<p class="ia-corr">${escHtml(c)}</p>`;
+    last=re.lastIndex;
+  }
+  cuerpo+=emitAlum(t.slice(last));
+  let html = cuerpo ? `<div class="ia-bloque ia-inter">${cuerpo}</div>` : '';
   if(nota!=null&&nota!==''&&!isNaN(nota)) html+=`<span class="ia-nota">${nota}/10</span>`;
   return html;
 }
@@ -7464,7 +7576,7 @@ function crTabIA(e){
 
     <label style="margin-top:18px">3 · Criterios de corrección (lo que le dirías tú a la IA)</label>
     <textarea id="cr-crit" rows="4" placeholder="Ej.: valora contenido sobre forma; penaliza las faltas de ortografía hasta 1 punto…"></textarea>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 10px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini, <b>adjunta ahí el PDF del examen resuelto</b> si lo hay, y pega el prompt. Después trae la respuesta aquí abajo.</p>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 10px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini y pégalo. Ya lleva dentro la respuesta modelo y los criterios: <b>no hace falta adjuntar ningún PDF</b>. Después trae la respuesta aquí abajo.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="gx-mini" onclick="crCopiarPrompt()" style="flex:1;padding:10px">📋 Copiar prompt</button>
       <button class="gx-mini" onclick="crCompartirPrompt()" style="flex:1;padding:10px">📤 Compartir</button>
@@ -8024,7 +8136,7 @@ function acExportNotasCSV(){
   }catch(err){ appAlert('No se pudo exportar: '+(err.message||'')); }
 }
 
-function openAlumnos(okMsg){ showView('teacher'); window.scrollTo(0,0); renderAlumnosShell(okMsg); }
+function openAlumnos(okMsg){ window._teacherScreen='alumnos'; showView('teacher'); window.scrollTo(0,0); renderAlumnosShell(okMsg); }
 function setAlumnosTab(t){ alumnosTab=t; openAlumnos(); }
 function alumnosHeader(){
   if(window._acadModo){
@@ -8282,25 +8394,8 @@ async function reautorizarAlumnoUI(email,nombre){
 
 // ---- Semáforo de estados (módulos / UF) ----
 function openEstados(okMsg){
-  showView('teacher'); window.scrollTo(0,0);
-  const esAula = window._activeCertId==='__aula_abierta';
-  const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
-  h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">${esAula?'Estados de materias':'Estados de módulos y UF'}</h1>`);
-  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px"><b>Activo</b> y <b>Terminado</b> los ve el alumno y puede trabajar. <b>Próximamente</b> queda bloqueado: tú vas añadiendo material y se publica cuando lo actives.</p>`);
-  if(okMsg) h.push(`<div class="t-note ok">${okMsg}</div>`);
-  getModulos().forEach(m=>{
-    const me=moduleEstado(m);
-    h.push(`<div class="est-mod">${m.code} · ${m.title} <span class="chip state ${estCls(me)}" data-modchip="${m.id}">${estLabel(me)}</span></div>`);
-    m.unidades.forEach(uid=>{
-      const u=unidadesById[uid];
-      const codigo = u ? u.codigo : uid.toUpperCase();
-      const titulo = (u&&u.titulo) ? tituloMateria(u) : (UF_TITULOS[uid]||'');
-      const est=unitEstado(uid);
-      h.push(`<div class="est-row"><div class="est-name">${escHtml(codigo)}${titulo?' · '+escHtml(titulo):''}</div><div class="est-seg">${['activo','terminado','proximamente'].map(s=>`<button class="est-b ${s}${est===s?' on':''}" data-uid="${uid}" data-est="${s}">${estLabel(s)}</button>`).join('')}</div></div>`);
-    });
-  });
-  $('teacher').innerHTML=h.join('');
-  $('teacher').querySelectorAll('.est-b').forEach(b=> b.onclick=()=>setEstadoUI(b.dataset.uid,b.dataset.est));
+  // Estados y Exámenes visibles están unificados en una sola pantalla.
+  return openPublicar(okMsg);
 }
 async function setEstadoUI(uid, est){
   const prev=unitEstado(uid);
@@ -8706,7 +8801,7 @@ async function openAATemas(unitId){
   $('unit').innerHTML=head+'<div class="loader"><span class="spin"></span></div>';
 
   let temas=[];
-  try{ temas=await call('/rest/v1/rpc/aa_temas_listar',{method:'POST',body:impProf({p_unidad:unitId})})||[]; }
+  try{ temas=_temasProgPrimero(await call('/rest/v1/rpc/aa_temas_listar',{method:'POST',body:impProf({p_unidad:unitId})})||[]); }
   catch(err){
     $('unit').innerHTML=head+`<div class="center-msg">No se pudieron cargar los temas.<br><small>${escHtml(err.message||'')}</small></div>`;
     return;
@@ -8818,6 +8913,7 @@ function openUnit(unitId){
   current.unit=unitId;
   const u=unidadesById[unitId];
   const staff=isStaff();
+  if(staff) window._teacherScreen='unit';
   const temaSel=esAulaAbierta()?window._aaTema:null;
   const list=(examsByUnit[unitId]||[])
     .filter(e=> staff || e.publicado)
@@ -9518,6 +9614,8 @@ function pdfMiRedaccion(entrega){
   const fecha=new Date();
   const nota=(entrega.nota!=null)?(+entrega.nota).toFixed(1):null;
   const prev={}; (Array.isArray(entrega.respuestas)?entrega.respuestas:[]).forEach(r=>{ prev[r.pregunta_id]=r.texto||''; });
+  // ¿Hay corrección intercalable? (corregido + comentario con anotaciones [[ ]])
+  const _corrInter = !!(entrega && entrega.estado==='corregido' && entrega.comentario && /\[\[[\s\S]*?\]\]/.test(entrega.comentario));
   let y=M, pagina=0;
 
   function cabecera(nueva){
@@ -9565,27 +9663,36 @@ function pdfMiRedaccion(entrega){
     doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
     enun.forEach(l=>{ if(y>PH-18) cabecera(true); doc.text(l,M+7,y); y+=5; });
     y+=3;
-    bloque('Tu respuesta', prev[q.pregunta_id]||'(sin respuesta)', false);
+    if(!_corrInter) bloque('Tu respuesta', prev[q.pregunta_id]||'(sin respuesta)', false);
     doc.setDrawColor(LIGHT[0],LIGHT[1],LIGHT[2]);doc.setLineWidth(0.25);
     if(y<PH-18){ doc.line(M,y,PW-M,y); y+=6; }
   });
 
   if(entrega.comentario){
     const t=String(entrega.comentario).replace(/NOTA:\s*[\d.,]+\s*\/\s*10/i,'').trim();
-    const notas=[]; t.replace(/\[\[([\s\S]*?)\]\]/g,(_,c)=>{ const v=String(c).trim(); if(v) notas.push(v); return ''; });
-    const suelto=t.replace(/\[\[[\s\S]*?\]\]/g,'').trim();
-    if(notas.length||suelto){
+    if(t){
       if(y+14>PH-16) cabecera(true);
       doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
       doc.text('Correccion del profesor',M,y); y+=3.5;
       doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=7;
-      (notas.length?notas:[suelto]).forEach(nt=>{
-        const l=doc.splitTextToSize(pdfSafe(nt),ANCHO-7);
-        if(y+l.length*5>PH-16) cabecera(true);
-        doc.setFont('helvetica','italic');doc.setFontSize(9.5);doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
-        l.forEach(x=>{ if(y>PH-18) cabecera(true); doc.text(x,M+7,y); y+=5; });
-        y+=4;
-      });
+      // Texto del alumno (normal) con las anotaciones del profesor (cursiva azul)
+      // intercaladas justo debajo del párrafo que corrigen.
+      const emit=(s,ital)=>{
+        const clean=String(s).replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+        if(!clean) return;
+        const lines=doc.splitTextToSize(pdfSafe(clean),ANCHO-7);
+        doc.setFont('helvetica',ital?'italic':'normal');doc.setFontSize(9.5);
+        doc.setTextColor(ital?NAVY[0]:DARK[0],ital?NAVY[1]:DARK[1],ital?NAVY[2]:DARK[2]);
+        lines.forEach(x=>{ if(y>PH-18) cabecera(true); doc.text(x,M+7,y); y+=5; });
+        y+= ital?3:1.5;
+      };
+      if(!/\[\[[\s\S]*?\]\]/.test(t)){
+        emit(t,true); // comentario libre del profesor: todo en cursiva azul
+      }else{
+        let last=0; const re=/\[\[([\s\S]*?)\]\]/g; let mm;
+        while((mm=re.exec(t))){ emit(t.slice(last,mm.index),false); emit(mm[1],true); last=re.lastIndex; }
+        emit(t.slice(last),false);
+      }
     }
   }
 
