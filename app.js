@@ -820,7 +820,7 @@ let temarioByUnit={};
 async function cargarTemario(){
   temarioByUnit={};
   try{
-    const rows=await call('/rest/v1/temario?select=*&order=creado_en.desc')||[];
+    const rows=await call('/rest/v1/temario?select=*&order=creado_en.asc')||[];
     rows.forEach(r=>{ (temarioByUnit[r.unidad]=temarioByUnit[r.unidad]||[]).push(r); });
   }catch(e){}
 }
@@ -6849,6 +6849,13 @@ async function pdfExamenPapel(examId){
   catch(err){ appAlert('No se pudieron cargar las preguntas: '+(err.message||'')); return; }
   if(!qs.length){ appAlert('Este examen no tiene preguntas.'); return; }
   const esRed = ex.tipo==='redaccion';
+  if(esRed){
+    try{
+      const mats=await call('/rest/v1/rpc/obtener_redaccion_profesor',{method:'POST',body:{p_examen_id:examId}})||[];
+      const mapM={}; mats.forEach(m=>{ if(m&&m.pregunta_id!=null) mapM[m.pregunta_id]=m.material_url||null; });
+      qs.forEach(q=>{ if(!q.material_url && q.pregunta_id!=null && mapM[q.pregunta_id]) q.material_url=mapM[q.pregunta_id]; });
+    }catch(_){}
+  }
   const conSol = esRed ? false : await appConfirm('¿Añadir al final la hoja de soluciones?\n\nAceptar = con soluciones (para ti).\nCancelar = sin soluciones (para repartir en clase).');
 
   const { jsPDF }=window.jspdf;
@@ -6893,7 +6900,9 @@ async function pdfExamenPapel(examId){
   function hueco(alto){ if(y+alto>PH-16) cabecera(true); }
 
   cabecera(false);
-  qs.forEach((q,i)=>{
+  if(esRed && ex.material_url){ y=await pdfAddMaterial(doc, ex.material_url, y, M, ANCHO, PH); }
+  for(let i=0;i<qs.length;i++){
+    const q=qs[i];
     const enun=doc.splitTextToSize(pdfSafe(String(q.enunciado||'').replace(/^[ \t]+/gm,'').trim()),ANCHO-8);
     const ops=Array.isArray(q.opciones)?q.opciones:[];
     let altoOps=0;
@@ -6904,6 +6913,7 @@ async function pdfExamenPapel(examId){
     doc.text(String(i+1)+'.',M,y);
     enun.forEach((l,li)=>{ doc.setFont('helvetica',li===0?'bold':'normal'); doc.text(l,M+7,y); y+=5; });
     y+=1.5;
+    if(esRed && q.material_url){ y=await pdfAddMaterial(doc, q.material_url, y, M, ANCHO, PH); }
     if(esRed){
       doc.setDrawColor(LIGHT[0],LIGHT[1],LIGHT[2]);doc.setLineWidth(0.25);
       for(let r=0;r<9;r++){ if(y>PH-20) cabecera(true); doc.line(M+7,y,PW-M,y); y+=8; }
@@ -6923,7 +6933,7 @@ async function pdfExamenPapel(examId){
       });
       y+=4;
     }
-  });
+  }
 
   if(conSol){
     doc.addPage(); pagina++; y=M;
@@ -7447,6 +7457,19 @@ async function openEntrega(id){
   }
 }
 let crEnt=null, crTab='manual';
+// Carga el material (PDF con fotos) del examen que se está corrigiendo, para
+// mostrarlo también en la pantalla de corrección del profesor.
+async function _crCargarMaterial(e){
+  window._crMat={ex:null,q:{}};
+  try{
+    const all=[].concat(...Object.values(examsByUnit||{}));
+    const ex=all.find(x=>(x.titulo||'').trim()===((e&&e.examen)||'').trim());
+    if(!ex) return;
+    window._crMat.ex=ex.material_url||null;
+    const mats=await call('/rest/v1/rpc/obtener_redaccion_profesor',{method:'POST',body:{p_examen_id:ex.id}})||[];
+    mats.forEach(m=>{ if(m&&m.pregunta_id!=null) window._crMat.q[m.pregunta_id]=m.material_url||null; });
+  }catch(_){}
+}
 function crSetTab(t){ crTab=t; renderEntrega(crEnt); }
 function crPromptTexto(){
   const e=crEnt||{}; const resp=Array.isArray(e.respuestas)?e.respuestas:[];
@@ -7493,8 +7516,55 @@ async function crCopiarPrompt(){
 }
 async function crCompartirPrompt(){
   const t=crPromptTexto();
-  if(navigator.share){ try{ await navigator.share({text:t}); return; }catch(e){} }
+  const files=[];
+  if(window._crFotos && window._crFotosSel && window._crFotosSel.size){
+    for(const i of window._crFotosSel){
+      const f=window._crFotos[i]; if(!f) continue;
+      try{ const blob=await (await fetch(f.data)).blob(); files.push(new File([blob], f.name||('foto'+(i+1)+'.jpg'), {type:blob.type||'image/jpeg'})); }catch(_){}
+    }
+  }
+  if(navigator.share){
+    try{
+      if(files.length && navigator.canShare && navigator.canShare({files})){ await navigator.share({text:t, files}); return; }
+      await navigator.share({text:t}); return;
+    }catch(e){ if(e && e.name==='AbortError') return; }
+  }
   crCopiarPrompt();
+}
+// Fotos del ejercicio (renderizadas desde los PDF de material) para adjuntarlas
+// a la IA con «Compartir», sin buscarlas en el móvil.
+async function crPintarFotos(){
+  const box=$('cr-fotos-box'); if(!box) return;
+  const urls=[];
+  if(window._crMat){
+    if(window._crMat.ex) urls.push(window._crMat.ex);
+    Object.values(window._crMat.q||{}).forEach(u=>{ if(u) urls.push(u); });
+  }
+  if(!urls.length){ box.innerHTML=''; return; }
+  if(window._crFotosFor!==crEnt.id || !window._crFotos){
+    window._crFotosFor=crEnt.id; window._crFotos=[]; window._crFotosSel=new Set();
+    box.innerHTML='<div style="font-size:.72rem;color:var(--ink-soft);padding:6px"><span class="spin"></span> Preparando fotos del ejercicio…</div>';
+    for(const u of urls){
+      const imgs=await pdfMaterialImagenes(u);
+      imgs.forEach(im=>{ window._crFotos.push({data:im.data, name:'foto'+(window._crFotos.length+1)+'.jpg'}); });
+    }
+  }
+  crRenderFotos();
+}
+function crRenderFotos(){
+  const box=$('cr-fotos-box'); if(!box) return;
+  if(!window._crFotos || !window._crFotos.length){ box.innerHTML=''; return; }
+  const sel=window._crFotosSel||new Set();
+  box.innerHTML='<div style="font-size:.72rem;font-weight:700;color:var(--navy);margin:2px 0 6px">📎 Fotos del ejercicio · toca las que quieras enviar a la IA</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + window._crFotos.map((f,i)=>`<button type="button" onclick="crToggleFoto(${i})" style="border:2px solid ${sel.has(i)?'var(--honey)':'var(--line)'};border-radius:10px;padding:2px;background:#fff;cursor:pointer;position:relative;width:74px;height:74px;overflow:hidden"><img src="${f.data}" style="width:100%;height:100%;object-fit:cover;border-radius:7px" alt=""/>${sel.has(i)?'<span style="position:absolute;top:2px;right:2px;background:var(--honey);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.7rem;display:flex;align-items:center;justify-content:center">✓</span>':''}</button>`).join('')
+    +'</div>'
+    +(sel.size?`<div style="font-size:.68rem;color:#15803d;font-weight:700;margin-top:6px">${sel.size} foto${sel.size!==1?'s':''} seleccionada${sel.size!==1?'s':''} · se adjuntarán al pulsar «Compartir con la IA»</div>`:'');
+}
+function crToggleFoto(i){
+  if(!window._crFotosSel) window._crFotosSel=new Set();
+  if(window._crFotosSel.has(i)) window._crFotosSel.delete(i); else window._crFotosSel.add(i);
+  crRenderFotos();
 }
 // Pinta una corrección INTERCALADA: el texto del alumno en negro y, justo debajo
 // del párrafo que corrige, la anotación del profesor (lo que va entre [[ ]]) en
@@ -7678,7 +7748,9 @@ function crRecalc(){
 function crUsarPonderada(){
   const r=crNotaPonderada();
   if(r.nota==null){ appAlert('Pon primero la nota de cada apartado.'); return; }
-  const c=$('cr-ia-notaprof'); if(c){ c.value=Math.round(r.nota*100)/100; crPreview(); }
+  const val=Math.round(r.nota*100)/100;
+  const c=$('cr-ia-notaprof'); if(c){ c.value=val; crPreview(); return; }
+  const m=$('cr-nota'); if(m){ m.value=val; }
 }
 function crGuardarPartidasDef(){
   const ps=crLeerPartidas().map(x=>({t:x.t,p:x.p}));
@@ -7709,10 +7781,11 @@ function crTabIA(e){
 
     <label style="margin-top:18px">3 · Criterios de corrección (lo que le dirías tú a la IA)</label>
     <textarea id="cr-crit" rows="4" placeholder="Ej.: valora contenido sobre forma; penaliza las faltas de ortografía hasta 1 punto…"></textarea>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 10px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini y pégalo. Ya lleva dentro la respuesta modelo y los criterios: <b>no hace falta adjuntar ningún PDF</b>. Después trae la respuesta aquí abajo.</p>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 8px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini y pégalo. Ya lleva dentro la respuesta modelo y los criterios. Si el ejercicio tiene fotos, selecciónalas abajo y al pulsar <b>Compartir con la IA</b> se adjuntan solas (no hace falta buscarlas en el móvil).</p>
+    <div id="cr-fotos-box" style="margin:0 0 10px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="gx-mini" onclick="crCopiarPrompt()" style="flex:1;padding:10px">📋 Copiar prompt</button>
-      <button class="gx-mini" onclick="crCompartirPrompt()" style="flex:1;padding:10px">📤 Compartir</button>
+      <button class="gx-mini" onclick="crCompartirPrompt()" style="flex:1;padding:10px">📤 Compartir con la IA</button>
     </div>
     <label style="margin-top:16px">4 · Pega aquí la corrección de la IA</label>
     <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 6px;line-height:1.5">Pega tal cual lo que te devuelva la IA: el texto del alumno con tus anotaciones entre [[ ]] y, en la última línea, <b>NOTA: X/10</b>. Debajo verás la vista previa de cómo le quedará al alumno.</p>
@@ -7731,13 +7804,19 @@ function crTabIA(e){
 }
 function renderEntrega(e){
   crEnt=e;
+  if(window._crMatFor!==e.id){
+    window._crMatFor=e.id;
+    _crCargarMaterial(e).then(()=>{ if(crEnt&&crEnt.id===e.id) renderEntrega(e); });
+  }
   const resp=Array.isArray(e.respuestas)?e.respuestas:[];
   const h=[`<button class="backbtn" onclick="openCorrecciones()">← Correcciones</button>`];
   h.push(`<h1 style="font-size:1.18rem;font-weight:800;letter-spacing:-.3px;margin:6px 0 2px;color:var(--navy)">${escHtml(e.nombre||e.alumno)}</h1>`);
   h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:16px">${escHtml(e.examen)} · ${fmtFecha(e.creado_en)} · ${e.estado==='corregido'?'Ya corregido':'Pendiente'}</p>`);
+  if(window._crMat&&window._crMat.ex) h.push(materialViewerHtml(window._crMat.ex,'inline',''));
   resp.forEach((r,i)=>{
     const txt=(r.texto||'').trim();
-    h.push(`<div class="red-q"><div class="rq-num">Pregunta ${i+1}</div><div class="rq-txt" style="white-space:pre-wrap">${escHtmlNL(r.enunciado)}</div><div class="ans-box">${txt?escHtml(txt):'<i style="color:var(--ink-soft)">(sin respuesta)</i>'}</div></div>`);
+    const matQ=(window._crMat&&window._crMat.q)?window._crMat.q[r.pregunta_id]:null;
+    h.push(`<div class="red-q"><div class="rq-num">Pregunta ${i+1}</div><div class="rq-txt" style="white-space:pre-wrap">${escHtmlNL(r.enunciado)}</div>${matQ?materialViewerHtml(matQ,'inline',''):''}<div class="ans-box">${txt?escHtml(txt):'<i style="color:var(--ink-soft)">(sin respuesta)</i>'}</div></div>`);
   });
   h.push(`<div class="t-toggle" style="margin:18px 0 12px">
     <button class="${crTab==='manual'?'on':''}" onclick="crSetTab('manual')">✍️ Corrección manual</button>
@@ -7745,15 +7824,17 @@ function renderEntrega(e){
   </div>`);
   if(crTab==='ia'){ h.push(crTabIA(e)); }
   else{
-    h.push(`<div class="t-card"><label style="margin-top:6px">Nota (0 a 10)</label><input id="cr-nota" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="${e.nota!=null?(+e.nota):''}" placeholder="Ej.: 7.5"><label>Comentario para el alumno (opcional)</label><p style="font-size:.7rem;color:var(--ink-soft);margin:0 0 6px">Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá en azul y con letra manuscrita.</p><textarea id="cr-com" rows="6" placeholder="Observaciones, correcciones…">${escHtml(e.comentario||'')}</textarea><button class="btn btn-honey" id="cr-save" style="margin-top:16px">${e.estado==='corregido'?'Actualizar nota':'Guardar nota'}</button>${e.estado==='reabierto'?'':`<button class="btn btn-ghost" id="cr-reopen" style="margin-top:10px">↻ Permitir repetir al alumno</button>`}</div>`);
+    h.push(`<div class="t-card"><details style="margin:2px 0 14px;border:1px solid var(--line);border-radius:10px;padding:8px 12px"><summary style="font-size:.82rem;font-weight:700;color:var(--navy);cursor:pointer">📊 Reparto de la nota (opcional)</summary><p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0;line-height:1.5">Pon el peso de cada apartado y su nota de 0 a 10; se calcula la nota ponderada y puedes pasarla a la nota final.</p><div id="cr-pt-rows"></div><div style="display:flex;gap:8px;margin-top:4px"><button type="button" class="gx-mini" onclick="document.getElementById('cr-pt-rows').appendChild(crFilaPartida('',0,''));crRecalc()" style="flex:1;padding:9px">+ Apartado</button><button type="button" class="gx-mini" onclick="crGuardarPartidasDef()" style="flex:1;padding:9px">💾 Predeterminado</button></div><div id="cr-pt-res" style="font-size:.76rem;line-height:1.6;margin-top:10px;background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:10px 12px"></div><button type="button" class="gx-mini" onclick="crUsarPonderada()" style="width:100%;padding:10px;margin-top:8px">Usar esta nota como nota final</button></details><label style="margin-top:6px">Nota (0 a 10)</label><input id="cr-nota" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="${e.nota!=null?(+e.nota):''}" placeholder="Ej.: 7.5"><label>Comentario para el alumno (opcional)</label><p style="font-size:.7rem;color:var(--ink-soft);margin:0 0 6px">Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá en azul y con letra manuscrita.</p><textarea id="cr-com" rows="6" placeholder="Observaciones, correcciones…">${escHtml(e.comentario||'')}</textarea><button class="btn btn-honey" id="cr-save" style="margin-top:16px">${e.estado==='corregido'?'Actualizar nota':'Guardar nota'}</button>${e.estado==='reabierto'?'':`<button class="btn btn-ghost" id="cr-reopen" style="margin-top:10px">↻ Permitir repetir al alumno</button>`}</div>`);
   }
   $('teacher').innerHTML=h.join('');
+  $('teacher').querySelectorAll('.pdf-embed').forEach(embedPdf);
   if($('cr-save')) $('cr-save').onclick=()=>guardarNotaUI(e.id);
   if($('cr-reopen')) $('cr-reopen').onclick=()=>reabrirEntregaUI(e.id);
   if($('cr-ia-out')){ $('cr-ia-out').oninput=crPreview; }
   if($('cr-ia-notaprof')) $('cr-ia-notaprof').oninput=crPreview;
   if($('cr-ia-prev')) crPreview();
   if($('cr-pt-rows')) crPintarPartidas();
+  if($('cr-fotos-box')) crPintarFotos();
   if($('cr-modelo')){ crPintarModelos(); if(!crBanco.length) crCargarBanco(); }
 }
 async function reabrirEntregaUI(id){
@@ -9758,6 +9839,42 @@ function verMaterialExamen(url){
 }
 function cerrarMaterialExamen(){ const ov=document.getElementById('mat-overlay'); if(ov) ov.remove(); }
 
+// Renderiza el PDF de material a imágenes JPEG (una por página) para poder
+// incrustarlas en un jsPDF (examen para imprimir y examen corregido).
+async function pdfMaterialImagenes(url){
+  const out=[];
+  if(!url) return out;
+  try{
+    const lib=await gxCargarPdfJs();
+    const buf=await (await fetch(url)).arrayBuffer();
+    const pdf=await lib.getDocument({data:buf}).promise;
+    const np=Math.min(pdf.numPages,10);
+    for(let i=1;i<=np;i++){
+      const pg=await pdf.getPage(i);
+      const vp=pg.getViewport({scale:2});
+      const cv=document.createElement('canvas');
+      cv.width=vp.width; cv.height=vp.height;
+      await pg.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+      out.push({data:cv.toDataURL('image/jpeg',0.82), w:vp.width, h:vp.height});
+    }
+  }catch(e){}
+  return out;
+}
+// Añade las imágenes del material a un jsPDF desde la posición y, con saltos de
+// página simples. Devuelve la nueva y.
+async function pdfAddMaterial(doc, url, y, M, ANCHO, PH){
+  const imgs=await pdfMaterialImagenes(url);
+  for(const im of imgs){
+    let w=ANCHO*0.72, h=w*(im.h/im.w);
+    const maxH=PH-42;
+    if(h>maxH){ h=maxH; w=h*(im.w/im.h); }
+    if(y+h>PH-14){ doc.addPage(); y=18; }
+    try{ doc.addImage(im.data,'JPEG', M+(ANCHO-w)/2, y, w, h); }catch(e){}
+    y+=h+5;
+  }
+  return y;
+}
+
 function materialViewerHtml(url, modo, label){
   if(!url) return '';
   // Siempre INCRUSTADO en la pantalla del alumno con pdf.js. Nunca abre fuera
@@ -9800,7 +9917,7 @@ function embedAllPdfs(root){
   (root||document).querySelectorAll('.pdf-embed[data-url]').forEach(el=>{ if(!el._done){ el._done=true; embedPdf(el); } });
 }
 // ---- El alumno se descarga su examen de redacción ya corregido ----
-function pdfMiRedaccion(entrega){
+async function pdfMiRedaccion(entrega){
   if(!window.jspdf){ appAlert('No se pudo cargar el generador de PDF. Comprueba tu conexión.'); return; }
   if(!entrega){ appAlert('No hay nada que descargar todavía.'); return; }
   const { jsPDF }=window.jspdf;
@@ -9854,7 +9971,10 @@ function pdfMiRedaccion(entrega){
   }
 
   cabecera(false);
-  (redCurrent.preguntas||[]).forEach((q,i)=>{
+  if(redCurrent.material_url){ y=await pdfAddMaterial(doc, redCurrent.material_url, y, M, ANCHO, PH); }
+  const _preg=(redCurrent.preguntas||[]);
+  for(let i=0;i<_preg.length;i++){
+    const q=_preg[i];
     const enun=doc.splitTextToSize(pdfSafe(String(q.enunciado||'').trim()),ANCHO-7);
     if(y+enun.length*5+16>PH-16) cabecera(true);
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
@@ -9862,10 +9982,11 @@ function pdfMiRedaccion(entrega){
     doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
     enun.forEach(l=>{ if(y>PH-18) cabecera(true); doc.text(l,M+7,y); y+=5; });
     y+=3;
+    if(q.material_url){ y=await pdfAddMaterial(doc, q.material_url, y, M, ANCHO, PH); }
     if(!_corrInter) bloque('Tu respuesta', prev[q.pregunta_id]||'(sin respuesta)', false);
     doc.setDrawColor(LIGHT[0],LIGHT[1],LIGHT[2]);doc.setLineWidth(0.25);
     if(y<PH-18){ doc.line(M,y,PW-M,y); y+=6; }
-  });
+  }
 
   if(entrega.comentario){
     const t=String(entrega.comentario).replace(/NOTA:\s*[\d.,]+\s*\/\s*10/i,'').trim();
