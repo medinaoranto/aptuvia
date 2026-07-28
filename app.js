@@ -3134,14 +3134,20 @@ async function saAltaDesdePresu(){
   if(!conv.length){ $('teacher').innerHTML=saShell(h+`<p class="sa-empty">No hay presupuestos aceptados pendientes de alta.</p>`); return; }
   conv.forEach(p=>{
     const c=p.cliente||{};
+    const tier=presuTier(p);
+    const tierTxt = tier==='premium'?'Premium · grupo' : tier==='multiaula'?'Multiaula' : 'Academia';
+    const tierCol = tier==='premium'?'#7c3aed' : tier==='multiaula'?'#2563a8' : '#15803d';
     h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b><br>
+        <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b>
+          <span style="font-size:.66rem;font-weight:800;color:${tierCol};background:${tierCol}1a;padding:2px 8px;border-radius:10px;margin-left:6px">${tierTxt}</span><br>
           <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(c.razon_social||'—')}${c.nif?(' · '+escHtml(c.nif)):''}</span></div>
         <b style="font-size:.9rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
-        <button onclick="saAltaAcademia('${p.id}')" class="gx-mini ok">🏫 Crear academia</button>
+        ${tier==='premium'
+          ? `<button onclick="saAltaGrupo('${p.id}')" class="gx-mini ok">👑 Crear grupo (cabeza)</button>`
+          : `<button onclick="saAltaAcademia('${p.id}')" class="gx-mini ok">🏫 Crear academia${tier==='multiaula'?' (multiaula)':''}</button>`}
         <button onclick="saAltaAA('${p.id}')" class="gx-mini">🎨 Crear Aula Abierta</button>
       </div>
     </div>`;
@@ -3167,7 +3173,18 @@ async function avisarAdminFacturar(nombre, numeroPresu){
 function presuConAccesoAcademia(p){
   const L=(p&&p.lineas)||{};
   const todas=[].concat(L.rec||[],L.uni||[]);
-  return todas.some(x=>/acceso\s+academia/i.test((x&&x.nombre)||''));
+  return todas.some(x=> x&&(x.k==='clave_direccion'||x.k==='multiaula'||x.k==='premium'
+    || /clave\s+de\s+direcci|acceso\s+academia|multiaula|premium/i.test((x&&x.nombre)||'')));
+}
+// Nivel del presupuesto: 'premium' | 'multiaula' | 'academia'  (para el recorrido de alta).
+function presuTier(p){
+  const L=(p&&p.lineas)||{};
+  const todas=[].concat(L.rec||[],L.uni||[]);
+  const tieneK=k=> todas.some(x=> x&&x.k===k);
+  const tieneNom=re=> todas.some(x=> re.test((x&&x.nombre)||''));
+  if(tieneK('premium')  || tieneNom(/premium/i))   return 'premium';
+  if(tieneK('multiaula')|| tieneNom(/multiaula/i))  return 'multiaula';
+  return 'academia';
 }
 async function saAltaAcademia(id){
   const p=(window._altaPresu||[]).find(x=>String(x.id)===String(id));
@@ -3197,6 +3214,43 @@ async function saAltaAcademia(id){
     saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
     await saAbrirAcademia(academiaId);
     appAlert('✅ Academia "'+nombre.trim()+'" creada desde '+(p.numero||'')+'. Su ficha de facturación ya tiene los datos del cliente. Añade ahora sus profesores y certificados.'+msgPrem);
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+// Alta PREMIUM: crea el grupo (cabeza), su primera academia colgada del grupo y
+// la cuenta de dirección. Requiere los RPC sa_crear_grupo y sa_academia_set_grupo.
+async function saAltaGrupo(id){
+  const p=(window._altaPresu||[]).find(x=>String(x.id)===String(id));
+  if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  const c=p.cliente||{};
+  const nombreGrupo=await appPrompt('Nombre del grupo (cabeza):', c.razon_social||''); if(nombreGrupo===null) return;
+  if(nombreGrupo.trim().length<2){ appAlert('Nombre demasiado corto.'); return; }
+  const nombreAcad=await appPrompt('Nombre de la primera academia del grupo:', c.razon_social||''); if(nombreAcad===null) return;
+  if(nombreAcad.trim().length<2){ appAlert('Nombre demasiado corto.'); return; }
+  try{
+    let gid;
+    try{
+      const g=await call('/rest/v1/rpc/sa_crear_grupo',{method:'POST',body:{p_nombre:nombreGrupo.trim()}});
+      gid=(typeof g==='number')?g:(Array.isArray(g)?g[0]:parseInt(g,10));
+    }catch(e){ appAlert('No se pudo crear el grupo.\n¿Ejecutaste el SQL de sa_crear_grupo?\n\n'+(e.message||'')); return; }
+    if(!gid){ appAlert('El grupo se creó pero no se obtuvo su id.'); return; }
+    const nid=await call('/rest/v1/rpc/sa_crear_academia',{method:'POST',body:{p_nombre:nombreAcad.trim()}});
+    const academiaId=(typeof nid==='number')?nid:(Array.isArray(nid)?nid[0]:parseInt(nid,10));
+    if(!academiaId){ appAlert('La academia se creó pero no se obtuvo su id.'); await openSuperadmin(); return; }
+    try{ await call('/rest/v1/rpc/sa_academia_set_grupo',{method:'POST',body:{p_academia:academiaId,p_grupo:gid}}); }
+    catch(e){ appAlert('La academia se creó pero no se pudo colgar del grupo.\n¿Ejecutaste el SQL de sa_academia_set_grupo?\n\n'+(e.message||'')); }
+    try{ await call('/rest/v1/rpc/sa_guardar_datos_fact',{method:'POST',body:{p_academia:academiaId,p_datos:saDatosDesdeCliente(c),p_profesor:null}}); }catch(_){}
+    try{ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body:{academia_id:academiaId}}); }catch(_){}
+    await avisarAdminFacturar(nombreGrupo.trim(), p.numero||'');
+    let msgPrem='';
+    try{
+      await call('/rest/v1/rpc/sa_acceso_toggle',{method:'POST',body:{p_academia:academiaId,p_on:true}});
+      try{ await call('/rest/v1/rpc/sa_acceso_facturada',{method:'POST',body:{p_academia:academiaId,p_on:true}}); }catch(_){}
+      const hecho=await saPremiumCrearCuenta(academiaId, c, true);
+      msgPrem = hecho ? '\n\n🔑 Cuenta de dirección creada.' : '\n\n🔑 Crea la cuenta de dirección desde la ficha cuando quieras.';
+    }catch(e){ msgPrem='\n\n⚠️ Revisa el acceso de dirección: '+(e.message||''); }
+    saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
+    await saAbrirAcademia(academiaId);
+    appAlert('✅ Grupo "'+nombreGrupo.trim()+'" creado con su primera academia "'+nombreAcad.trim()+'", colgada del grupo.'+msgPrem+'\n\nAñade ahora las demás academias del grupo y sus profesores.');
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function saAltaAA(id){
@@ -3273,19 +3327,19 @@ async function saRevocarAcademiaUI(academiaId, estaActiva){
 // ══════════════ FACTURACIÓN ══════════════
 // Tarifas de referencia (editable en cada línea).
 const TARIFAS_REC = [
-  {k:'acceso', nombre:'Acceso por profesor', precio:14, auto:'profes'},
-  {k:'acceso_academia', nombre:'Acceso academia (dirección)', precio:19},
-  {k:'soporte', nombre:'Soporte prioritario', precio:27},
-  {k:'multiaula', nombre:'Licencia multiaula', precio:0},
-  {k:'aa_individual', nombre:'Aula Abierta · Plan Individual', precio:19},
-  {k:'aa_academia', nombre:'Aula Abierta · Plan Academia', precio:49},
-  {k:'aa_medida', nombre:'Aula Abierta · A medida', precio:0},
+  {k:'academia_alta', nombre:'Alta de academia (0 €)', precio:0, clausula:'Alta de la academia sin coste: el servicio se factura únicamente por profesor dado de alta.'},
+  {k:'acceso', nombre:'Acceso por profesor', precio:18, auto:'profes', clausula:'Se factura 18 €/mes por cada profesor dado de alta. Solo se cobran los profesores activos. La clave de acceso es del profesor.'},
+  {k:'multiaula', nombre:'Aptuvia Multiaula', precio:51, clausula:'Incluye hasta 3 profesores y clave de acceso de academia y de profesores. A partir del 4º profesor, 15 €/mes por profesor adicional. Certificados y extras aparte.'},
+  {k:'premium', nombre:'Aptuvia Premium (grupo)', precio:75, clausula:'Para grupos con varias academias. Incluye 5 academias con 3 profesores cada una. A partir de la 6ª academia, 10 €/mes por academia adicional; los profesores adicionales con un 20 % de descuento. Certificados y extras aparte.'},
+  {k:'aa_individual', nombre:'Aula Abierta · Plan individual', precio:8, clausula:'Web propia sin contenido para un profesor independiente. El contenido y los certificados se presupuestan aparte.'},
+  {k:'aa_medida', nombre:'Aula Abierta · A medida', precio:0, clausula:'Solución de Aula Abierta a medida: se presupuesta según las necesidades del cliente.'},
 ];
 const TARIFAS_UNI = [
-  {k:'certificado', nombre:'Certificado de profesionalidad', precio:198, auto:'certs'},
-  {k:'modulo', nombre:'Módulo / UF adicional', precio:69},
-  {k:'banco', nombre:'Banco de preguntas a medida', precio:198},
-  {k:'curso', nombre:'Curso o tema personalizado', precio:95},
+  {k:'clave_direccion', nombre:'Clave de dirección de academia', precio:24, clausula:'Alta de una clave de acceso de dirección/administración de la academia. Pago único.'},
+  {k:'certificado', nombre:'Certificado de profesionalidad', precio:198, auto:'certs', clausula:'Activación de un certificado completo: habilita todos sus módulos y unidades formativas.'},
+  {k:'modulo', nombre:'Módulo / UF adicional', precio:69, clausula:'Activación de un módulo o unidad formativa adicional dentro de un certificado.'},
+  {k:'banco', nombre:'Banco de preguntas a medida', precio:0, clausula:'Banco de preguntas elaborado a medida según el temario facilitado por el cliente. Precio a convenir.'},
+  {k:'curso', nombre:'Curso o temas personalizados', precio:0, clausula:'Curso o temas personalizados elaborados a medida. Precio a convenir.'},
 ];
 
 /* ============ REDES SOCIALES ============ */
@@ -3879,6 +3933,8 @@ function presuFichaHTML(p){
   if(uni.length){ h+=`<div style="font-size:.68rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);margin:10px 0 2px">Pago único</div>${uni.map(fila).join('')}`; }
   h+=`<div style="margin-top:10px">${tot('Subtotal',subtotal)}${desc?tot('Descuento ('+(p.descuento_pct||0)+'%)',-desc):''}${tot('Base imponible',base)}${tot('IVA ('+(p.iva_pct||0)+'%)',iva)}${tot('TOTAL',base+iva,true)}</div>`;
   if(p.notas) h+=`<div style="font-size:.72rem;color:var(--ink-soft);white-space:pre-wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);line-height:1.55">${escHtml(p.notas)}</div>`;
+  const cls=pxClausulasIncluidas(p);
+  if(cls.length) h+=`<div style="font-size:.68rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-soft);margin:10px 0 3px">Cláusulas particulares</div><ul style="font-size:.72rem;color:var(--ink-soft);margin:0;padding-left:16px;line-height:1.5">${cls.map(c=>`<li>${escHtml(c)}</li>`).join('')}</ul>`;
   const al=pxAltaLabel(p);
   if(al) h+=`<div style="font-size:.72rem;color:#15803d;font-weight:700;margin-top:8px">✅ ${escHtml(al)}</div>`;
   if(p.facturado_en) h+=`<div style="font-size:.72rem;color:#15803d;font-weight:700;margin-top:4px">✅ Facturado${p.factura_numero?(' · '+escHtml(p.factura_numero)):''}</div>`;
@@ -3925,7 +3981,7 @@ function pxNuevo(){
     cliente:{},
     lineas:{rec:[],uni:[]},
     descuento_pct:0, iva_pct:21,
-    notas:'Forma de pago: transferencia a 15 días desde la fecha de factura.\nPlazo de puesta en marcha: 7 días laborables desde la aceptación.\nLa cuota mensual se factura por profesor dado de alta.',
+    notas:'Forma de pago: transferencia a 15 días desde la fecha de factura.\nPlazo de puesta en marcha: 7 días laborables desde la aceptación.',
     estado:'borrador'
   };
   pxPintar();
@@ -3941,11 +3997,19 @@ async function pxAbrir(id){
 }
 
 function pxLineHtml(tipo,i,l){
-  return `<div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)">
-    <button onclick="pxDelLinea('${tipo}',${i})" title="Quitar" style="background:#fdeaea;border:1px solid #f3c4c4;border-radius:7px;padding:3px 6px;font-size:.75rem;line-height:1;cursor:pointer">🗑</button>
-    <input data-pl="${tipo}-${i}-nombre" value="${escAttr(l.nombre||'')}" style="font-size:.82rem;padding:6px 8px;border:1px solid var(--line);border-radius:8px;min-width:0">
-    <input data-pl="${tipo}-${i}-precio" type="number" step="0.01" value="${l.precio||0}" style="width:60px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:right" oninput="pxRecalc()">
-    <input data-pl="${tipo}-${i}-cant" type="number" step="1" value="${l.cant||1}" style="width:46px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:center" oninput="pxRecalc()">
+  const tieneCl = !!(l.clausula && String(l.clausula).trim());
+  const inc = !!l.incClausula;
+  return `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+    <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center">
+      <button onclick="pxDelLinea('${tipo}',${i})" title="Quitar" style="background:#fdeaea;border:1px solid #f3c4c4;border-radius:7px;padding:3px 6px;font-size:.75rem;line-height:1;cursor:pointer">🗑</button>
+      <input data-pl="${tipo}-${i}-nombre" value="${escAttr(l.nombre||'')}" style="font-size:.82rem;padding:6px 8px;border:1px solid var(--line);border-radius:8px;min-width:0">
+      <input data-pl="${tipo}-${i}-precio" type="number" step="0.01" value="${l.precio||0}" style="width:60px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:right" oninput="pxRecalc()">
+      <input data-pl="${tipo}-${i}-cant" type="number" step="1" value="${l.cant||1}" style="width:46px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:center" oninput="pxRecalc()">
+    </div>
+    ${tieneCl?`<div style="margin-top:6px">
+      <button type="button" onclick="pxToggleClausula('${tipo}',${i})" style="font-size:.68rem;padding:3px 10px;border:1px dashed ${inc?'var(--honey)':'var(--line)'};border-radius:14px;background:${inc?'var(--honey-tint)':'#fff'};color:var(--navy);cursor:pointer;font-family:inherit;font-weight:${inc?'700':'400'}">${inc?'✓ Cláusula incluida':'+ Cláusula particular'}</button>
+      ${inc?`<div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px;line-height:1.45;font-style:italic;padding-left:2px">${escHtml(l.clausula)}</div>`:''}
+    </div>`:''}
   </div>`;
 }
 
@@ -4085,8 +4149,23 @@ function pxAddPreset(tipo,k){
   const src=(tipo==='rec'?TARIFAS_REC:TARIFAS_UNI).find(t=>t.k===k);
   if(!src) return;
   pxEdit.lineas[tipo]=pxEdit.lineas[tipo]||[];
-  pxEdit.lineas[tipo].push({nombre:src.nombre,precio:src.precio,cant:1});
+  pxEdit.lineas[tipo].push({k:src.k,nombre:src.nombre,precio:src.precio,cant:1,clausula:src.clausula||'',incClausula:false});
   pxForm();
+}
+function pxToggleClausula(tipo,i){
+  pxLeerDOM();
+  const l=pxEdit.lineas[tipo] && pxEdit.lineas[tipo][i];
+  if(!l) return;
+  l.incClausula=!l.incClausula;
+  pxForm();
+}
+// Cláusulas particulares marcadas para adjuntar al presupuesto.
+function pxClausulasIncluidas(p){
+  const out=[];
+  ['rec','uni'].forEach(t=> (p.lineas[t]||[]).forEach(l=>{
+    if(l.incClausula && l.clausula && String(l.clausula).trim()) out.push(String(l.clausula).trim());
+  }));
+  return out;
 }
 function pxAddLibre(tipo){
   pxLeerDOM();
@@ -4231,6 +4310,15 @@ function pxRenderPDF(p){
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...INK);
   const cond=String(p.notas||'').split('\n').filter(Boolean);
   cond.forEach(l=>{ doc.splitTextToSize(l, 178).forEach(t=>{ if(y>262){doc.addPage(); y=20;} doc.text(t, M, y); y+=4.4; }); });
+  const clsPdf=pxClausulasIncluidas(p);
+  if(clsPdf.length){
+    y+=2;
+    if(y>258){doc.addPage(); y=20;}
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...INK);
+    doc.text('Cláusulas particulares:', M, y); y+=4.6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...INK);
+    clsPdf.forEach(c=>{ doc.splitTextToSize('· '+c,178).forEach(t=>{ if(y>262){doc.addPage(); y=20;} doc.text(t, M, y); y+=4.4; }); });
+  }
   doc.setTextColor(...SOFT); doc.setFontSize(8);
   [ 'Presupuesto válido hasta el '+pxCaducidad(p)+'. Pasada esa fecha, los precios pueden variar.',
     'Los precios no incluyen el IVA salvo indicación expresa en el total.',
@@ -7359,7 +7447,7 @@ Alumno: ${e.nombre||e.alumno||''}
 Examen: ${e.examen||''}
 ${ex}
 QUÉ TIENES QUE DEVOLVER
-1. El texto del alumno tal cual, respetando sus palabras, e intercalando tus correcciones y anotaciones entre dobles corchetes. Ejemplo: "El presupuesto se aprueba en marzo [[abril, no marzo]]". Todo lo que vaya entre [[ ]] se pintará en rojo, como si lo hubiera escrito el profesor a mano en el papel.
+1. El texto del alumno tal cual, respetando sus palabras, e intercalando tus correcciones y anotaciones entre dobles corchetes. Ejemplo: "El presupuesto se aprueba en marzo [[abril, no marzo]]". Todo lo que vaya entre [[ ]] se mostrará como anotación del profesor, en azul y con letra a mano.
 2. Marca entre [[ ]] los errores, lo que falta y lo que está bien resuelto. No reescribas la respuesta del alumno.
 3. Al final, un párrafo breve de valoración global entre [[ ]].
 4. La última línea, exactamente con este formato y nada más: NOTA: X/10
@@ -7598,6 +7686,7 @@ function crTabIA(e){
       <button class="gx-mini" onclick="crCompartirPrompt()" style="flex:1;padding:10px">📤 Compartir</button>
     </div>
     <label style="margin-top:16px">4 · Pega aquí la corrección de la IA</label>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 6px;line-height:1.5">Pega tal cual lo que te devuelva la IA: el texto del alumno con tus anotaciones entre [[ ]] y, en la última línea, <b>NOTA: X/10</b>. Debajo verás la vista previa de cómo le quedará al alumno.</p>
     <textarea id="cr-ia-out" rows="7" placeholder="El texto del alumno con las correcciones entre [[ ]] y la última línea NOTA: X/10"></textarea>
     <div id="cr-ia-nota" style="font-size:.75rem;color:var(--ink-soft);text-align:right;margin-top:-2px"></div>
     <label style="margin-top:10px">5 · Nota final — la pones TÚ (0 a 10)</label>
@@ -7627,7 +7716,7 @@ function renderEntrega(e){
   </div>`);
   if(crTab==='ia'){ h.push(crTabIA(e)); }
   else{
-    h.push(`<div class="t-card"><label style="margin-top:6px">Nota (0 a 10)</label><input id="cr-nota" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="${e.nota!=null?(+e.nota):''}" placeholder="Ej.: 7.5"><label>Comentario para el alumno (opcional)</label><p style="font-size:.7rem;color:var(--ink-soft);margin:0 0 6px">Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá en rojo y con letra manuscrita.</p><textarea id="cr-com" rows="6" placeholder="Observaciones, correcciones…">${escHtml(e.comentario||'')}</textarea><button class="btn btn-honey" id="cr-save" style="margin-top:16px">${e.estado==='corregido'?'Actualizar nota':'Guardar nota'}</button>${e.estado==='reabierto'?'':`<button class="btn btn-ghost" id="cr-reopen" style="margin-top:10px">↻ Permitir repetir al alumno</button>`}</div>`);
+    h.push(`<div class="t-card"><label style="margin-top:6px">Nota (0 a 10)</label><input id="cr-nota" type="number" min="0" max="10" step="0.1" inputmode="decimal" value="${e.nota!=null?(+e.nota):''}" placeholder="Ej.: 7.5"><label>Comentario para el alumno (opcional)</label><p style="font-size:.7rem;color:var(--ink-soft);margin:0 0 6px">Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá en azul y con letra manuscrita.</p><textarea id="cr-com" rows="6" placeholder="Observaciones, correcciones…">${escHtml(e.comentario||'')}</textarea><button class="btn btn-honey" id="cr-save" style="margin-top:16px">${e.estado==='corregido'?'Actualizar nota':'Guardar nota'}</button>${e.estado==='reabierto'?'':`<button class="btn btn-ghost" id="cr-reopen" style="margin-top:10px">↻ Permitir repetir al alumno</button>`}</div>`);
   }
   $('teacher').innerHTML=h.join('');
   if($('cr-save')) $('cr-save').onclick=()=>guardarNotaUI(e.id);
@@ -9038,7 +9127,7 @@ function openUnit(unitId){
       .filter(t=> !temaSel || (temaSel==='__sin' ? !t.tema_id : String(t.tema_id)===String(temaSel)));
     if(matsT.length){
       html+=`<div class="section"><h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:16px 2px 6px">📚 Temario de la unidad</h3>`;
-      html+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:0 2px 8px;line-height:1.5">Materiales que has subido a este tema. Toca uno para descargarlo. Su visibilidad para el alumno se controla en «Exámenes y estados».</p>`;
+      html+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:0 2px 8px;line-height:1.5">Materiales que has subido a este tema. Toca uno para visualizarlo. Su visibilidad para el alumno se controla en «Exámenes y estados».</p>`;
       matsT.forEach(t=>{
         const vis=t.visible!==false;
         html+=`<button class="exam-row" data-mat="${t.id}" data-path="${escAttr(t.archivo_path)}" data-nom="${escAttr(t.archivo_nombre||'')}">
