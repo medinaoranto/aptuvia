@@ -2769,6 +2769,8 @@ async function saAbrirAcademia(id){
       call('/rest/v1/rpc/sa_acceso_estado',{method:'POST',body:{p_academia:id}}).catch(()=>null)
     ]);
   }catch(e){ saDetalle(`<div class="t-note err">${escHtml(e.message||'Error')}</div>`); return; }
+  try{ const g=await call('/rest/v1/academia?id=eq.'+id+'&select=grupo_id'); saSelAcad._grupo_id=(g&&g[0])?g[0].grupo_id:null; }
+  catch(_){ saSelAcad._grupo_id=null; }
   saDetalle();
 }
 function saDetalle(msg){
@@ -2827,7 +2829,7 @@ function saDetalle(msg){
       ${esAA?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn btn-honey" id="sa-aa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
         <button class="btn btn-ghost" id="sa-nuevo-prof" style="flex:1;margin:0;min-width:130px">Crear usuario</button>
-      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>`}
+      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>${a._grupo_id?`<button class="btn btn-ghost" id="sa-add-acad-grupo" style="width:100%;margin-top:8px">👑 Grupo #${a._grupo_id} · ➕ Añadir academia al grupo</button>`:''}`}
     </div>
     ${esAA?'':saPremiumCard(a)}
     ${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}`;
@@ -2845,6 +2847,7 @@ function saDetalle(msg){
   if(g('sa-borr')) g('sa-borr').onclick=()=>saBorrarAcademiaUI(a.academia_id,a.nombre);
   if(g('sa-acad-rev')) g('sa-acad-rev').onclick=()=>saRevocarAcademiaUI(a.academia_id, a.activa!==false);
   if(g('sa-nuevo-prof')) g('sa-nuevo-prof').onclick=()=> esAA ? saCrearProfesorUI(1,true) : saCrearProfesorUI(a.academia_id);
+  if(g('sa-add-acad-grupo')) g('sa-add-acad-grupo').onclick=()=>saAddAcademiaGrupo(a._grupo_id);
   $('teacher').querySelectorAll('[data-saprof]').forEach(b=> b.onclick=()=>saToggleProf(b.dataset.saprof));
   $('teacher').querySelectorAll('[data-saver]').forEach(b=> b.onclick=()=>saVerComoProfesor(b.dataset.saver,b.dataset.nombre));
   $('teacher').querySelectorAll('[data-saedit]').forEach(b=> b.onclick=()=>saEditarProfesorUI(b.dataset.saedit,b.dataset.nombre));
@@ -2855,6 +2858,22 @@ function saDetalle(msg){
   $('teacher').querySelectorAll('[data-sabloq]').forEach(b=> b.onclick=()=>saBloquearProfesorUI(b.dataset.sabloq,b.dataset.bloq==='1',b.dataset.email));
 }
 /* ── Acceso academia (Premium): interruptor + cuentas de dirección ── */
+// Añade otra academia a un grupo ya creado (Premium). Reutiliza los RPC de alta.
+async function saAddAcademiaGrupo(grupoId){
+  if(!grupoId){ appAlert('Esta academia no pertenece a ningún grupo.'); return; }
+  const nombre=await appPrompt('Nombre de la nueva academia del grupo:'); if(nombre===null) return;
+  if(nombre.trim().length<2){ appAlert('Nombre demasiado corto.'); return; }
+  try{
+    const nid=await call('/rest/v1/rpc/sa_crear_academia',{method:'POST',body:{p_nombre:nombre.trim()}});
+    const academiaId=(typeof nid==='number')?nid:(Array.isArray(nid)?nid[0]:parseInt(nid,10));
+    if(!academiaId){ appAlert('La academia se creó pero no se obtuvo su id.'); return; }
+    try{ await call('/rest/v1/rpc/sa_academia_set_grupo',{method:'POST',body:{p_academia:academiaId,p_grupo:grupoId}}); }
+    catch(e){ appAlert('La academia se creó pero no se pudo colgar del grupo.\n¿Ejecutaste el SQL de sa_academia_set_grupo?\n\n'+(e.message||'')); }
+    saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
+    await saAbrirAcademia(academiaId);
+    appAlert('✅ Academia "'+nombre.trim()+'" creada y colgada del grupo #'+grupoId+'. Añade ahora sus profesores con «Crear profesor».');
+  }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
 function saPremiumCard(a){
   const st=window._saPremium||{activo:false,cuentas:[],presupuesto:null,candidatos:[],facturado:false};
   const on=!!st.activo;
@@ -2944,7 +2963,7 @@ async function saPremiumToggle(academiaId){
 }
 // cli: datos del cliente del presupuesto (prellenan el formulario).
 // desdePresu: no repinta la ficha al terminar (lo hace el alta) y devuelve bool.
-async function saPremiumCrearCuenta(academiaId, cli, desdePresu){
+async function saPremiumCrearCuenta(academiaId, cli, desdePresu, grupoId){
   const c=cli||{};
   const nombre=await appPrompt('Nombre de la cuenta de dirección:', c.razon_social?('Dirección · '+c.razon_social):'Dirección');
   if(nombre===null) return false;
@@ -2953,6 +2972,8 @@ async function saPremiumCrearCuenta(academiaId, cli, desdePresu){
   if(pass.length<6){ appAlert('Mínimo 6 caracteres.'); return false; }
   try{
     await call('/rest/v1/rpc/sa_crear_cuenta_academia',{method:'POST',body:{p_email:email.trim(),p_pass:pass,p_nombre:nombre||'Dirección',p_academia:academiaId}});
+    // Cabeza de grupo: la cuenta cuelga del grupo para ver todas sus academias.
+    if(grupoId){ try{ await call('/rest/v1/rpc/sa_perfil_set_grupo',{method:'POST',body:{p_email:email.trim(),p_grupo:grupoId}}); }catch(_){} }
     if(!desdePresu) await saAbrirAcademia(academiaId);
     return true;
   }catch(e){ appAlert('No se pudo crear la cuenta de dirección: '+(e.message||'')); return false; }
@@ -3245,8 +3266,8 @@ async function saAltaGrupo(id){
     try{
       await call('/rest/v1/rpc/sa_acceso_toggle',{method:'POST',body:{p_academia:academiaId,p_on:true}});
       try{ await call('/rest/v1/rpc/sa_acceso_facturada',{method:'POST',body:{p_academia:academiaId,p_on:true}}); }catch(_){}
-      const hecho=await saPremiumCrearCuenta(academiaId, c, true);
-      msgPrem = hecho ? '\n\n🔑 Cuenta de dirección creada.' : '\n\n🔑 Crea la cuenta de dirección desde la ficha cuando quieras.';
+      const hecho=await saPremiumCrearCuenta(academiaId, c, true, gid);
+      msgPrem = hecho ? '\n\n🔑 Cuenta de dirección creada (vinculada al grupo).' : '\n\n🔑 Crea la cuenta de dirección desde la ficha cuando quieras.';
     }catch(e){ msgPrem='\n\n⚠️ Revisa el acceso de dirección: '+(e.message||''); }
     saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
     await saAbrirAcademia(academiaId);
@@ -7384,6 +7405,14 @@ async function openCorrecciones(okMsg){
   let rows=[], err=null;
   try{ rows=await call('/rest/v1/rpc/listar_entregas',{method:'POST',body:{}})||[]; }
   catch(e){ err=e.message; }
+  // Aislamiento: mostrar solo las entregas cuyos exámenes son del profesor en el
+  // contexto activo. examsByUnit ya está acotado al certificado activo (o a AA),
+  // así que esto evita que las entregas de Aula Abierta salgan en EV (y al revés)
+  // y que un profesor vea las de otro.
+  try{
+    const titulos=new Set([].concat(...Object.values(examsByUnit||{})).map(e=>(e.titulo||'').trim()).filter(Boolean));
+    rows=(rows||[]).filter(r=> titulos.has((r.examen||'').trim()));
+  }catch(_){}
   renderCorrecciones(rows, err, okMsg);
 }
 function fmtFecha(ts){ try{ return new Date(ts).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }catch(_){ return ''; } }
