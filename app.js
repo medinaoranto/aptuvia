@@ -615,6 +615,36 @@ function wireEye(eyeId, inputId){
   e.onclick=()=>{ const show=i.type==='password'; i.type=show?'text':'password'; e.textContent=show?'🙈':'👁'; e.setAttribute('aria-label', show?'Ocultar contraseña':'Mostrar contraseña'); };
 }
 
+// ============ INSTALAR APP (PWA) ============
+let _pwaPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{ e.preventDefault(); _pwaPrompt=e; pwaInject(); });
+window.addEventListener('appinstalled',()=>{ _pwaPrompt=null; const b=document.getElementById('pwaInstall'); if(b) b.remove(); });
+function pwaInstalada(){ return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }
+function pwaInject(){
+  if(pwaInstalada()) return;
+  if(document.getElementById('pwaInstall')) return;
+  const anchor=document.getElementById('authToggle'); if(!anchor||!anchor.parentNode) return;
+  const b=document.createElement('button');
+  b.id='pwaInstall'; b.type='button';
+  b.textContent='📲 Instalar la app en tu móvil';
+  b.style.cssText='display:block;width:100%;margin-top:14px;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.82rem';
+  b.onclick=pwaInstall;
+  anchor.parentNode.appendChild(b);
+}
+async function pwaInstall(){
+  if(_pwaPrompt){
+    _pwaPrompt.prompt();
+    try{ await _pwaPrompt.userChoice; }catch(_){}
+    _pwaPrompt=null;
+    const b=document.getElementById('pwaInstall'); if(b) b.remove();
+    return;
+  }
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  appAlert(ios
+    ? 'Para instalarla en iPhone/iPad: abre aptuvia.es en Safari, pulsa el botón Compartir y elige «Añadir a pantalla de inicio».'
+    : 'Para instalarla: abre el menú del navegador (los tres puntos de arriba a la derecha) y pulsa «Instalar aplicación» o «Añadir a la pantalla de inicio».');
+}
+
 // ============ LOGIN / REGISTRO ============
 let authMode='login';
 function applyAuthLabels(){
@@ -635,6 +665,7 @@ function applyAuthLabels(){
   $('loginBtn').textContent  = authMode==='login'?'Entrar':'Crear cuenta';
   $('authToggle').textContent= authMode==='login'?'¿Primera vez? Crea tu cuenta':'¿Ya tienes cuenta? Entrar';
   showMsg($('loginMsg'),'');
+  pwaInject();
 }
 function toggleAuthMode(){ authMode = authMode==='login'?'signup':'login'; applyAuthLabels(); }
 
@@ -1782,13 +1813,13 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
 
   function pie(){
     doc.setFontSize(7.5); doc.setTextColor(...GRIS);
-    doc.text(pieTexto||'Aptuvia · Documento interno · Uso exclusivo del equipo', ML, 287);
+    doc.text(pdfSafe(pieTexto||'Aptuvia · Documento interno · Uso exclusivo del equipo'), ML, 287);
     doc.text(String(pag), MR, 287, {align:'right'});
   }
   function nuevaPag(){
     pie(); doc.addPage(); pag++; y=24;
     doc.setFontSize(8); doc.setTextColor(...GRIS);
-    doc.text(titulo, ML, 15);
+    doc.text(pdfSafe(titulo), ML, 15);
     doc.setDrawColor(225,225,232); doc.line(ML,18,MR,18);
   }
   function espacio(n){ if(y+n>272) nuevaPag(); }
@@ -1797,9 +1828,9 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
   doc.setFillColor(...NAVY); doc.rect(0,0,210,62,'F');
   doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(24);
   doc.text('Aptuvia', ML, 28);
-  doc.setFontSize(15); doc.text(titulo, ML, 42);
+  doc.setFontSize(15); doc.text(pdfSafe(titulo), ML, 42);
   doc.setFont(undefined,'normal'); doc.setFontSize(9.5);
-  doc.text(subtitulo, ML, 51);
+  doc.text(pdfSafe(subtitulo), ML, 51);
   doc.setTextColor(...GRIS); doc.setFontSize(8.5);
   doc.text('Generado el '+new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}), ML, 74);
   doc.setFontSize(9); doc.setTextColor(60,60,70);
@@ -1815,16 +1846,20 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
     espacio(26);
     indice.push({t:sec.t, p:pag});
     doc.setFont(undefined,'bold'); doc.setFontSize(12); doc.setTextColor(...NAVY);
-    const th=doc.splitTextToSize(sec.t, ANCHO);
+    const th=doc.splitTextToSize(pdfSafe(sec.t), ANCHO);
     doc.text(th, ML, y); y+=th.length*6;
     doc.setDrawColor(...HONEY); doc.setLineWidth(.6); doc.line(ML,y-2.5,ML+16,y-2.5); doc.setLineWidth(.2);
     y+=3.5;
     doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(45,45,55);
     sec.p.forEach(par=>{
-      const lineas=doc.splitTextToSize(par, ANCHO-5);
+      const esDonde=/^\s*D[ÓO]NDE/i.test(par);
+      const lineas=doc.splitTextToSize(pdfSafe(par), ANCHO-5);
       espacio(lineas.length*4.6+4);
       doc.setFillColor(...HONEY); doc.circle(ML+1.2, y-1.4, .9, 'F');
+      doc.setFont(undefined, esDonde?'bold':'normal');
+      doc.setTextColor(...(esDonde?HONEY:[45,45,55]));
       doc.text(lineas, ML+5, y);
+      doc.setFont(undefined,'normal');
       y+=lineas.length*4.6+3.4;
     });
     y+=5;
@@ -1837,7 +1872,7 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
   doc.setFont(undefined,'normal'); doc.setFontSize(9.5);
   indice.forEach(it=>{
     doc.setTextColor(45,45,55);
-    const t=doc.splitTextToSize(it.t, ANCHO-14);
+    const t=doc.splitTextToSize(pdfSafe(it.t), ANCHO-14);
     doc.text(t[0], ML, yi);
     doc.setTextColor(...GRIS);
     doc.text(String(it.p), MR, yi, {align:'right'});
@@ -1898,13 +1933,13 @@ function manualProfeSecciones(esAula){
   s.push({ t:'4. Crear un examen', p:[
     'DÓNDE: Área Docente → Crear y gestionar exámenes.',
     'Hay cuatro formas, con los botones de arriba:',
-    'TEST: se escriben las preguntas una a una, cada una con sus cuatro opciones, la respuesta correcta y, si quieres, una explicación que el alumno ve al corregirse. También puedes tirar de tu banco con "📋 Del banco" para reutilizar preguntas ya escritas.',
-    'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla. Igual que en test, con "📋 Del banco" reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo.',
+    'TEST: se escriben las preguntas una a una, cada una con sus cuatro opciones, la respuesta correcta y, si quieres, una explicación que el alumno ve al corregirse. También puedes tirar de tu banco con «Del banco» para reutilizar preguntas ya escritas.',
+    'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla. Igual que en test, con «Del banco» reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo.',
     'PEGAR EXAMEN: para cargar de golpe un examen que ya tengas escrito, sin teclearlo pregunta a pregunta.',
-    'BANCO: tu banco de respuestas modelo para las redacciones. Aquí creas o editas actividades con su respuesta modelo, cada una con un CÓDIGO (por ejemplo H4-T01-12). Ese código es lo que enlaza la pregunta con su respuesta: al crear un examen "📋 Del banco" la actividad se lleva su código, y al corregir se localiza sola. Si guardas dos veces con el mismo código, se edita, no se duplica. Toca una de la lista de la derecha para editarla.',
+    'BANCO: tu banco de respuestas modelo para las redacciones. Aquí SOLO se crea o edita la ficha de una actividad (su enunciado y su respuesta modelo); no genera ningún examen. Para montar el examen, ve a Redacción y añádela con «Del banco». Cada ficha lleva un CÓDIGO (por ejemplo H4-T01-12) que enlaza la pregunta con su respuesta: al añadirla "Del banco" la actividad se lleva su código y, al corregir, la respuesta modelo se localiza sola. Si guardas dos veces con el mismo código, se edita, no se duplica.',
     'En Test, Redacción y Pegar examen se elige la unidad o materia, el título y el nivel. Debajo del constructor de redacción sale un aviso de a qué unidad se va a crear, para no equivocarte.',
     'CUENTA PARA LA NOTA FINAL: casilla importante. Si la marcas, el alumno solo tiene UN intento, se le muestran las normas antes de empezar y se vigila que no se salga de la pantalla. Si no la marcas, puede repetirlo tantas veces como quiera.',
-    'DESCARGAR PARA PAPEL: en la lista de exámenes de abajo, el botón 🖨 genera un PDF del examen para hacerlo impreso. En los test te pregunta si añadir la hoja de soluciones (una para ti, otra sin soluciones para repartir); en los de redacción salen renglones para escribir.',
+    'DESCARGAR PARA PAPEL: en la lista de exámenes de abajo, el botón de impresora genera un PDF del examen para hacerlo impreso. En los test te pregunta si añadir la hoja de soluciones (una para ti, otra sin soluciones para repartir); en los de redacción salen renglones para escribir.',
     'Recomendación: máximo 25 preguntas por examen de tema nuevo. Para repasos largos, mejor partirlos en dos.'
   ]});
 
@@ -6858,7 +6893,12 @@ C) Opción
 D) Opción
 > Explicación</code>
       </div>
-      <textarea id="imp-text" rows="10" placeholder="Pega aquí tu examen con el formato indicado arriba..." style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:10px;font-size:.82rem;font-family:inherit;resize:vertical;line-height:1.5;"></textarea>
+      <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">¿No tienes el examen en este formato? Deja que la IA te lo prepare. Copia el prompt, ábrelo en Claude o Gemini y, junto a él, <b>pega o adjunta tu examen con las respuestas correctas y su explicación</b>; si no las incluyes, la IA no puede saber cuál es la opción buena. La IA te lo devuelve ya con el formato de arriba, y ese resultado es lo que pegas en la caja de abajo.</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="gx-mini" onclick="impCopiarPrompt()" style="flex:1;padding:10px">📋 Copiar prompt</button>
+        <button class="gx-mini" onclick="impCompartirPrompt()" style="flex:1;padding:10px">📤 Compartir con la IA</button>
+      </div>
+      <textarea id="imp-text" rows="10" placeholder="Pega aquí lo que te devuelva la IA (o tu examen ya con el formato de arriba) y pulsa «Analizar y crear examen»." style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:10px;font-size:.82rem;font-family:inherit;resize:vertical;line-height:1.5;"></textarea>
       <div class="pdf-status" id="imp-status" style="margin-top:8px;"></div>
       <div id="imp-preview" style="margin-top:8px;"></div>
       <button class="btn btn-primary" id="imp-analizar-btn" style="margin-top:12px;background:var(--navy);">🔍 Analizar y crear examen</button>
@@ -6883,7 +6923,7 @@ D) Opción
   if(builder.kind==='banco'){
     if(bancoListUnidad!==builder.unidad) bancoCargar(builder.unidad);
     h.push('<div class="mgmt-2col"><div class="mgmt-left">');
-    h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:6px;line-height:1.5">Crea o edita respuestas modelo de tu banco. El <b>código</b> une la pregunta con su respuesta (p.ej. <code>H4-T01-12</code>). Mismo código = se edita, no se duplica. Toca una de la lista para editarla.</div></div>');
+    h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55"><b>Aquí solo se crea o edita la ficha de una actividad</b> (su enunciado y su respuesta modelo). Esto no genera ningún examen: para montarlo, ve a «Redacción» y añádela con «📋 Del banco».<br><br>Cada ficha tiene: <b>Bloque</b> (para agruparlas, opcional), <b>Código</b> (la etiqueta que une la pregunta con su respuesta, p.ej. <code>H4-T01-12</code>; mismo código = se edita, no se duplica), <b>Enunciado</b> (lo que se le pide al alumno) y <b>Respuesta modelo</b> (con la que la IA corregirá). Toca una de la lista de la derecha para editarla.</div></div>');
     h.push(renderBancoSection());
     h.push('</div><div class="mgmt-right">');
     h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Respuestas en tu banco</h2>');
@@ -7632,6 +7672,40 @@ async function crCompartirPrompt(){
     }catch(e){ if(e && e.name==='AbortError') return; }
   }
   appAlert('Prompt copiado. Pégalo en Claude o Gemini.');
+}
+function impPromptTexto(){
+  return `Convierte mi examen tipo test al formato de texto que necesito para importarlo.
+
+TE VOY A DAR mi examen (te lo pego a continuación o te adjunto una foto o PDF). Incluye las preguntas, sus opciones, cuál es la opción CORRECTA y la EXPLICACIÓN de por qué lo es.
+
+DEVUÉLVEME SOLO el examen con este formato exacto, sin ningún texto antes ni después:
+
+1. ¿Enunciado de la pregunta?
+*A) Opción correcta
+B) Opción
+C) Opción
+D) Opción
+> Explicación de por qué la correcta es la correcta
+
+REGLAS
+- Numera las preguntas (1., 2., 3.…) y usa una letra por opción (A, B, C, D).
+- Pon un asterisco * pegado justo delante de la opción correcta.
+- La línea que empieza por > es la explicación (una por pregunta).
+- No añadas títulos, saludos, comentarios ni nada fuera de ese formato.
+- Respeta el contenido de mi examen: no inventes preguntas ni cambies cuál es la respuesta correcta.`;
+}
+async function impCopiarPrompt(){
+  try{ await navigator.clipboard.writeText(impPromptTexto()); appAlert('Prompt copiado. Ábrelo en Claude o Gemini y, junto a él, pega o adjunta tu examen con las respuestas correctas y su explicación.'); }
+  catch(e){ appAlert('No se pudo copiar. Usa «Compartir con la IA».'); }
+}
+async function impCompartirPrompt(){
+  const t=impPromptTexto();
+  try{ await navigator.clipboard.writeText(t); }catch(_){}
+  if(navigator.share){
+    try{ await navigator.share({text:t}); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
+  }
+  appAlert('Prompt copiado. Pégalo en Claude o Gemini junto a tu examen.');
 }
 // Fotos del ejercicio (renderizadas desde los PDF de material) para adjuntarlas
 // a la IA con «Compartir», sin buscarlas en el móvil.
