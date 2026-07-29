@@ -1509,7 +1509,7 @@ function _teacherLandRestore(){
   const s=window._restoreSess; window._restoreSess=null;
   if(s){
     const ts=s.ts||'', unit=s.unit||null;
-    const map={examgmt:openExamMgmt,correcciones:openCorrecciones,publicar:openPublicar,estados:openEstados,modulos:openModulosTeacher,temario:openTemarioProfesor,alumnos:openAlumnos};
+    const map={examgmt:openExamMgmt,correcciones:openCorrecciones,publicar:openPublicar,estados:openEstados,modulos:openModulosTeacher,temario:openTemarioProfesor,alumnos:openAlumnos,superadmin:openSuperadmin};
     if(ts==='unit' && unit && (unidadEnCert(unit)||unidadesById[unit])){ teacherView='unit'; openUnit(unit); return; }
     if(map[ts]){ try{ map[ts](); return; }catch(e){} }
   }
@@ -1645,10 +1645,11 @@ function saSetMain(t){
   saMainTab=t; saSelAcad=null; guardarPanel();
   // Si ya tenemos los datos cargados, pintar directo (no re-consultar: evitaba
   // que la vista se quedara colgada en el spinner esperando a Supabase).
-  if(saAcademias && saAcademias.length){ showView('teacher'); teacherView='superadmin'; window.scrollTo(0,0); saRenderLista(); return; }
+  if(saAcademias && saAcademias.length){ window._teacherScreen='superadmin'; showView('teacher'); teacherView='superadmin'; window.scrollTo(0,0); saRenderLista(); return; }
   openSuperadmin();
 }
 async function openSuperadmin(okMsg,errMsg){
+  window._teacherScreen='superadmin';
   showView('teacher'); window.scrollTo(0,0);
   teacherView='superadmin';
   // Al recargar la página, volver a la pestaña donde estabas.
@@ -7511,11 +7512,20 @@ REGLAS
 - Devuelve solo el texto corregido y la nota, sin explicaciones previas.`;
 }
 async function crCopiarPrompt(){
-  try{ await navigator.clipboard.writeText(crPromptTexto()); appAlert('Prompt copiado.\n\nÁbrelo en Claude o Gemini y pega el prompt. Ya lleva dentro la respuesta modelo y los criterios: no hace falta adjuntar ningún PDF.'); }
+  try{
+    await navigator.clipboard.writeText(crPromptTexto());
+    const hayFotos = window._crFotosSel && window._crFotosSel.size;
+    appAlert(hayFotos
+      ? 'Prompt e imágenes preparados. Pulsa «Compartir con la IA»: se envían las fotos y el prompt queda copiado para pegarlo.'
+      : 'Prompt copiado. Ábrelo en Claude o Gemini y pégalo.');
+  }
   catch(e){ appAlert('No se pudo copiar. Usa Compartir.'); }
 }
 async function crCompartirPrompt(){
   const t=crPromptTexto();
+  // El menú de compartir suele quedarse solo con las fotos y descarta el texto,
+  // así que dejamos el prompt en el portapapeles para pegarlo en el chat.
+  try{ await navigator.clipboard.writeText(t); }catch(_){}
   const files=[];
   if(window._crFotos && window._crFotosSel && window._crFotosSel.size){
     for(const i of window._crFotosSel){
@@ -7525,11 +7535,15 @@ async function crCompartirPrompt(){
   }
   if(navigator.share){
     try{
-      if(files.length && navigator.canShare && navigator.canShare({files})){ await navigator.share({text:t, files}); return; }
+      if(files.length && navigator.canShare && navigator.canShare({files})){
+        await navigator.share({text:t, files});
+        appAlert('Fotos compartidas. El prompt está copiado: pégalo en el chat de la IA junto a las fotos.');
+        return;
+      }
       await navigator.share({text:t}); return;
     }catch(e){ if(e && e.name==='AbortError') return; }
   }
-  crCopiarPrompt();
+  appAlert('Prompt copiado. Pégalo en Claude o Gemini.');
 }
 // Fotos del ejercicio (renderizadas desde los PDF de material) para adjuntarlas
 // a la IA con «Compartir», sin buscarlas en el móvil.
@@ -7683,18 +7697,23 @@ function crAddModelo(){
 function crAddModelosDelExamen(){
   const resp=Array.isArray(crEnt&&crEnt.respuestas)?crEnt.respuestas:[];
   if(!resp.length){ appAlert('Esta entrega no tiene preguntas.'); return; }
+  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
   let n=0;
   resp.forEach(r=>{
     const e1=String(r.enunciado||'').trim();
     if(!e1) return;
-    const t1=e1.split('\n')[0].trim();
+    const n1=norm(e1), t1=norm(e1.split('\n')[0]);
     const q=crBanco.find(x=>{
-      const e2=String(x.enunciado||'').trim();
-      return e2===e1 || crTitulo(x)===t1;
+      const n2=norm(x.enunciado), t2=norm(crTitulo(x));
+      if(!n2) return false;
+      return n2===n1 || t2===t1
+        || (t1 && t1.length>8 && n2.indexOf(t1)>=0)
+        || (t2 && t2.length>8 && n1.indexOf(t2)>=0)
+        || (n2.length>25 && n1.indexOf(n2.slice(0,25))>=0);
     });
     if(q && String(q.explicacion||'').trim()){ crAnexarCriterio('RESPUESTA MODELO · '+crTitulo(q)+'\n'+String(q.explicacion).trim()); n++; }
   });
-  appAlert(n? ('Añadidas '+n+' respuesta(s) modelo a los criterios.') : 'Ninguna pregunta de esta entrega coincide con una actividad del banco con respuesta modelo.');
+  appAlert(n? ('Añadidas '+n+' respuesta(s) modelo a los criterios.') : 'Ninguna pregunta de esta entrega coincide con una actividad del banco con respuesta modelo. Elige la actividad en el desplegable y pulsa «Añadir esta».');
 }
 // ---- Reparto de la nota ----
 function crFilaPartida(t,p,n){
@@ -7761,8 +7780,8 @@ function crGuardarPartidasDef(){
 
 function crTabIA(e){
   return `<div class="t-card">
-    <label style="margin-top:6px">1 · Reparto de la nota</label>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">Peso de cada apartado y la nota que le pones de 0 a 10. Va también dentro del prompt, para que la IA puntúe por apartados.</p>
+    <details style="margin:2px 0 6px;border:1px solid var(--line);border-radius:10px;padding:8px 12px"><summary style="font-size:.82rem;font-weight:700;color:var(--navy);cursor:pointer">📊 1 · Reparto de la nota (opcional)</summary>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 8px;line-height:1.5">Peso de cada apartado y la nota que le pones de 0 a 10. Va también dentro del prompt, para que la IA puntúe por apartados.</p>
     <div id="cr-pt-rows"></div>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="gx-mini" onclick="document.getElementById('cr-pt-rows').appendChild(crFilaPartida('',0,''));crRecalc()" style="flex:1;padding:9px">+ Apartado</button>
@@ -7770,6 +7789,7 @@ function crTabIA(e){
     </div>
     <div id="cr-pt-res" style="font-size:.76rem;line-height:1.6;margin-top:10px;background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:10px 12px"></div>
     <button class="gx-mini" onclick="crUsarPonderada()" style="width:100%;padding:10px;margin-top:8px">Usar esta nota como nota final</button>
+    </details>
 
     <label style="margin-top:18px">2 · Respuesta modelo del banco</label>
     <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">Si la actividad está en tu banco con respuesta modelo, elígela y pulsa «Añadir esta»; con «Las de este examen» la localiza automáticamente. Así la IA corrige contra la solución correcta, no contra su criterio.</p>
@@ -7781,7 +7801,7 @@ function crTabIA(e){
 
     <label style="margin-top:18px">3 · Criterios de corrección (lo que le dirías tú a la IA)</label>
     <textarea id="cr-crit" rows="4" placeholder="Ej.: valora contenido sobre forma; penaliza las faltas de ortografía hasta 1 punto…"></textarea>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 8px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini y pégalo. Ya lleva dentro la respuesta modelo y los criterios. Si el ejercicio tiene fotos, selecciónalas abajo y al pulsar <b>Compartir con la IA</b> se adjuntan solas (no hace falta buscarlas en el móvil).</p>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:8px 0 8px;line-height:1.5">Copia el prompt, ábrelo en Claude o Gemini y pégalo. Ya lleva dentro la respuesta modelo y los criterios. Si el ejercicio tiene fotos, selecciónalas abajo y al pulsar <b>Compartir con la IA</b> se adjuntan solas (no hace falta buscarlas en el móvil). Una vez en la IA, es el momento de añadir o modificar el texto si lo necesitas.</p>
     <div id="cr-fotos-box" style="margin:0 0 10px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="gx-mini" onclick="crCopiarPrompt()" style="flex:1;padding:10px">📋 Copiar prompt</button>
@@ -7799,7 +7819,7 @@ function crTabIA(e){
     <label style="margin-top:10px">Cómo lo verá el alumno</label>
     <div id="cr-ia-prev" class="ia-prev"></div>
     <button class="btn btn-honey" onclick="crPasarANota()" style="margin-top:16px">Pasar a nota y comentario →</button>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:10px 0 0;line-height:1.5">La nota grande en rojo es la tuya, no la de la IA. La IA solo propone. Nada se guarda desde aquí.</p>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:10px 0 0;line-height:1.5">La nota grande en azul es la tuya, no la de la IA. La IA solo propone. Nada se guarda desde aquí.</p>
   </div>`;
 }
 function renderEntrega(e){
