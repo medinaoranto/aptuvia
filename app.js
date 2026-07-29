@@ -1897,11 +1897,12 @@ function manualProfeSecciones(esAula){
 
   s.push({ t:'4. Crear un examen', p:[
     'DÓNDE: Área Docente → Crear y gestionar exámenes.',
-    'Hay tres formas, con los botones de arriba:',
+    'Hay cuatro formas, con los botones de arriba:',
     'TEST: se escriben las preguntas una a una, cada una con sus cuatro opciones, la respuesta correcta y, si quieres, una explicación que el alumno ve al corregirse. También puedes tirar de tu banco con "📋 Del banco" para reutilizar preguntas ya escritas.',
     'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla. Igual que en test, con "📋 Del banco" reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo.',
     'PEGAR EXAMEN: para cargar de golpe un examen que ya tengas escrito, sin teclearlo pregunta a pregunta.',
-    'En todos los casos se elige la unidad o materia, el título y el nivel. Debajo del constructor de redacción sale un aviso de a qué unidad se va a crear, para no equivocarte.',
+    'BANCO: tu banco de respuestas modelo para las redacciones. Aquí creas o editas actividades con su respuesta modelo, cada una con un CÓDIGO (por ejemplo H4-T01-12). Ese código es lo que enlaza la pregunta con su respuesta: al crear un examen "📋 Del banco" la actividad se lleva su código, y al corregir se localiza sola. Si guardas dos veces con el mismo código, se edita, no se duplica. Toca una de la lista de la derecha para editarla.',
+    'En Test, Redacción y Pegar examen se elige la unidad o materia, el título y el nivel. Debajo del constructor de redacción sale un aviso de a qué unidad se va a crear, para no equivocarte.',
     'CUENTA PARA LA NOTA FINAL: casilla importante. Si la marcas, el alumno solo tiene UN intento, se le muestran las normas antes de empezar y se vigila que no se salga de la pantalla. Si no la marcas, puede repetirlo tantas veces como quiera.',
     'DESCARGAR PARA PAPEL: en la lista de exámenes de abajo, el botón 🖨 genera un PDF del examen para hacerlo impreso. En los test te pregunta si añadir la hoja de soluciones (una para ti, otra sin soluciones para repartir); en los de redacción salen renglones para escribir.',
     'Recomendación: máximo 25 preguntas por examen de tema nuevo. Para repasos largos, mejor partirlos en dos.'
@@ -1936,7 +1937,7 @@ function manualProfeSecciones(esAula){
     'DÓNDE: Área Docente → Correcciones.',
     'Aquí llegan las redacciones entregadas. La tarjeta del Área Docente muestra cuántas tienes pendientes. Abres la entrega y ves el texto del alumno.',
     'CORRECCIÓN MANUAL: le pones la nota y le escribes un comentario. Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá resaltado, como una anotación a mano.',
-    'CORRECCIÓN CON IA (asistida): la plataforma NO corrige sola, pero te prepara el trabajo. Va en cinco pasos: (1) repartes la nota en apartados con su peso —contenido, expresión, ortografía...— y puedes guardar tu reparto para las próximas; (2) eliges la respuesta modelo del banco (si la actividad la tiene) para que la IA corrija contra ella; (3) revisas los criterios; (4) copias el prompt y lo pegas en Claude o Gemini (ya lleva dentro la respuesta modelo y los criterios, no hace falta adjuntar ningún PDF) y traes su respuesta; (5) la nota final la pones tú.',
+    'CORRECCIÓN CON IA (asistida): la plataforma NO corrige sola, pero te prepara el trabajo. Va en cinco pasos: (1) repartes la nota en apartados con su peso —contenido, expresión, ortografía...— y puedes guardar tu reparto para las próximas; (2) añades la respuesta modelo del banco: en la lista puedes marcar varias a la vez y pulsar «Añadir seleccionadas», o pulsar «Las de este examen» para que las localice solas por su código; (3) revisas los criterios; (4) copias el prompt y lo pegas en Claude o Gemini (ya lleva dentro la respuesta modelo y los criterios, no hace falta adjuntar ningún PDF) y traes su respuesta; (5) la nota final la pones tú.',
     'La IA solo propone. La nota que cuenta es siempre la tuya. Nada se guarda hasta que tú lo confirmas.',
     'Al guardar, el alumno ve su respuesta con tus anotaciones intercaladas justo debajo del párrafo que corrigen. Puede descargarse su examen corregido en PDF.'
   ]});
@@ -6721,11 +6722,77 @@ async function openExamMgmt(){
   window._teacherScreen='examgmt';
   const units=unidadesParaCrearExamen();
   builder={mode:'auto',kind:'test',unidad:units[0]||'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
+  bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null}; bancoListUnidad='';
   showView('teacher'); window.scrollTo(0,0);
   if(builder.unidad) await ensureTemas(builder.unidad);
   renderExamMgmt();
 }
 
+let bancoList=[]; let bancoListUnidad=''; let bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null};
+async function bancoCargar(unidad){
+  bancoListUnidad=unidad;
+  try{ bancoList=await call('/rest/v1/rpc/banco_redaccion',{method:'POST',body:impProf({p_unidad:unidad})})||[]; }
+  catch(e){ bancoList=[]; }
+  if(builder.kind==='banco' && builder.unidad===unidad) renderExamMgmt();
+}
+function captureBanco(){
+  const c=$('bq-cod'), t=$('bq-tema'), e=$('bq-enun'), x=$('bq-expl');
+  if(c) bancoDraft.codigo=c.value;
+  if(t) bancoDraft.tema=t.value;
+  if(e) bancoDraft.enun=e.value;
+  if(x) bancoDraft.expl=x.value;
+}
+function onUnidadChangeBanco(){ captureBanco(); const sel=$('ce-unidad'); if(sel) builder.unidad=sel.value; bancoListUnidad=''; renderExamMgmt(); }
+function renderBancoSection(){
+  const d=bancoDraft;
+  const bloques=[]; (bancoList||[]).forEach(q=>{ const t=q.tema||''; if(t&&bloques.indexOf(t)<0) bloques.push(t); });
+  let tOpts='<option value="">— Bloque (opcional) —</option>';
+  bloques.forEach(t=>{ tOpts+=`<option value="${escAttr(t)}"${d.tema===t?' selected':''}>${escHtml(t)}</option>`; });
+  const h=['<div class="t-card">'];
+  h.push(`<label style="margin-top:6px">${d.id?'Editando respuesta':'Nueva respuesta'}</label>`);
+  h.push('<label>Bloque</label><select id="bq-tema">'+tOpts+'</select>');
+  h.push('<label>Código</label><input id="bq-cod" type="text" placeholder="Ej.: H4-T01-12" value="'+escAttr(d.codigo)+'">');
+  h.push('<label>Enunciado</label><textarea id="bq-enun" rows="3" placeholder="El enunciado de la actividad">'+escHtml(d.enun)+'</textarea>');
+  h.push('<label>Respuesta modelo</label><textarea id="bq-expl" rows="6" placeholder="La respuesta modelo con la que la IA corregirá">'+escHtml(d.expl)+'</textarea>');
+  h.push('<div style="display:flex;gap:8px;margin-top:12px">');
+  if(d.id) h.push('<button class="btn btn-ghost" id="bq-nuevo" style="flex:1">Nueva</button>');
+  h.push('<button class="btn btn-honey" id="bq-save" style="flex:1">'+(d.id?'Guardar cambios':'Guardar respuesta')+'</button>');
+  h.push('</div></div>');
+  return h.join('');
+}
+function renderBancoLista(){
+  const list=bancoList||[];
+  if(bancoListUnidad!==builder.unidad) return '<p class="sa-empty" style="font-size:.82rem">Cargando…</p>';
+  if(!list.length) return '<p class="sa-empty" style="font-size:.82rem">Aún no hay respuestas en esta unidad.</p>';
+  const h=['<div class="bk-list">'];
+  list.forEach(q=>{
+    const titulo=sinNumeroInicial(String(q.enunciado||'').split('\n')[0]);
+    const cod=q.codigo?`<b style="color:var(--navy)">${escHtml(q.codigo)}</b> · `:'';
+    const okm=String(q.explicacion||'').trim();
+    h.push(`<label class="bk-row" style="cursor:pointer" data-bqedit="${q.id}"><span>${cod}${escHtml(titulo)}<br><span style="font-size:.7rem;color:${okm?'#1c7a44':'#b4232a'}">${okm?'✔ con respuesta modelo':'sin respuesta modelo'}</span></span></label>`);
+  });
+  h.push('</div>');
+  return h.join('');
+}
+function wireBanco(){
+  const s=$('bq-save'); if(s) s.onclick=bancoGuardar;
+  const nv=$('bq-nuevo'); if(nv) nv.onclick=()=>{ bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null}; renderExamMgmt(); };
+  $('teacher').querySelectorAll('[data-bqedit]').forEach(b=> b.onclick=()=>{ const q=(bancoList||[]).find(x=>String(x.id)===String(b.dataset.bqedit)); if(q){ bancoDraft={codigo:String(q.codigo||''),tema:String(q.tema||''),enun:String(q.enunciado||''),expl:String(q.explicacion||''),id:q.id}; window.scrollTo(0,0); renderExamMgmt(); } });
+}
+async function bancoGuardar(){
+  captureBanco();
+  const d=bancoDraft;
+  if(!d.enun.trim()){ renderExamMgmt(null,'Falta el enunciado.'); return; }
+  if(!d.expl.trim()){ renderExamMgmt(null,'Falta la respuesta modelo.'); return; }
+  const btn=$('bq-save'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
+  try{
+    await call('/rest/v1/rpc/crear_respuesta_banco',{method:'POST',body:impProf({p_unidad:builder.unidad,p_codigo:d.codigo.trim(),p_tema:d.tema.trim(),p_enunciado:d.enun,p_explicacion:d.expl})});
+    bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null};
+    bancoListUnidad='';
+    await bancoCargar(builder.unidad);
+    renderExamMgmt('✅ Respuesta guardada en el banco.');
+  }catch(err){ renderExamMgmt(null,'No se pudo guardar: '+(err.message||'')); }
+}
 function renderExamMgmt(okMsg,errMsg){
   const units=unidadesParaCrearExamen();
   // La unidad guardada puede no pertenecer al certificado activo (cambio de módulo,
@@ -6745,7 +6812,7 @@ function renderExamMgmt(okMsg,errMsg){
   h.push(`<button onclick="driveAbrir()" style="width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;margin-bottom:14px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive (materiales de exámenes)</button>`);
   if(okMsg) h.push(`<div class="t-note ok">${okMsg}</div>`);
   if(errMsg) h.push(`<div class="t-note err">${errMsg}</div>`);
-  h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button></div>`);
+  h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button><button id="kd-banco" class="${builder.kind==='banco'?'on':''}">📚 Banco</button></div>`);
   if(builder.kind==='redaccion'){
     h.push('<div class="mgmt-2col"><div class="mgmt-left">');
         h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label>Nivel</label><select id="ce-nivel"><option value="medio"'+(builder.nivel==='medio'?' selected':'')+'>Medio</option><option value="alto"'+(builder.nivel==='alto'?' selected':'')+'>Alto</option></select><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
@@ -6759,6 +6826,7 @@ function renderExamMgmt(okMsg,errMsg){
     const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
     $('kd-test').onclick=()=>setKind('test'); $('kd-red').onclick=()=>setKind('redaccion');
     const ki4=$('kd-imp'); if(ki4) ki4.onclick=()=>setKind('importar');
+    const kb4=$('kd-banco'); if(kb4) kb4.onclick=()=>setKind('banco');
     wireRed();
     $('teacher').querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>borrarExamenUI(b.dataset.del));
     $('teacher').querySelectorAll('[data-edit]').forEach(b=> b.onclick=()=>editarCabeceraUI(b.dataset.edit));
@@ -6804,10 +6872,29 @@ D) Opción
     $('kd-test').onclick=()=>setKind('test');
     $('kd-red').onclick=()=>setKind('redaccion');
     const ki3=$('kd-imp'); if(ki3) ki3.onclick=()=>setKind('importar');
+    const kb3=$('kd-banco'); if(kb3) kb3.onclick=()=>setKind('banco');
     wireImportarKind();
     $('teacher').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>borrarExamenUI(b.dataset.del));
     $('teacher').querySelectorAll('[data-edit]').forEach(b=> b.onclick=()=>editarCabeceraUI(b.dataset.edit));
     $('teacher').querySelectorAll('[data-pdf]').forEach(b=> b.onclick=()=>pdfExamenPapel(b.dataset.pdf));
+    return;
+  }
+  // ── Bloque BANCO (respuestas modelo propias) ──
+  if(builder.kind==='banco'){
+    if(bancoListUnidad!==builder.unidad) bancoCargar(builder.unidad);
+    h.push('<div class="mgmt-2col"><div class="mgmt-left">');
+    h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:6px;line-height:1.5">Crea o edita respuestas modelo de tu banco. El <b>código</b> une la pregunta con su respuesta (p.ej. <code>H4-T01-12</code>). Mismo código = se edita, no se duplica. Toca una de la lista para editarla.</div></div>');
+    h.push(renderBancoSection());
+    h.push('</div><div class="mgmt-right">');
+    h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Respuestas en tu banco</h2>');
+    h.push(renderBancoLista());
+    h.push('</div></div>');
+    $('teacher').innerHTML=h.join('');
+    const usb=$('ce-unidad'); if(usb) usb.addEventListener('change',onUnidadChangeBanco);
+    $('kd-test').onclick=()=>setKind('test'); $('kd-red').onclick=()=>setKind('redaccion');
+    const ki5=$('kd-imp'); if(ki5) ki5.onclick=()=>setKind('importar');
+    const kb5=$('kd-banco'); if(kb5) kb5.onclick=()=>setKind('banco');
+    wireBanco();
     return;
   }
   h.push('<div class="mgmt-2col"><div class="mgmt-left">');
@@ -6830,6 +6917,7 @@ h.push(`<label>Tema</label><select id="ce-tema">${tOpts}</select><button class="
   const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
   $('kd-test').onclick=()=>setKind('test'); $('kd-red').onclick=()=>setKind('redaccion');
   const ki=$('kd-imp'); if(ki) ki.onclick=()=>setKind('importar');
+  const kb=$('kd-banco'); if(kb) kb.onclick=()=>setKind('banco');
   if(builder.kind==='importar'){ wireImportarKind(); }
   const ma=$('md-auto'); if(ma) ma.onclick=()=>setMode('auto');
   const mm=$('md-med'); if(mm) mm.onclick=()=>setMode('medida');
@@ -6988,7 +7076,7 @@ function listaProfHtml(units){
 }
 
 // ---- Redacción: constructor de enunciados ----
-function setKind(k){ captureFields(); if(builder.kind==='redaccion') captureRed(); builder.kind=k; renderExamMgmt(); }
+function setKind(k){ captureFields(); if(builder.kind==='redaccion') captureRed(); if(builder.kind==='banco') captureBanco(); builder.kind=k; renderExamMgmt(); }
 function captureRed(){
   const cont=$('teacher'); if(!cont) return;
   // Material a nivel de examen
@@ -7002,7 +7090,7 @@ function captureRed(){
     blocks.forEach((b,i)=>{
       const prev=builder.redItems[i]||{enun:'',file:null,matName:'',matMode:'inline'};
       const ta=b.querySelector('.red-q-in');
-      const it={enun:ta?ta.value:'', file:prev.file, matName:prev.matName, matMode:prev.matMode};
+      const it={enun:ta?ta.value:'', file:prev.file, matName:prev.matName, matMode:prev.matMode, codigo:prev.codigo||''};
       const fi=b.querySelector('.red-q-file');
       if(fi && fi.files && fi.files[0]){ it.file=fi.files[0]; it.matName=fi.files[0].name; }
       const md=b.querySelector('.red-q-mode'); if(md) it.matMode=md.value||'inline';
@@ -7086,7 +7174,7 @@ function addRedBankSelected(){
     if(c.disabled) return;
     const q=banco.find(x=>String(x.id)===String(c.value));
     if(!q) return;
-    builder.redItems.push({enun:String(q.enunciado||''),file:null,matName:'',matMode:'inline'});
+    builder.redItems.push({enun:String(q.enunciado||''),file:null,matName:'',matMode:'inline',codigo:String(q.codigo||'')});
     n++;
   });
   // Fuera los huecos vacíos si se ha rellenado desde el banco
@@ -7118,7 +7206,7 @@ async function subirMaterialPDF(file, path){
 }
 async function crearRedUI(){
   captureFields(); captureRed();
-  const items=builder.redItems.map(it=>({enun:((it&&it.enun)||'').trim(), file:(it&&it.file)||null, matMode:(it&&it.matMode)||'inline'})).filter(x=>x.enun);
+  const items=builder.redItems.map(it=>({enun:((it&&it.enun)||'').trim(), file:(it&&it.file)||null, matMode:(it&&it.matMode)||'inline', codigo:((it&&it.codigo)||'')})).filter(x=>x.enun);
   if(!items.length){ renderExamMgmt(null,'Añade al menos una pregunta.'); return; }
   const vis=await pedirVisibilidad(); if(vis===null) return;
   const btn=$('red-create'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
@@ -7128,7 +7216,7 @@ async function crearRedUI(){
     if(builder.examFile){ examUrl=await subirMaterialPDF(builder.examFile, folder+'/examen.pdf'); examMode=builder.examMatMode||'inline'; }
     const preguntas=[];
     for(let i=0;i<items.length;i++){
-      const it=items[i]; const q={enunciado:it.enun};
+      const it=items[i]; const q={enunciado:it.enun}; if(it.codigo) q.codigo=it.codigo;
       if(it.file){ q.material_url=await subirMaterialPDF(it.file, folder+'/p'+(i+1)+'.pdf'); q.material_modo=it.matMode||'inline'; }
       preguntas.push(q);
     }
@@ -7672,9 +7760,9 @@ function crTitulo(q){ return String(q&&q.enunciado||'').split('\n')[0].trim(); }
 function crPintarModelos(){
   const sel=$('cr-modelo'); if(!sel) return;
   const con=crBanco.filter(q=>String(q.explicacion||'').trim());
-  if(!con.length){ sel.innerHTML='<option value="">(no hay respuestas modelo en tu banco)</option>'; return; }
+  if(!con.length){ sel.innerHTML='<option value="" disabled>(no hay respuestas modelo en tu banco)</option>'; return; }
   const temas=[]; con.forEach(q=>{ const t=q.tema||'Sin bloque'; if(temas.indexOf(t)<0) temas.push(t); });
-  let h='<option value="">Elige una actividad…</option>';
+  let h='';
   temas.forEach(t=>{
     h+=`<optgroup label="${escAttr(t)}">`;
     con.filter(q=>(q.tema||'Sin bloque')===t).forEach(q=>{ h+=`<option value="${q.id}">${escHtml(crTitulo(q))}</option>`; });
@@ -7689,21 +7777,33 @@ function crAnexarCriterio(txt){
   ta.scrollTop=ta.scrollHeight;
 }
 function crAddModelo(){
-  const sel=$('cr-modelo'); if(!sel||!sel.value){ appAlert('Elige antes una actividad del desplegable.'); return; }
-  const q=crBanco.find(x=>String(x.id)===String(sel.value));
-  if(!q){ appAlert('No encuentro esa actividad.'); return; }
-  crAnexarCriterio('RESPUESTA MODELO · '+crTitulo(q)+'\n'+String(q.explicacion||'').trim());
-}
-function crAddModelosDelExamen(){
-  const resp=Array.isArray(crEnt&&crEnt.respuestas)?crEnt.respuestas:[];
-  if(!resp.length){ appAlert('Esta entrega no tiene preguntas.'); return; }
-  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const sel=$('cr-modelo'); if(!sel) return;
+  const ids=Array.from(sel.selectedOptions||[]).map(o=>o.value).filter(Boolean);
+  if(!ids.length){ appAlert('Toca antes una o varias actividades del listado.'); return; }
   let n=0;
+  ids.forEach(id=>{ const q=crBanco.find(x=>String(x.id)===String(id)); if(q&&String(q.explicacion||'').trim()){ crAnexarCriterio('RESPUESTA MODELO · '+crTitulo(q)+'\n'+String(q.explicacion).trim()); n++; } });
+  appAlert('Añadidas '+n+' respuesta(s) modelo a los criterios.');
+}
+async function crAddModelosDelExamen(){
+  if(!crBanco.length){ await crCargarBanco(); }
+  const conModelo=crBanco.filter(q=>String(q.explicacion||'').trim());
+  const usados=new Set(); let n=0;
+  const anexar=q=>{ if(!q||usados.has(q.id)||!String(q.explicacion||'').trim()) return false; crAnexarCriterio('RESPUESTA MODELO · '+crTitulo(q)+'\n'+String(q.explicacion).trim()); usados.add(q.id); return true; };
+  // 1) Por código: preguntas reales del examen
+  const all=[].concat(...Object.values(examsByUnit||{}));
+  const ex=all.find(e=> (e.titulo||'').trim()===((crEnt&&crEnt.examen)||'').trim());
+  if(ex){
+    let mats=[];
+    try{ mats=await call('/rest/v1/rpc/obtener_redaccion_profesor',{method:'POST',body:{p_examen_id:ex.id}})||[]; }catch(e){ mats=[]; }
+    mats.forEach(m=>{ const cod=String(m.codigo||'').trim(); if(cod){ const q=conModelo.find(x=>String(x.codigo||'').trim()===cod); if(anexar(q)) n++; } });
+  }
+  // 2) Fallback por texto (exámenes creados sin código)
+  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const resp=Array.isArray(crEnt&&crEnt.respuestas)?crEnt.respuestas:[];
   resp.forEach(r=>{
-    const e1=String(r.enunciado||'').trim();
-    if(!e1) return;
+    const e1=String(r.enunciado||'').trim(); if(!e1) return;
     const n1=norm(e1), t1=norm(e1.split('\n')[0]);
-    const q=crBanco.find(x=>{
+    const q=conModelo.find(x=>{
       const n2=norm(x.enunciado), t2=norm(crTitulo(x));
       if(!n2) return false;
       return n2===n1 || t2===t1
@@ -7711,7 +7811,7 @@ function crAddModelosDelExamen(){
         || (t2 && t2.length>8 && n1.indexOf(t2)>=0)
         || (n2.length>25 && n1.indexOf(n2.slice(0,25))>=0);
     });
-    if(q && String(q.explicacion||'').trim()){ crAnexarCriterio('RESPUESTA MODELO · '+crTitulo(q)+'\n'+String(q.explicacion).trim()); n++; }
+    if(anexar(q)) n++;
   });
   appAlert(n? ('Añadidas '+n+' respuesta(s) modelo a los criterios.') : 'Ninguna pregunta de esta entrega coincide con una actividad del banco con respuesta modelo. Elige la actividad en el desplegable y pulsa «Añadir esta».');
 }
@@ -7792,10 +7892,10 @@ function crTabIA(e){
     </details>
 
     <label style="margin-top:18px">2 · Respuesta modelo del banco</label>
-    <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">Si la actividad está en tu banco con respuesta modelo, elígela y pulsa «Añadir esta»; con «Las de este examen» la localiza automáticamente. Así la IA corrige contra la solución correcta, no contra su criterio.</p>
-    <select id="cr-modelo"><option value="">Cargando…</option></select>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">Si la actividad está en tu banco con respuesta modelo, tócala (puedes marcar varias) y pulsa «Añadir seleccionadas»; con «Las de este examen» las localiza automáticamente por su código. Así la IA corrige contra la solución correcta, no contra su criterio.</p>
+    <select id="cr-modelo" multiple size="6"><option value="">Cargando…</option></select>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="gx-mini" onclick="crAddModelo()" style="flex:1;padding:9px">➕ Añadir esta</button>
+      <button class="gx-mini" onclick="crAddModelo()" style="flex:1;padding:9px">➕ Añadir seleccionadas</button>
       <button class="gx-mini" onclick="crAddModelosDelExamen()" style="flex:1;padding:9px">➕ Las de este examen</button>
     </div>
 
