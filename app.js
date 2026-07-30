@@ -6771,9 +6771,11 @@ async function bancoCargar(unidad){
   if(builder.kind==='banco' && builder.unidad===unidad) renderExamMgmt();
 }
 function captureBanco(){
-  const c=$('bq-cod'), t=$('bq-tema'), e=$('bq-enun'), x=$('bq-expl');
+  const c=$('bq-cod'), t=$('bq-tema'), tn=$('bq-tema-new'), e=$('bq-enun'), x=$('bq-expl');
   if(c) bancoDraft.codigo=c.value;
-  if(t) bancoDraft.tema=t.value;
+  const nuevoBloque=tn?(tn.value||'').trim():'';
+  if(nuevoBloque) bancoDraft.tema=nuevoBloque;
+  else if(t) bancoDraft.tema=t.value;
   if(e) bancoDraft.enun=e.value;
   if(x) bancoDraft.expl=x.value;
 }
@@ -6781,11 +6783,13 @@ function onUnidadChangeBanco(){ captureBanco(); const sel=$('ce-unidad'); if(sel
 function renderBancoSection(){
   const d=bancoDraft;
   const bloques=[]; (bancoList||[]).forEach(q=>{ const t=q.tema||''; if(t&&bloques.indexOf(t)<0) bloques.push(t); });
+  const esExistente=bloques.indexOf(d.tema)>=0;
   let tOpts='<option value="">— Bloque (opcional) —</option>';
-  bloques.forEach(t=>{ tOpts+=`<option value="${escAttr(t)}"${d.tema===t?' selected':''}>${escHtml(t)}</option>`; });
+  bloques.forEach(t=>{ tOpts+=`<option value="${escAttr(t)}"${(esExistente&&d.tema===t)?' selected':''}>${escHtml(t)}</option>`; });
   const h=['<div class="t-card">'];
   h.push(`<label style="margin-top:6px">${d.id?'Editando respuesta':'Nueva respuesta'}</label>`);
   h.push('<label>Bloque</label><select id="bq-tema">'+tOpts+'</select>');
+  h.push('<input id="bq-tema-new" type="text" placeholder="…o escribe un bloque nuevo" value="'+escAttr(esExistente?'':(d.tema||''))+'" style="margin-top:8px">');
   h.push('<label>Código</label><input id="bq-cod" type="text" placeholder="Ej.: H4-T01-12" value="'+escAttr(d.codigo)+'">');
   h.push('<label>Enunciado</label><textarea id="bq-enun" rows="3" placeholder="El enunciado de la actividad">'+escHtml(d.enun)+'</textarea>');
   h.push('<label>Respuesta modelo</label><textarea id="bq-expl" rows="6" placeholder="La respuesta modelo con la que la IA corregirá">'+escHtml(d.expl)+'</textarea>');

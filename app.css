@@ -872,6 +872,10 @@ select{
 select:focus{outline:none;border-color:var(--navy);}
 select option{color:var(--navy);padding:8px;}
 
+/* ---- selector de UNIDAD destacado (borde naranja corporativo) ---- */
+#ce-unidad{border:2px solid #E67E0E;}
+#ce-unidad:focus{border-color:#E67E0E;}
+
 /* ---- picker universal (reemplaza selects nativos) ---- */
 .upick{position:relative;width:100%;margin-bottom:4px;}
 .upick-btn{width:100%;padding:13px 40px 13px 14px;border:1.5px solid var(--line);border-radius:12px;
