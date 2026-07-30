@@ -1937,7 +1937,7 @@ function manualProfeSecciones(esAula){
     'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla. Igual que en test, con «Del banco» reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo.',
     'PEGAR EXAMEN: para cargar de golpe un examen que ya tengas escrito, sin teclearlo pregunta a pregunta.',
     'BANCO: tu banco de respuestas modelo para las redacciones. Aquí SOLO se crea o edita la ficha de una actividad (su enunciado y su respuesta modelo); no genera ningún examen. Para montar el examen, ve a Redacción y añádela con «Del banco». Cada ficha lleva un CÓDIGO (por ejemplo H4-T01-12) que enlaza la pregunta con su respuesta: al añadirla "Del banco" la actividad se lleva su código y, al corregir, la respuesta modelo se localiza sola. Si guardas dos veces con el mismo código, se edita, no se duplica.',
-    'En Test, Redacción y Pegar examen se elige la unidad o materia, el título y el nivel. Debajo del constructor de redacción sale un aviso de a qué unidad se va a crear, para no equivocarte.',
+    'En Test, Redacción y Pegar examen se elige la unidad o materia y el título. Debajo del constructor de redacción sale un aviso de a qué unidad se va a crear, para no equivocarte.',
     'CUENTA PARA LA NOTA FINAL: casilla importante. Si la marcas, el alumno solo tiene UN intento, se le muestran las normas antes de empezar y se vigila que no se salga de la pantalla. Si no la marcas, puede repetirlo tantas veces como quiera.',
     'DESCARGAR PARA PAPEL: en la lista de exámenes de abajo, el botón de impresora genera un PDF del examen para hacerlo impreso. En los test te pregunta si añadir la hoja de soluciones (una para ti, otra sin soluciones para repartir); en los de redacción salen renglones para escribir.',
     'Recomendación: máximo 25 preguntas por examen de tema nuevo. Para repasos largos, mejor partirlos en dos.'
@@ -1945,7 +1945,7 @@ function manualProfeSecciones(esAula){
 
   s.push({ t:'5. Modificar un examen ya creado', p:[
     'DÓNDE: Área Docente → Crear y gestionar exámenes, en la lista de abajo.',
-    'Se puede cambiar la cabecera (título, nivel y si cuenta para nota), añadir preguntas, corregir el enunciado o las opciones de una que esté mal, y borrar preguntas sueltas.',
+    'Se puede cambiar la cabecera (título y si cuenta para nota), añadir preguntas, corregir el enunciado o las opciones de una que esté mal, y borrar preguntas sueltas.',
     'También se cambia o se quita el PDF adjunto de los exámenes de redacción.',
     'La papelera borra el examen entero. Si ya lo han hecho alumnos, sus intentos se pierden con él.',
     'Cuidado al cambiar un examen que ya han hecho: los que lo hicieron antes conservan la nota del examen antiguo.'
@@ -6850,7 +6850,7 @@ function renderExamMgmt(okMsg,errMsg){
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button><button id="kd-banco" class="${builder.kind==='banco'?'on':''}">📚 Banco</button></div>`);
   if(builder.kind==='redaccion'){
     h.push('<div class="mgmt-2col"><div class="mgmt-left">');
-        h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label>Nivel</label><select id="ce-nivel"><option value="medio"'+(builder.nivel==='medio'?' selected':'')+'>Medio</option><option value="alto"'+(builder.nivel==='alto'?' selected':'')+'>Alto</option></select><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
+        h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
     h.push(`<div style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0">Se creará en <b>${escHtml(unidadesById[builder.unidad]?unidadesById[builder.unidad].codigo+' · '+tituloMateria(unidadesById[builder.unidad]):(builder.unidad||'—'))}</b>.</div>`);
     h.push(renderRedSection());
     h.push('</div><div class="mgmt-right">');
@@ -6876,11 +6876,6 @@ function renderExamMgmt(okMsg,errMsg){
       <select id="ce-unidad">${uOpts}</select>
       <label>Título del examen</label>
       <input id="ce-titulo" type="text" placeholder="Ej.: Examen Tema 3 · Importado" value="${escAttr(builder.titulo)}">
-      <label>Nivel</label>
-      <select id="ce-nivel">
-        <option value="medio"${builder.nivel==='medio'?' selected':''}>Medio</option>
-        <option value="alto"${builder.nivel==='alto'?' selected':''}>Alto</option>
-      </select>
       <label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"${builder.cuentaFinal?' checked':''}> Cuenta para la nota final</label>
     </div>`);
     h.push(`<div class="t-card" style="margin-top:12px">
@@ -6939,7 +6934,7 @@ D) Opción
   }
   h.push('<div class="mgmt-2col"><div class="mgmt-left">');
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="md-auto" class="${builder.mode==='auto'?'on':''}">Automático</button><button id="md-med" class="${builder.mode==='medida'?'on':''}">A medida</button></div>`);
-  h.push(`<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">${uOpts}</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen sorpresa" value="${escAttr(builder.titulo)}"><div style="display:flex;gap:10px"><div style="flex:1"><label>Nivel</label><select id="ce-nivel"><option value="medio"${builder.nivel==='medio'?' selected':''}>Medio</option><option value="alto"${builder.nivel==='alto'?' selected':''}>Alto</option></select></div>`);
+  h.push(`<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">${uOpts}</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen sorpresa" value="${escAttr(builder.titulo)}"><div style="display:flex;gap:10px">`);
   if(builder.mode==='auto') h.push(`<div style="flex:1"><label>Nº de preguntas</label><input id="ce-n" type="number" min="1" max="100" value="${builder.n}"></div>`);
   h.push(`</div>`);
   h.push(`<label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"${builder.cuentaFinal?' checked':''}> Cuenta para la nota final</label>`);
@@ -7007,7 +7002,7 @@ async function pdfExamenPapel(examId){
       doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
       doc.splitTextToSize(pdfSafe(ex.titulo||'Examen'),ANCHO).forEach(l=>{ doc.text(l,M,y); y+=6; });
       doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
-      doc.text(pdfSafe(sub+(ex.nivel?'  ·  Nivel '+ex.nivel:'')+(esRed?'  ·  Redaccion':'')),M,y); y+=4.5;
+      doc.text(pdfSafe(sub+(esRed?'  ·  Redaccion':'')),M,y); y+=4.5;
       const _dat=pdfLineaDatos(fmtFechaES(fecha));
       if(_dat){ doc.text(pdfSafe(_dat),M,y); y+=4; }
       y-=1;
@@ -7110,7 +7105,7 @@ function listaProfHtml(units){
     });
     if(!prof.length) return; any=true;
     list+=`<div class="t-name" style="margin-top:4px">${unidadesById[u]?unidadesById[u].codigo:u}</div>`;
-    prof.forEach(e=>{ const badge=e.tipo==='redaccion'?'<span class="rbadge">Redacción</span> ':''; list+=`<div class="ce-row"><span class="ce-info"><b>${badge}${escHtml(e.titulo)}</b><span>Nivel ${e.nivel||'—'}${e.cuenta_final?' · Nota final':''}</span></span><button class="ce-del" data-pdf="${e.id}" aria-label="Descargar en PDF" title="Descargar para hacerlo en papel" style="background:#eef7ee;border-color:#bfe3cd;margin-right:6px">🖨</button><button class="ce-del" data-edit="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Editar" style="background:#eef2ff;border-color:#c7d2fe;margin-right:6px">✏️</button><button class="ce-del" data-del="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Borrar">🗑</button></div>`; });
+    prof.forEach(e=>{ const badge=e.tipo==='redaccion'?'<span class="rbadge">Redacción</span> ':''; list+=`<div class="ce-row"><span class="ce-info"><b>${badge}${escHtml(e.titulo)}</b><span>${e.cuenta_final?'Nota final':'Práctica'}</span></span><button class="ce-del" data-pdf="${e.id}" aria-label="Descargar en PDF" title="Descargar para hacerlo en papel" style="background:#eef7ee;border-color:#bfe3cd;margin-right:6px">🖨</button><button class="ce-del" data-edit="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Editar" style="background:#eef2ff;border-color:#c7d2fe;margin-right:6px">✏️</button><button class="ce-del" data-del="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Borrar">🗑</button></div>`; });
   });
   return any?list:`<div class="center-msg" style="padding:18px">Aún no has creado exámenes.</div>`;
 }
@@ -7443,8 +7438,6 @@ function renderEditarCabecera(ex){
     <div class="t-card">
       <label style="margin-top:6px">Título</label>
       <input id="ed-tit" type="text" value="${escAttr(ex.titulo||'')}">
-      <label>Nivel</label>
-      <select id="ed-niv"><option value="medio"${ex.nivel!=='alto'?' selected':''}>Medio</option><option value="alto"${ex.nivel==='alto'?' selected':''}>Alto</option></select>
       <label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ed-fin"${ex.cuenta_final?' checked':''}> Cuenta para la nota final</label>
       <button class="btn btn-honey" id="ed-save" style="margin-top:16px">Guardar cambios</button>
     </div>
@@ -7455,7 +7448,8 @@ function renderEditarCabecera(ex){
 }
 async function guardarCabeceraUI(id){
   const tit=($('ed-tit').value||'').trim();
-  const niv=$('ed-niv').value==='alto'?'alto':'medio';
+  const _exCab=[].concat(...Object.values(examsByUnit)).find(e=>e.id===id);
+  const niv=(_exCab&&_exCab.nivel==='alto')?'alto':'medio';
   const fin=$('ed-fin').checked;
   if(!tit){ appAlert('El título no puede estar vacío.'); return; }
   const btn=$('ed-save'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
@@ -9697,8 +9691,7 @@ async function cargarPreviewPreguntas(examId){
     qs.forEach((q,qi)=>{
       const ops=Array.isArray(q.opciones)?q.opciones:[];
       h+=`<div class="pvq-card">
-        <div class="pvq-top"><span class="pvq-num">Pregunta ${qi+1}</span>
-        <span class="pvq-nivel ${q.nivel==='alto'?'alto':''}">${escHtml(q.nivel||'medio')}</span></div>
+        <div class="pvq-top"><span class="pvq-num">Pregunta ${qi+1}</span></div>
         <div class="pvq-enun" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word">${escHtmlNL(String(q.enunciado||'').replace(/^[ \t]+/gm,'').trim())}</div>`;
       ops.forEach((o,i)=>{
         const ok=i===q.respuesta_correcta;
@@ -9747,8 +9740,6 @@ function editarPreguntaUI(examId, preguntaId){
       ${opsH}
       <label style="margin-top:6px">Explicación (opcional)</label>
       <textarea id="pqe-ex" rows="2">${escHtml(q.explicacion||'')}</textarea>
-      <label style="margin-top:10px">Nivel</label>
-      <select id="pqe-niv"><option value="medio"${q.nivel!=='alto'?' selected':''}>Medio</option><option value="alto"${q.nivel==='alto'?' selected':''}>Alto</option></select>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn btn-ghost" style="flex:1" onclick="cargarPreviewPreguntas('${examId}')">Cancelar</button>
         <button class="btn btn-primary" id="pqe-save" style="flex:1">Guardar</button>
@@ -9768,7 +9759,8 @@ async function guardarPreguntaEditUI(examId, preguntaId){
   if(!corEl){ appAlert('Marca cuál es la respuesta correcta.'); return; }
   const correcta=+corEl.value;
   const ex=($('pqe-ex').value||'').trim();
-  const niv=$('pqe-niv').value==='alto'?'alto':'medio';
+  const _qEd=(window._pvQs||[]).find(x=>String(x.pregunta_id)===String(preguntaId));
+  const niv=(_qEd&&_qEd.nivel==='alto')?'alto':'medio';
   const btn=$('pqe-save'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
   try{
     await call('/rest/v1/rpc/actualizar_pregunta',{method:'POST',body:{p_pregunta_id:+preguntaId, p_examen_id:examId, p_enunciado:enun, p_opciones:opciones, p_correcta:correcta, p_explicacion:ex, p_nivel:niv}});
@@ -9790,8 +9782,6 @@ function nuevaPreguntaUI(examId){
       ${opsH}
       <label style="margin-top:6px">Explicación (opcional)</label>
       <textarea id="nqp-ex" rows="2"></textarea>
-      <label style="margin-top:10px">Nivel</label>
-      <select id="nqp-niv"><option value="medio" selected>Medio</option><option value="alto">Alto</option></select>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn btn-ghost" style="flex:1" onclick="cargarPreviewPreguntas('${examId}')">Cancelar</button>
         <button class="btn btn-primary" id="nqp-save" style="flex:1">Añadir al examen</button>
@@ -9810,7 +9800,7 @@ async function guardarNuevaPreguntaUI(examId){
   if(opciones.length<2){ appAlert('Escribe al menos dos opciones.'); return; }
   if(correcta<0){ appAlert('Marca como correcta una opción que tenga texto.'); return; }
   const ex=($('nqp-ex').value||'').trim();
-  const niv=$('nqp-niv').value==='alto'?'alto':'medio';
+  const niv='medio';
   const btn=$('nqp-save'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
   try{
     await call('/rest/v1/rpc/agregar_pregunta_examen',{method:'POST',body:{p_examen_id:examId, p_enunciado:enun, p_opciones:opciones, p_correcta:correcta, p_explicacion:ex, p_nivel:niv}});
@@ -9940,8 +9930,7 @@ async function toggleBancoPreguntas(examId){
       const ops=Array.isArray(q.opciones)?q.opciones:[];
       h+=`<div class="pvq-card pvq-banco">
         <div class="pvq-top"><span class="pvq-num">${escHtml(q.tema||'')}</span>
-        <span>${q.en_otro_examen?'<span class="pvq-uso">En otro examen</span>':''}
-        <span class="pvq-nivel ${q.nivel==='alto'?'alto':''}">${escHtml(q.nivel||'medio')}</span></span></div>
+        <span>${q.en_otro_examen?'<span class="pvq-uso">En otro examen</span>':''}</span></div>
         <div class="pvq-enun" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word">${escHtmlNL(String(q.enunciado||'').replace(/^[ \t]+/gm,'').trim())}</div>`;
       ops.forEach((o,i)=>{
         const ok=i===q.respuesta_correcta;
