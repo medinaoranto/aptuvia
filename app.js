@@ -70,6 +70,7 @@ async function loadPortal(){
     const aulaLabel = 'AULA-ABIERTA · Materias Propias / Exámenes Libres';
     const aulaOpt = document.createElement('div');
     aulaOpt.className = 'cp-option cp-special';
+    aulaOpt.style.cssText = 'font-weight:700;background:#b3e0f2;color:var(--navy)';
     aulaOpt.textContent = aulaLabel;
     aulaOpt.onclick = ()=>selectCert('__aula_abierta', aulaLabel);
     drop.appendChild(aulaOpt);
@@ -981,8 +982,9 @@ async function renderTemarioProfesor(unidad){
       <h2 style="font-size:1.1rem;font-weight:800;color:var(--navy);margin:2px 2px 6px">📚 Temario</h2>
       <p style="font-size:.85rem;color:var(--ink-soft);margin-bottom:12px">Sube apuntes, temas o ejercicios. El alumno los verá y descargará dentro de cada ${aa?'tema':'unidad'}.</p>
       <button onclick="driveAbrir()" style="width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;margin-bottom:12px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive (subir/descargar materiales)</button>
-      <label style="font-size:.75rem;color:var(--ink-soft)">${aa?'Materia':'Unidad'}</label>
-      <select id="tem-unidad" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;margin:4px 0 14px;font-size:.9rem;background:#fff">${opts}</select>
+      <label style="font-size:.75rem;color:var(--ink-soft)">Unidad de destino</label>
+      <select id="tem-unidad" style="width:100%;padding:9px 10px;border:2px solid #E67E0E;border-radius:10px;margin:4px 0 8px;font-size:.9rem;background:#fff">${opts}</select>
+      <p style="font-size:.72rem;color:var(--ink-soft);line-height:1.55;margin:0 2px 14px">Elige la ${aa?'materia':'unidad'} de destino, pon un título, adjunta el archivo (PDF, imagen, Word o Excel) y pulsa «Subir material». Nace oculto: actívalo en «Exámenes y estados» cuando quieras que el alumno lo vea.</p>
       <div style="border:1.5px solid var(--honey);background:var(--honey-tint);border-radius:14px;padding:14px;margin-bottom:16px">
         <label style="font-size:.75rem;color:var(--ink-soft)">Título</label>
         <input id="tem-tit" placeholder="Ej.: Apuntes tema 1" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 8px;box-sizing:border-box">
@@ -6748,13 +6750,13 @@ async function openExamMgmt(){
   window._teacherScreen='examgmt';
   const units=unidadesParaCrearExamen();
   builder={mode:'auto',kind:'test',unidad:units[0]||'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
-  bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null}; bancoListUnidad='';
+  bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null,matUrl:'',matName:'',matFile:null}; bancoListUnidad='';
   showView('teacher'); window.scrollTo(0,0);
   if(builder.unidad) await ensureTemas(builder.unidad);
   renderExamMgmt();
 }
 
-let bancoList=[]; let bancoListUnidad=''; let bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null};
+let bancoList=[]; let bancoListUnidad=''; let bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null,matUrl:'',matName:'',matFile:null};
 async function bancoCargar(unidad){
   bancoListUnidad=unidad;
   try{ bancoList=await call('/rest/v1/rpc/banco_redaccion',{method:'POST',body:impProf({p_unidad:unidad})})||[]; }
@@ -6784,8 +6786,11 @@ function renderBancoSection(){
   h.push('<label>Código</label><input id="bq-cod" type="text" placeholder="Ej.: H4-T01-12" value="'+escAttr(d.codigo)+'">');
   h.push('<label>Enunciado</label><textarea id="bq-enun" rows="3" placeholder="El enunciado de la actividad">'+escHtml(d.enun)+'</textarea>');
   h.push('<label>Respuesta modelo</label><textarea id="bq-expl" rows="6" placeholder="La respuesta modelo con la que la IA corregirá">'+escHtml(d.expl)+'</textarea>');
+  h.push('<label style="margin-top:12px;font-size:.72rem;color:var(--ink-soft)">PDF de la actividad (opcional, p.ej. un mapa)'+((d.matName||d.matUrl)?' · <b>📎 '+escHtml(d.matName||'PDF adjunto')+'</b>':'')+'</label>');
+  h.push('<input id="bq-file" type="file" accept="application/pdf" style="font-size:.75rem;display:block;margin-top:4px">');
+  if(d.matUrl||d.matFile) h.push('<button class="btn btn-ghost" id="bq-quitar" style="margin-top:6px;font-size:.75rem">Quitar PDF</button>');
+  h.push('<div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se guarda en la ficha; al usarla «Del banco» la lleva consigo.</div>');
   h.push('<div style="display:flex;gap:8px;margin-top:12px">');
-  if(d.id) h.push('<button class="btn btn-ghost" id="bq-nuevo" style="flex:1">Nueva</button>');
   h.push('<button class="btn btn-honey" id="bq-save" style="flex:1">'+(d.id?'Guardar cambios':'Guardar respuesta')+'</button>');
   h.push('</div></div>');
   return h.join('');
@@ -6806,8 +6811,10 @@ function renderBancoLista(){
 }
 function wireBanco(){
   const s=$('bq-save'); if(s) s.onclick=bancoGuardar;
-  const nv=$('bq-nuevo'); if(nv) nv.onclick=()=>{ bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null}; renderExamMgmt(); };
-  $('teacher').querySelectorAll('[data-bqedit]').forEach(b=> b.onclick=()=>{ const q=(bancoList||[]).find(x=>String(x.id)===String(b.dataset.bqedit)); if(q){ bancoDraft={codigo:String(q.codigo||''),tema:String(q.tema||''),enun:String(q.enunciado||''),expl:String(q.explicacion||''),id:q.id}; window.scrollTo(0,0); renderExamMgmt(); } });
+  const nv=$('bq-nuevo'); if(nv) nv.onclick=()=>{ bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null,matUrl:'',matName:'',matFile:null}; renderExamMgmt(); };
+  const bf=$('bq-file'); if(bf) bf.onchange=()=>{ if(bf.files&&bf.files[0]){ bancoDraft.matFile=bf.files[0]; bancoDraft.matName=bf.files[0].name; } };
+  const bqx=$('bq-quitar'); if(bqx) bqx.onclick=()=>{ captureBanco(); bancoDraft.matFile=null; bancoDraft.matUrl=''; bancoDraft.matName=''; renderExamMgmt(); };
+  $('teacher').querySelectorAll('[data-bqedit]').forEach(b=> b.onclick=()=>{ const q=(bancoList||[]).find(x=>String(x.id)===String(b.dataset.bqedit)); if(q){ bancoDraft={codigo:String(q.codigo||''),tema:String(q.tema||''),enun:String(q.enunciado||''),expl:String(q.explicacion||''),id:q.id,matUrl:String(q.material_url||''),matName:(q.material_url?'📎 PDF adjunto':''),matFile:null}; window.scrollTo(0,0); renderExamMgmt(); } });
 }
 async function bancoGuardar(){
   captureBanco();
@@ -6816,8 +6823,10 @@ async function bancoGuardar(){
   if(!d.expl.trim()){ renderExamMgmt(null,'Falta la respuesta modelo.'); return; }
   const btn=$('bq-save'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
   try{
-    await call('/rest/v1/rpc/crear_respuesta_banco',{method:'POST',body:impProf({p_unidad:builder.unidad,p_codigo:d.codigo.trim(),p_tema:d.tema.trim(),p_enunciado:d.enun,p_explicacion:d.expl})});
-    bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null};
+    let matUrl=d.matUrl||'';
+    if(d.matFile){ const folder='banco/'+Date.now()+'_'+Math.random().toString(36).slice(2,8); matUrl=await subirMaterialPDF(d.matFile, folder+'/ficha.pdf'); }
+    await call('/rest/v1/rpc/crear_respuesta_banco',{method:'POST',body:impProf({p_unidad:builder.unidad,p_codigo:d.codigo.trim(),p_tema:d.tema.trim(),p_enunciado:d.enun,p_explicacion:d.expl,p_material_url:matUrl,p_material_modo:'inline'})});
+    bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null,matUrl:'',matName:'',matFile:null};
     bancoListUnidad='';
     await bancoCargar(builder.unidad);
     renderExamMgmt('✅ Respuesta guardada en el banco.');
@@ -6845,7 +6854,7 @@ function renderExamMgmt(okMsg,errMsg){
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button><button id="kd-banco" class="${builder.kind==='banco'?'on':''}">📚 Banco</button></div>`);
   if(builder.kind==='redaccion'){
     h.push('<div class="mgmt-2col"><div class="mgmt-left">');
-        h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
+        h.push('<div class="t-card"><label style="margin-top:6px">Unidad de destino</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55">Examen de <b>redacción</b>: una o varias preguntas abiertas que el alumno responde escribiendo, y que tú corriges (a mano o con ayuda de IA). Puedes adjuntar un PDF (mapa, texto o imagen) que verá junto al enunciado.</div><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
     h.push(`<div style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0">Se creará en <b>${escHtml(unidadesById[builder.unidad]?unidadesById[builder.unidad].codigo+' · '+tituloMateria(unidadesById[builder.unidad]):(builder.unidad||'—'))}</b>.</div>`);
     h.push(renderRedSection());
     h.push('</div><div class="mgmt-right">');
@@ -6929,7 +6938,7 @@ D) Opción
   }
   h.push('<div class="mgmt-2col"><div class="mgmt-left">');
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="md-auto" class="${builder.mode==='auto'?'on':''}">Automático</button><button id="md-med" class="${builder.mode==='medida'?'on':''}">A medida</button></div>`);
-  h.push(`<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">${uOpts}</select><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen sorpresa" value="${escAttr(builder.titulo)}"><div style="display:flex;gap:10px">`);
+  h.push(`<div class="t-card"><label style="margin-top:6px">Unidad de destino</label><select id="ce-unidad">${uOpts}</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55">${builder.mode==='auto'?'La plataforma elige preguntas al azar del banco de test de la unidad y monta el examen sola. Indica cuántas quieres y, si acotas, el tema.':'Montas el examen tú: escribe tus propias preguntas o cógelas del banco de test, una a una.'}</div><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen sorpresa" value="${escAttr(builder.titulo)}"><div style="display:flex;gap:10px">`);
   if(builder.mode==='auto') h.push(`<div style="flex:1"><label>Nº de preguntas</label><input id="ce-n" type="number" min="1" max="100" value="${builder.n}"></div>`);
   h.push(`</div>`);
   h.push(`<label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"${builder.cuentaFinal?' checked':''}> Cuenta para la nota final</label>`);
@@ -7120,7 +7129,7 @@ function captureRed(){
     blocks.forEach((b,i)=>{
       const prev=builder.redItems[i]||{enun:'',file:null,matName:'',matMode:'inline'};
       const ta=b.querySelector('.red-q-in');
-      const it={enun:ta?ta.value:'', file:prev.file, matName:prev.matName, matMode:prev.matMode, codigo:prev.codigo||''};
+      const it={enun:ta?ta.value:'', file:prev.file, matName:prev.matName, matMode:prev.matMode, codigo:prev.codigo||'', material_url:prev.material_url||null};
       const fi=b.querySelector('.red-q-file');
       if(fi && fi.files && fi.files[0]){ it.file=fi.files[0]; it.matName=fi.files[0].name; }
       const md=b.querySelector('.red-q-mode'); if(md) it.matMode=md.value||'inline';
@@ -7204,7 +7213,7 @@ function addRedBankSelected(){
     if(c.disabled) return;
     const q=banco.find(x=>String(x.id)===String(c.value));
     if(!q) return;
-    builder.redItems.push({enun:String(q.enunciado||''),file:null,matName:'',matMode:'inline',codigo:String(q.codigo||'')});
+    builder.redItems.push({enun:String(q.enunciado||''),file:null,matName:(q.material_url?'📎 PDF (del banco)':''),matMode:(q.material_modo||'inline'),codigo:String(q.codigo||''),material_url:(q.material_url||null)});
     n++;
   });
   // Fuera los huecos vacíos si se ha rellenado desde el banco
@@ -7236,7 +7245,7 @@ async function subirMaterialPDF(file, path){
 }
 async function crearRedUI(){
   captureFields(); captureRed();
-  const items=builder.redItems.map(it=>({enun:((it&&it.enun)||'').trim(), file:(it&&it.file)||null, matMode:(it&&it.matMode)||'inline', codigo:((it&&it.codigo)||'')})).filter(x=>x.enun);
+  const items=builder.redItems.map(it=>({enun:((it&&it.enun)||'').trim(), file:(it&&it.file)||null, matMode:(it&&it.matMode)||'inline', codigo:((it&&it.codigo)||''), material_url:(it&&it.material_url)||null})).filter(x=>x.enun);
   if(!items.length){ renderExamMgmt(null,'Añade al menos una pregunta.'); return; }
   const vis=await pedirVisibilidad(); if(vis===null) return;
   const btn=$('red-create'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
@@ -7248,6 +7257,7 @@ async function crearRedUI(){
     for(let i=0;i<items.length;i++){
       const it=items[i]; const q={enunciado:it.enun}; if(it.codigo) q.codigo=it.codigo;
       if(it.file){ q.material_url=await subirMaterialPDF(it.file, folder+'/p'+(i+1)+'.pdf'); q.material_modo=it.matMode||'inline'; }
+      else if(it.material_url){ q.material_url=it.material_url; q.material_modo=it.matMode||'inline'; }
       preguntas.push(q);
     }
     const id=await call('/rest/v1/rpc/crear_examen_redaccion',{method:'POST',body:impProf({
