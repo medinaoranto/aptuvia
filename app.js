@@ -1920,105 +1920,113 @@ function docTrazabilidad(){
 
 // ---- Manual del profesorado (se adapta a Aptuvia o a Aula Abierta) ----
 function manualProfeSecciones(esAula){
-  const QUIEN = esAula ? 'tus materias' : 'tu certificado';
+  const aa = !!esAula;
   const s = [];
+
   s.push({ t:'1. Antes de empezar', p:[
-    'Se entra desde aptuvia.es con el correo y la contraseña que te han facilitado.',
-    'La pantalla principal es el Área Docente: una tarjeta por cada cosa que puedes hacer. Desde cualquier pantalla se vuelve con el botón de arriba a la izquierda.',
-    'Todo se guarda al momento y queda visible para tu alumnado en cuanto lo publicas. Mientras no publiques un examen, el alumno no lo ve.'
+    'Se entra desde aptuvia.es con el correo y la contraseña que te han facilitado. El correo no distingue mayúsculas ni minúsculas: escríbelo como te salga.',
+    'PUEDES INSTALARTE LA APP: en la pantalla de acceso hay un botón «📲 Instalar app». Al pulsarlo, Aptuvia queda como una aplicación más en tu móvil o en tu ordenador, con su icono, y se abre a pantalla completa sin la barra del navegador. Va igual en Android, iPhone y PC. No ocupa apenas y se actualiza sola.',
+    'La pantalla principal es el Área Docente: una tarjeta por cada cosa que puedes hacer (crear exámenes, ver a tu alumnado, corregir, subir temario...). Desde cualquier pantalla se vuelve atrás con el botón de arriba a la izquierda.',
+    'Todo se guarda al momento. Un examen no lo ve el alumno hasta que tú lo enciendes; hasta entonces lo preparas con calma.'
   ]});
 
-  if(esAula){
-    s.push({ t:'2. Tus materias', p:[
+  if(aa){
+    s.push({ t:'2. Tus materias y cómo moverte por ellas', p:[
       'DÓNDE: Área Docente → Módulos.',
-      'Una materia equivale a una clase o asignatura. Se crea con "+ Nueva materia": se le pone nombre y, si quieres, una etiqueta corta que aparece como distintivo (por ejemplo HISTORIA).',
-      'Las materias se numeran solas: AULA-01, AULA-02... según el orden en que las creas.',
-      'Para cambiar el nombre después: entra en la materia y pulsa el lápiz que hay junto al título.',
-      'La papelera de la tarjeta borra la materia con TODOS sus exámenes, preguntas y notas. Pide confirmación dos veces porque no tiene vuelta atrás.',
-      'El nombre de la cabecera de tu espacio (lo que aparece arriba, junto a la pastilla de Aula Abierta) se cambia con el lápiz que hay al lado. Es tuyo y no lo ven los demás profesores.'
+      'Una materia equivale a una clase o asignatura (por ejemplo Historia 4º ESO). Se crea con «+ Nueva materia»: se le pone nombre y, si quieres, una etiqueta corta que aparece como distintivo (HISTORIA). Se numeran solas: AULA-01, AULA-02... según el orden en que las creas.',
+      'AL PULSAR UNA MATERIA ENTRAS DENTRO. Ese es tu espacio de trabajo de esa clase: sus temas, sus exámenes y su temario, todo junto.',
+      'TEMAS: dentro de la materia, con «+ Nuevo tema» organizas el curso por temas (Tema 1, Tema 2, «Programación didáctica»...). Cada tarjeta de tema indica cuántos exámenes y cuántos materiales tiene. El lápiz lo renombra; la papelera lo borra. Los temas solo sirven para ordenar: el alumno ve el material y los exámenes agrupados por tema.',
+      'EXÁMENES DE CADA TEMA: al abrir un tema ves sus exámenes en fila y, de un vistazo, el resultado de la clase en cada uno (la media, o «Sin intentos» si nadie lo ha hecho todavía) y si es tipo test o de redacción.',
+      'ABRIR UN EXAMEN: al tocarlo puedes revisar sus preguntas (la respuesta correcta sale marcada en verde), añadir una pregunta nueva, editar el enunciado o las opciones de una que esté mal, y quitar preguntas sueltas. En los exámenes generados solos puedes además «Reponer pregunta del banco» si quitaste alguna. Desde el mismo examen ves también quién lo ha hecho y sus intentos.',
+      'CAMBIAR EL NOMBRE DE TU ESPACIO: el nombre que aparece arriba, junto a la pastilla de Aula Abierta, se cambia con el lápiz que hay al lado. Es tuyo y no lo ven los demás profesores.',
+      'BORRAR UNA MATERIA: la papelera de la tarjeta la borra con TODOS sus exámenes, preguntas y notas. Pide confirmación dos veces porque no tiene vuelta atrás.'
     ]});
-    s.push({ t:'3. Tu alumnado y sus clases', p:[
-      'DÓNDE: Área Docente → Alumnos y notas.',
-      'Pestaña Invitaciones: se autoriza a un alumno escribiendo su correo. Con eso ya puede registrarse él mismo desde la portada.',
-      'Pestaña Registrados: aparecen los que ya han entrado alguna vez.',
-      'IMPORTANTE: cada alumno registrado tiene una fila de "Clases" con un botón por materia (aparece solo el curso: 1º ESO, 2º ESO...). Solo ve las materias que le marques. Un alumno sin ninguna clase marcada sale con un aviso "sin clase" y no puede entrar en ningún sitio.',
-      'Así un alumno de un curso no entra en el de otro. Se marca y se desmarca en cualquier momento, y el cambio es inmediato.',
-      'Desde ahí también puedes generarle una contraseña nueva si la pierde.'
+    s.push({ t:'3. Tu alumnado, sus clases y sus notas', p:[
+      'DÓNDE: Área Docente → Alumnos y notas. Arriba hay tres pestañas: Listado y notas, Registrados y Autorización.',
+      'AUTORIZACIÓN: se autoriza a un alumno escribiendo su correo. Con eso ya puede registrarse él mismo desde la portada, sin que tú le crees la cuenta.',
+      'REGISTRADOS: los que ya han entrado alguna vez. Cada alumno tiene una fila de «Clases» con un botón por materia (aparece el curso: 1º ESO, 2º ESO...). Solo ve las materias que le marques, y se marca o desmarca al momento. Un alumno sin ninguna clase marcada sale con aviso «sin clase» y no entra a ningún sitio. Aquí también le generas una contraseña nueva si la pierde.',
+      'LISTADO Y NOTAS: todos tus alumnos con su media. Con «ORDENAR POR» los ordenas por media del mejor intento, de todos los intentos o de los exámenes que cuentan para la final; el primero lleva medallita. Puedes descargar el listado completo en PDF o en CSV (Excel).',
+      'FICHA DE UN ALUMNO: al tocarlo ves sus tres medias —mejor intento, todos los intentos y exámenes que cuentan para la nota final— y la lista de sus exámenes con la nota, la fecha y si era test o redacción. Cambias entre «Mejor por examen» y «Todos los intentos», y descargas su boletín en PDF.'
     ]});
   } else {
-    s.push({ t:'2. Módulos y unidades formativas', p:[
+    s.push({ t:'2. Tus módulos y unidades, y cómo moverte', p:[
       'DÓNDE: Área Docente → Módulos.',
-      'Verás los módulos y unidades formativas del certificado, con la evolución de la clase en cada uno.',
-      'La estructura del certificado viene dada: tú trabajas dentro de ella, no hay que crearla.'
+      'La estructura del certificado ya viene dada: sus módulos y unidades formativas. Tú trabajas dentro de ella, no hay que crearla.',
+      'AL PULSAR UNA UNIDAD ENTRAS DENTRO: ahí están sus exámenes y su temario, y de un vistazo la evolución de la clase en esa unidad.',
+      'EXÁMENES DE LA UNIDAD: los ves en fila con el resultado de la clase en cada uno (media o «Sin intentos») y si son test o de redacción.',
+      'ABRIR UN EXAMEN: al tocarlo revisas sus preguntas (la correcta marcada en verde), añades una nueva, editas el enunciado o las opciones de una que esté mal, y quitas preguntas sueltas. En los generados solos puedes «Reponer pregunta del banco» si quitaste alguna. También ves quién lo ha hecho y sus intentos.'
     ]});
-    s.push({ t:'3. Tu alumnado', p:[
-      'DÓNDE: Área Docente → Alumnos y notas.',
-      'Pestaña Invitaciones: se autoriza a un alumno escribiendo su correo. Con eso ya puede registrarse él mismo desde la portada.',
-      'Pestaña Registrados: los que ya han entrado. Desde ahí puedes generar una contraseña nueva si alguien la pierde.',
-      'Pestaña Notas: media por unidad y evolución de cada alumno. Se puede descargar en PDF.'
+    s.push({ t:'3. Tu alumnado y sus notas', p:[
+      'DÓNDE: Área Docente → Alumnos y notas. Arriba: Listado y notas, Registrados y Autorización.',
+      'AUTORIZACIÓN: autorizas a un alumno con su correo. Con eso se registra él mismo desde la portada.',
+      'REGISTRADOS: los que ya han entrado. Desde ahí generas una contraseña nueva si alguien la pierde.',
+      'LISTADO Y NOTAS: media por unidad de cada alumno, ordenable, con descarga en PDF y en CSV (Excel). El primero lleva medallita.',
+      'FICHA DE UN ALUMNO: sus tres medias (mejor intento, todos los intentos y exámenes que cuentan para la final) y la lista de sus exámenes con nota, fecha y tipo. Cambias entre «Mejor por examen» y «Todos los intentos» y descargas su boletín en PDF.'
     ]});
   }
 
   s.push({ t:'4. Crear un examen', p:[
     'DÓNDE: Área Docente → Crear y gestionar exámenes.',
-    'Hay cuatro formas, con los botones de arriba:',
-    'TEST: se escriben las preguntas una a una, cada una con sus cuatro opciones, la respuesta correcta y, si quieres, una explicación que el alumno ve al corregirse. También puedes tirar de tu banco con «Del banco» para reutilizar preguntas ya escritas.',
-    'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le mostrará incrustado en la pantalla. Igual que en test, con «Del banco» reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo.',
+    'Arriba eliges la unidad de destino'+(aa?' (la materia)':'')+' y el título. Hay cuatro formas de montarlo, con los botones de arriba:',
+    'TEST: preguntas de opción con una correcta. Tiene dos modos. En AUTOMÁTICO, la plataforma coge preguntas al azar de tu banco de test de esa unidad y monta el examen sola: solo dices cuántas quieres y, si acotas, el tema. En A MEDIDA, lo montas tú: escribes tus preguntas una a una (cada una con sus opciones, la correcta y, si quieres, una explicación que el alumno ve al corregirse) o las coges con «Del banco».',
+    'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le muestra incrustado en la pantalla. Igual que en test, con «Del banco» reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo y su PDF.',
     'PEGAR EXAMEN: para cargar de golpe un examen que ya tengas escrito, sin teclearlo pregunta a pregunta.',
-    'BANCO: tu banco de respuestas modelo para las redacciones. Aquí SOLO se crea o edita la ficha de una actividad (su enunciado y su respuesta modelo); no genera ningún examen. Para montar el examen, ve a Redacción y añádela con «Del banco». Cada ficha lleva un CÓDIGO (por ejemplo H4-T01-12) que enlaza la pregunta con su respuesta: al añadirla "Del banco" la actividad se lleva su código y, al corregir, la respuesta modelo se localiza sola. Si guardas dos veces con el mismo código, se edita, no se duplica.',
-    'En Test, Redacción y Pegar examen se elige la unidad o materia y el título. Debajo del constructor de redacción sale un aviso de a qué unidad se va a crear, para no equivocarte.',
-    'CUENTA PARA LA NOTA FINAL: casilla importante. Si la marcas, el alumno solo tiene UN intento, se le muestran las normas antes de empezar y se vigila que no se salga de la pantalla. Si no la marcas, puede repetirlo tantas veces como quiera.',
-    'DESCARGAR PARA PAPEL: en la lista de exámenes de abajo, el botón de impresora genera un PDF del examen para hacerlo impreso. En los test te pregunta si añadir la hoja de soluciones (una para ti, otra sin soluciones para repartir); en los de redacción salen renglones para escribir.',
+    'BANCO: tu banco de actividades de redacción. Aquí SOLO se crea o edita la ficha de una actividad —su enunciado, su respuesta modelo y, si quieres, un PDF—; no genera ningún examen. Para montar el examen, ve a Redacción y añádela con «Del banco». Cada ficha lleva un CÓDIGO (por ejemplo H4-T01-12) que la enlaza con su respuesta modelo: al añadirla «Del banco» se lleva su código y su PDF, y al corregir la respuesta modelo se localiza sola. Mismo código = se edita, no se duplica.',
+    'CUENTA PARA LA NOTA FINAL: casilla importante. Si la marcas, el alumno solo tiene UN intento, se le muestran las normas antes de empezar y se vigila que no se salga de la pantalla. Si no la marcas, puede repetirlo tantas veces como quiera para practicar.',
+    'DESCARGAR PARA PAPEL: en la lista de exámenes de abajo, el botón de impresora genera un PDF para hacerlo impreso. En los test te pregunta si añadir la hoja de soluciones (una para ti y otra sin soluciones para repartir); en los de redacción salen renglones para escribir.',
     'Recomendación: máximo 25 preguntas por examen de tema nuevo. Para repasos largos, mejor partirlos en dos.'
   ]});
 
-  s.push({ t:'5. Modificar un examen ya creado', p:[
-    'DÓNDE: Área Docente → Crear y gestionar exámenes, en la lista de abajo.',
-    'Se puede cambiar la cabecera (título y si cuenta para nota), añadir preguntas, corregir el enunciado o las opciones de una que esté mal, y borrar preguntas sueltas.',
-    'También se cambia o se quita el PDF adjunto de los exámenes de redacción.',
+  s.push({ t:'5. Revisar y modificar un examen ya creado', p:[
+    'DÓNDE: al abrir un examen desde su tema'+(aa?'':' o unidad')+', o desde Crear y gestionar exámenes (lista de abajo).',
+    'REVISAR PREGUNTAS: se despliegan todas con la respuesta correcta marcada en verde y su explicación, para comprobarlas de un vistazo.',
+    'Se puede cambiar la cabecera (título y si cuenta para la nota), añadir preguntas nuevas, corregir el enunciado o las opciones de una que esté mal, y quitar preguntas sueltas. En los test generados solos, «Reponer pregunta del banco» vuelve a meter una que hubieras quitado.',
+    'En los de redacción se cambia o se quita el PDF adjunto.',
     'La papelera borra el examen entero. Si ya lo han hecho alumnos, sus intentos se pierden con él.',
-    'Cuidado al cambiar un examen que ya han hecho: los que lo hicieron antes conservan la nota del examen antiguo.'
+    'Cuidado al cambiar un examen que ya han hecho: quien lo hizo antes conserva la nota del examen antiguo.'
   ]});
 
   s.push({ t:'6. Qué ve el alumno y situación de la unidad', p:[
-    'DÓNDE: Área Docente → Exámenes y estados. La visibilidad y la situación de cada unidad están juntas en la misma pantalla.',
-    'Encima de cada unidad está su selector de situación (Activo / Terminado / Próximamente); debajo, los interruptores de sus exámenes y materiales.',
-    'Cada examen tiene un interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
-    'En esta misma pantalla, bajo cada unidad, aparece el temario subido con su propio interruptor: así decides qué materiales ve el alumno y cuáles no. El material recién subido nace apagado.',
+    'DÓNDE: Área Docente → Exámenes y estados. La visibilidad y la situación de cada unidad'+(aa?' o materia':'')+' están juntas en la misma pantalla.',
+    'Encima de cada unidad está su selector de situación: ACTIVO (el alumno trabaja con normalidad), PRÓXIMAMENTE (la ve en la lista pero no puede entrar, para anunciar lo que viene) y TERMINADO (se cierra: no puede hacer más intentos, pero conserva sus notas). En la misma pantalla se activan dos extras: el repaso largo de la unidad y el repaso de preguntas falladas.',
+    'Debajo, cada examen tiene su interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
+    'También aparece el temario subido con su propio interruptor, así decides qué materiales ve y cuáles no. El material recién subido nace apagado.',
     'Esta es la pantalla que se usa para ir abriendo exámenes y materiales a medida que avanza el temario.'
   ]});
 
   s.push({ t:'7. Corregir redacciones', p:[
-    'DÓNDE: Área Docente → Correcciones.',
-    'Aquí llegan las redacciones entregadas. La tarjeta del Área Docente muestra cuántas tienes pendientes. Abres la entrega y ves el texto del alumno.',
-    'CORRECCIÓN MANUAL: le pones la nota y le escribes un comentario. Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá resaltado, como una anotación a mano.',
-    'CORRECCIÓN CON IA (asistida): la plataforma NO corrige sola, pero te prepara el trabajo. Va en cinco pasos: (1) repartes la nota en apartados con su peso —contenido, expresión, ortografía...— y puedes guardar tu reparto para las próximas; (2) añades la respuesta modelo del banco: en la lista puedes marcar varias a la vez y pulsar «Añadir seleccionadas», o pulsar «Las de este examen» para que las localice solas por su código; (3) revisas los criterios; (4) copias el prompt y lo pegas en Claude o Gemini (ya lleva dentro la respuesta modelo y los criterios, no hace falta adjuntar ningún PDF) y traes su respuesta; (5) la nota final la pones tú.',
-    'La IA solo propone. La nota que cuenta es siempre la tuya. Nada se guarda hasta que tú lo confirmas.',
-    'Al guardar, el alumno ve su respuesta con tus anotaciones intercaladas justo debajo del párrafo que corrigen. Puede descargarse su examen corregido en PDF.'
+    'DÓNDE: Área Docente → Correcciones. La tarjeta del Área Docente muestra cuántas tienes pendientes.',
+    'Abres la entrega y ves el texto del alumno. Se puede corregir de dos maneras:',
+    'MANUAL: le pones la nota y le escribes un comentario. Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá resaltado, como una anotación a mano.',
+    'CON IA (asistida): la plataforma NO corrige sola, pero te prepara el trabajo en cinco pasos: (1) repartes la nota en apartados con su peso —contenido, expresión, ortografía...— y puedes guardar tu reparto para las próximas; (2) añades la respuesta modelo del banco (marcas varias a la vez y pulsas «Añadir seleccionadas», o pulsas «Las de este examen» para que las localice solas por su código); (3) revisas los criterios; (4) copias el prompt y lo pegas en Claude o Gemini (ya lleva dentro la respuesta modelo y los criterios, no hace falta adjuntar nada) y traes su respuesta; (5) la nota final la pones tú.',
+    'La IA solo propone. La nota que cuenta es siempre la tuya, y nada se guarda hasta que lo confirmas.',
+    'Al guardar, el alumno ve su respuesta con tus anotaciones intercaladas justo debajo del párrafo que corrigen, y puede descargarse su examen corregido en PDF.'
   ]});
 
   s.push({ t:'8. Notas y seguimiento', p:[
-    'DÓNDE: Área Docente → Alumnos y notas, y Área Docente → Módulos.',
-    'Los test se corrigen solos en cuanto el alumno los termina.',
-    'La media por unidad se puede mirar de dos formas: por el mejor intento de cada alumno o por todos sus intentos.',
-    'Solo cuentan para la nota los exámenes marcados como "cuenta para la nota final".',
+    'DÓNDE: Área Docente → Alumnos y notas, y dentro de cada '+(aa?'materia':'unidad')+'.',
+    'Los test se corrigen solos en cuanto el alumno los termina; las redacciones, cuando tú las corriges.',
+    'La media se puede mirar de dos formas: por el MEJOR intento de cada alumno o por TODOS sus intentos. En la ficha del alumno tienes ambas más la media de los exámenes que cuentan para la nota final.',
+    'Solo cuentan para la nota final los exámenes marcados como tal al crearlos.',
     'Si un alumno tuvo un problema (se le cortó, se le cerró la pantalla), puedes reabrirle el intento para que lo repita.',
-    'Los informes se descargan en PDF, por alumno o por clase.'
+    'Los informes se descargan en PDF o en CSV (Excel), por alumno o por clase.'
   ]});
 
   s.push({ t:'9. Temario', p:[
     'DÓNDE: Área Docente → Temario.',
-    'Para subir apuntes y material de apoyo (PDF y otros archivos) organizados por unidad o materia.',
-    'El alumno los ve y los descarga desde su pantalla. No es obligatorio usarlo.'
+    'Para subir apuntes y material de apoyo (PDF, imágenes, Word, Excel) organizados por '+(aa?'materia y tema':'unidad')+'. Eliges la unidad de destino, pones un título, adjuntas el archivo y pulsas «Subir material».',
+    'El material nace OCULTO: se enciende en «Exámenes y estados» cuando quieras que el alumno lo vea. Así puedes tenerlo preparado y abrirlo a su debido tiempo.',
+    'El alumno lo ve y lo descarga desde su pantalla, dentro del tema correspondiente. No es obligatorio usarlo.'
   ]});
 
   s.push({ t:'10. Dudas frecuentes', p:[
-    'EL ALUMNO NO VE UN EXAMEN: en "Exámenes y estados" comprueba que su interruptor esté encendido y que la unidad no esté en Próximamente o Terminado.'
-      + (esAula ? ' En Aula Abierta, comprueba además que el alumno tenga marcada esa clase en "Alumnos y notas".' : ''),
-    'EL ALUMNO NO PUEDE REPETIR UN EXAMEN: será uno que cuenta para la nota final. Solo permite un intento. Si procede, reábrele el intento.',
+    'EL ALUMNO NO VE UN EXAMEN: en «Exámenes y estados» comprueba que su interruptor esté encendido y que la unidad no esté en Próximamente o Terminado.'
+      + (aa ? ' En Aula Abierta, comprueba además que el alumno tenga marcada esa clase en «Alumnos y notas».' : ''),
+    'EL ALUMNO NO PUEDE REPETIR UN EXAMEN: será uno que cuenta para la nota final; solo permite un intento. Si procede, reábrele el intento.',
+    'SE COLABA UNA ACTIVIDAD DE REDACCIÓN EN UN TEST: no debería. El generador de test solo usa preguntas tipo test; las actividades de redacción viven en su propio banco y en la pestaña Redacción.',
     'NO ME SALE EL AVISO DE NORMAS AL EMPEZAR: ese aviso solo aparece en los exámenes marcados como que cuentan para la nota.',
-    'HE BORRADO ALGO SIN QUERER: no hay papelera de reciclaje. Los borrados de exámenes'+(esAula?' y materias':'')+' son definitivos, por eso se piden confirmaciones.',
-    'HE OLVIDADO MI CONTRASEÑA: la reactiva quien gestiona la plataforma. La de tus alumnos la puedes regenerar tú desde Registrados.'
+    'HE BORRADO ALGO SIN QUERER: no hay papelera de reciclaje. Los borrados de exámenes'+(aa?', materias':'')+' y preguntas son definitivos, por eso se piden confirmaciones.',
+    'HE OLVIDADO MI CONTRASEÑA: la reactiva quien gestiona la plataforma. La de tus alumnos la regeneras tú desde Registrados.'
   ]});
 
   return s;
@@ -6807,7 +6815,7 @@ function renderBancoSection(){
   let tOpts='<option value="">— Bloque (opcional) —</option>';
   bloques.forEach(t=>{ tOpts+=`<option value="${escAttr(t)}"${(esExistente&&d.tema===t)?' selected':''}>${escHtml(t)}</option>`; });
   const h=['<div class="t-card">'];
-  h.push(`<label style="margin-top:6px">${d.id?'Editando respuesta':'Nueva respuesta'}</label>`);
+  h.push(`<label style="margin-top:6px">${d.id?'Editando actividad':'Nueva actividad'}</label>`);
   h.push('<label>Bloque</label><select id="bq-tema">'+tOpts+'</select>');
   h.push('<input id="bq-tema-new" type="text" placeholder="…o escribe un bloque nuevo" value="'+escAttr(esExistente?'':(d.tema||''))+'" style="margin-top:8px">');
   h.push('<label>Código</label><input id="bq-cod" type="text" placeholder="Ej.: H4-T01-12" value="'+escAttr(d.codigo)+'">');
@@ -6818,7 +6826,7 @@ function renderBancoSection(){
   if(d.matUrl||d.matFile) h.push('<button class="btn btn-ghost" id="bq-quitar" style="margin-top:6px;font-size:.75rem">Quitar PDF</button>');
   h.push('<div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se guarda en la ficha; al usarla «Del banco» la lleva consigo.</div>');
   h.push('<div style="display:flex;gap:8px;margin-top:12px">');
-  h.push('<button class="btn btn-honey" id="bq-save" style="flex:1">'+(d.id?'Guardar cambios':'Guardar respuesta')+'</button>');
+  h.push('<button class="btn btn-honey" id="bq-save" style="flex:1">'+(d.id?'Guardar cambios':'Guardar actividad')+'</button>');
   h.push('</div></div>');
   return h.join('');
 }
@@ -6856,7 +6864,7 @@ async function bancoGuardar(){
     bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null,matUrl:'',matName:'',matFile:null};
     bancoListUnidad='';
     await bancoCargar(builder.unidad);
-    renderExamMgmt('✅ Respuesta guardada en el banco.');
+    renderExamMgmt('✅ Actividad guardada en el banco.');
   }catch(err){ renderExamMgmt(null,'No se pudo guardar: '+(err.message||'')); }
 }
 function renderExamMgmt(okMsg,errMsg){
@@ -6952,7 +6960,7 @@ D) Opción
     h.push('<div class="t-card"><label style="margin-top:6px">Unidad</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55"><b>Aquí solo se crea o edita la ficha de una actividad</b> (su enunciado y su respuesta modelo). Esto no genera ningún examen: para montarlo, ve a «Redacción» y añádela con «📋 Del banco».<br><br>Cada ficha tiene: <b>Bloque</b> (para agruparlas, opcional), <b>Código</b> (la etiqueta que une la pregunta con su respuesta, p.ej. <code>H4-T01-12</code>; mismo código = se edita, no se duplica), <b>Enunciado</b> (lo que se le pide al alumno) y <b>Respuesta modelo</b> (con la que la IA corregirá). Toca una de la lista de la derecha para editarla.</div></div>');
     h.push(renderBancoSection());
     h.push('</div><div class="mgmt-right">');
-    h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Respuestas en tu banco</h2>');
+    h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Actividades en tu banco</h2>');
     h.push(renderBancoLista());
     h.push('</div></div>');
     $('teacher').innerHTML=h.join('');
