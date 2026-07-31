@@ -75,20 +75,40 @@ async function loadPortal(){
     aulaOpt.onclick = ()=>selectCert('__aula_abierta', aulaLabel);
     drop.appendChild(aulaOpt);
 
+    // Tercera entrada: Certificados de profesionalidad (despliega el resto al tocar)
+    const certsToggle = document.createElement('div');
+    certsToggle.className = 'cp-option cp-special';
+    certsToggle.style.cssText = 'font-weight:700;background:#eef0f7;color:var(--navy);display:flex;justify-content:space-between;align-items:center';
+    certsToggle.innerHTML = '<span>🎓 Certificados de profesionalidad</span><span id="cp-certs-caret" style="transition:transform .15s">▸</span>';
+    drop.appendChild(certsToggle);
+
+    const certsWrap = document.createElement('div');
+    certsWrap.id = 'cp-certs-wrap';
+    certsWrap.style.display = 'none';
+    drop.appendChild(certsWrap);
+
     // Las 5 categorías con sus certificados (ADGG0508 va dentro de A)
     CERT_CATEGORIAS.forEach(g=>{
       const head = document.createElement('div');
       head.className = 'cp-cat';
       head.textContent = g.cat;
-      drop.appendChild(head);
+      certsWrap.appendChild(head);
       g.certs.forEach(c=>{
         const d = document.createElement('div');
         d.className = 'cp-option';
         d.textContent = c.codigo + ' · ' + c.nombre;
         d.onclick = ()=>selectCert(c.id, c.codigo+' · '+c.nombre);
-        drop.appendChild(d);
+        certsWrap.appendChild(d);
       });
     });
+
+    certsToggle.onclick = ()=>{
+      const abierto = certsWrap.style.display !== 'none';
+      certsWrap.style.display = abierto ? 'none' : 'block';
+      const car = document.getElementById('cp-certs-caret');
+      if(car) car.style.transform = abierto ? 'none' : 'rotate(90deg)';
+      setTimeout(()=>document.addEventListener('click', closeCertPickerOut, {once:true}), 0);
+    };
   }catch(e){
     $('portal-academia-name').textContent = '';
   }
