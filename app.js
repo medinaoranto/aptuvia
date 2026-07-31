@@ -61,7 +61,7 @@ async function loadPortal(){
     // (es_cuenta_academia / admin) decide a qué pantalla van.
     const gestOpt = document.createElement('div');
     gestOpt.className = 'cp-option cp-special';
-    gestOpt.style.cssText = 'font-weight:700;background:#fdf1dd;color:var(--navy)';
+    gestOpt.style.cssText = 'font-weight:700;background:#f7e2b8;color:var(--navy)';
     gestOpt.textContent = '🔑 Acceso de dirección / administración';
     gestOpt.onclick = ()=>selectCert('__gestion', '🔑 Acceso de dirección / administración');
     drop.appendChild(gestOpt);
@@ -675,22 +675,29 @@ async function gateAccess(){
   // Mapear el ID interno del portal al certificado_id real de la BD.
   // (antes solo se mapeaba __adgg0408; el resto de certificados, incluido
   // Aula Abierta, caían siempre en 'adgg0508' — bug corregido usando certBD()).
-  if(userEmail==='admin@evaluatest.com'){ applyTema(window._activeCertId); return; }
-  // Cuenta de dirección de academia (Premium): no pasa por el gate de certificado,
-  // entra a su propia pantalla de solo lectura.
-  window._acadModo=false;
-  try{
-    const esAc=await call('/rest/v1/rpc/es_cuenta_academia',{method:'POST',body:{}});
-    // La RPC devuelve el texto 'si' / 'no' / 'off' (no un booleano).
-    if(esAc==='si' || esAc===true){ window._acadModo=true; applyTema(window._activeCertId); return; }
-    if(esAc==='off'){ token=null; refreshToken=null; throw new Error('El acceso de dirección de tu academia está desactivado. Contacta con Aptuvia.'); }
-  }catch(e){ if(/desactivado/.test(e.message||'')) throw e; }
-  // Acceso de dirección/administración: solo admin o cuenta de academia pueden
-  // usar esta puerta. Cualquier otro (profesor/alumno) que la elija por error, fuera.
+  // ── Cada rol entra por su puerta ──
   if(window._activeCertId==='__gestion'){
+    // Puerta de dirección / administración: solo admin o cuenta de academia.
+    if(userEmail==='admin@evaluatest.com'){ applyTema(window._activeCertId); return; }
+    window._acadModo=false;
+    let esAcG='no';
+    try{ esAcG=await call('/rest/v1/rpc/es_cuenta_academia',{method:'POST',body:{}}); }catch(e){ esAcG='no'; }
+    if(esAcG==='off'){ token=null; refreshToken=null; throw new Error('El acceso de dirección de tu academia está desactivado. Contacta con Aptuvia.'); }
+    if(esAcG==='si' || esAcG===true){ window._acadModo=true; applyTema(window._activeCertId); return; }
     token=null; refreshToken=null;
     throw new Error('Esta entrada es solo para dirección de academia o administración. Si eres profesor o alumno, vuelve atrás y elige tu curso.');
   }
+  // Entrada por un curso (certificado o Aula Abierta): solo profesorado y alumnado.
+  // La administración y la dirección de academia tienen su propia puerta.
+  if(userEmail==='admin@evaluatest.com'){
+    token=null; refreshToken=null;
+    throw new Error('Cuenta de administración: vuelve atrás y entra por «🔑 Acceso de dirección / administración».');
+  }
+  window._acadModo=false;
+  let esAcC='no';
+  try{ esAcC=await call('/rest/v1/rpc/es_cuenta_academia',{method:'POST',body:{}}); }catch(e){ esAcC='no'; }
+  if(esAcC==='off'){ token=null; refreshToken=null; throw new Error('El acceso de dirección de tu academia está desactivado. Contacta con Aptuvia.'); }
+  if(esAcC==='si' || esAcC===true){ token=null; refreshToken=null; throw new Error('Cuenta de dirección: vuelve atrás y entra por «🔑 Acceso de dirección / administración».'); }
   const certId = certBD();
   try{
     const ok = await call('/rest/v1/rpc/puedo_acceder',{method:'POST',body:{p_cert:certId}});
