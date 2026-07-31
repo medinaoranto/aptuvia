@@ -550,14 +550,21 @@ function pdfLogo(doc,x,yTop,w){ try{ doc.addImage(APTUVIA_LOGO,'PNG',x,yTop,w,w/
 function pdfCabeceraMarca(doc, y, opts){
   const o=opts||{}, PW=210, M=o.margen||16, w=o.ancho||22;
   const lh=w/APTUVIA_LOGO_RATIO;
-  pdfLogo(doc,M,y,w);
+  const hueco=(o.hueco==null?6:o.hueco);
   const esAA=(window._activeCertId==='__aula_abierta');
   const acad=esAA?'':(window._brandAcademia||'');
-  if(acad){
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(96,84,70);
-    doc.text(pdfSafe(acad),PW-M,y+lh*0.78,{align:'right'});
+  if(esAA){
+    // Documento de Aula Abierta / Aptuvia dirigido al usuario: lleva el logo de Aptuvia.
+    pdfLogo(doc,M,y,w);
+    return y+lh+hueco;
   }
-  return y+lh+(o.hueco==null?6:o.hueco);
+  // Documento de la academia (profesor → alumno): sin logo de Aptuvia; solo el nombre de la academia, si lo hay, a la derecha.
+  if(acad){
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(96,84,70);
+    doc.text(pdfSafe(acad),PW-M,y+6,{align:'right'});
+    return y+9+hueco;
+  }
+  return y+hueco;
 }
 // Línea de datos: profesor + lo que se le pase
 function pdfLineaDatos(extra){
@@ -1862,8 +1869,6 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
   doc.text(pdfSafe(subtitulo), ML, 51);
   doc.setTextColor(...GRIS); doc.setFontSize(8.5);
   doc.text('Generado el '+new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}), ML, 74);
-  doc.setFontSize(9); doc.setTextColor(60,60,70);
-  doc.text(doc.splitTextToSize('Documento interno. Describe cómo se trabaja, no promete nada a ningún cliente. Si la plataforma cambia, este documento se regenera desde la propia app.', ANCHO), ML, 84);
   const yIndice=100;
   doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.setTextColor(...NAVY);
   doc.text('Índice', ML, yIndice);
@@ -1881,7 +1886,7 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
     y+=3.5;
     doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(45,45,55);
     sec.p.forEach(par=>{
-      const esDonde=/^\s*D[ÓO]NDE/i.test(par);
+      const esDonde=/^\s*(D[ÓO]NDE|IMPORTANTE)/i.test(par);
       const lineas=doc.splitTextToSize(pdfSafe(par), ANCHO-5);
       espacio(lineas.length*4.6+4);
       doc.setFillColor(...HONEY); doc.circle(ML+1.2, y-1.4, .9, 'F');
@@ -1968,7 +1973,7 @@ function manualProfeSecciones(esAula){
   s.push({ t:'4. Crear un examen', p:[
     'DÓNDE: Área Docente → Crear y gestionar exámenes.',
     'Arriba eliges la unidad de destino'+(aa?' (la materia)':'')+' y el título. Hay cuatro formas de montarlo, con los botones de arriba:',
-    'TEST: preguntas de opción con una correcta. Tiene dos modos. En AUTOMÁTICO, la plataforma coge preguntas al azar de tu banco de test de esa unidad y monta el examen sola: solo dices cuántas quieres y, si acotas, el tema. En A MEDIDA, lo montas tú: escribes tus preguntas una a una (cada una con sus opciones, la correcta y, si quieres, una explicación que el alumno ve al corregirse) o las coges con «Del banco».',
+    'TEST: preguntas de opción con una correcta. Tiene dos modos. En AUTOMÁTICO, la plataforma coge preguntas al azar de tu banco de test de esa unidad y monta el examen sola: solo dices cuántas quieres y, si acotas, el tema. En A MEDIDA, lo montas tú: escribes tus preguntas una a una (cada una con sus opciones, la correcta y, si quieres, una explicación que el alumno ve al corregirse) o las coges con «Del banco». Toda pregunta que escribas queda guardada en la unidad y la podrás reutilizar con «Del banco» en el futuro.',
     'REDACCIÓN: el alumno escribe un texto en lugar de marcar opciones. Puedes adjuntar un PDF (un mapa, un supuesto, un documento) que se le muestra incrustado en la pantalla. Igual que en test, con «Del banco» reutilizas actividades de redacción que ya tengas guardadas, cada una con su respuesta modelo y su PDF.',
     'PEGAR EXAMEN: para cargar de golpe un examen que ya tengas escrito, sin teclearlo pregunta a pregunta.',
     'BANCO: tu banco de actividades de redacción. Aquí SOLO se crea o edita la ficha de una actividad —su enunciado, su respuesta modelo y, si quieres, un PDF—; no genera ningún examen. Para montar el examen, ve a Redacción y añádela con «Del banco». Cada ficha lleva un CÓDIGO (por ejemplo H4-T01-12) que la enlaza con su respuesta modelo: al añadirla «Del banco» se lleva su código y su PDF, y al corregir la respuesta modelo se localiza sola. Mismo código = se edita, no se duplica.',
@@ -1986,15 +1991,23 @@ function manualProfeSecciones(esAula){
     'Cuidado al cambiar un examen que ya han hecho: quien lo hizo antes conserva la nota del examen antiguo.'
   ]});
 
-  s.push({ t:'6. Qué ve el alumno y situación de la unidad', p:[
+  s.push({ t:'6. Temario', p:[
+    'DÓNDE: Área Docente → Temario.',
+    'Para subir apuntes y material de apoyo (PDF, imágenes, Word, Excel) organizados por '+(aa?'materia y tema':'unidad')+'. Eliges la unidad de destino, pones un título, adjuntas el archivo y pulsas «Subir material».',
+    'El material nace OCULTO: se enciende en «Exámenes y estados» cuando quieras que el alumno lo vea. Así puedes tenerlo preparado y abrirlo a su debido tiempo.',
+    'El alumno lo ve y lo descarga desde su pantalla, dentro del tema correspondiente. No es obligatorio usarlo.'
+  ]});
+
+  s.push({ t:'7. Qué ve el alumno y situación de la unidad', p:[
     'DÓNDE: Área Docente → Exámenes y estados. La visibilidad y la situación de cada unidad'+(aa?' o materia':'')+' están juntas en la misma pantalla.',
     'Encima de cada unidad está su selector de situación: ACTIVO (el alumno trabaja con normalidad), PRÓXIMAMENTE (la ve en la lista pero no puede entrar, para anunciar lo que viene) y TERMINADO (se cierra: no puede hacer más intentos, pero conserva sus notas). En la misma pantalla se activan dos extras: el repaso largo de la unidad y el repaso de preguntas falladas.',
     'Debajo, cada examen tiene su interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
+    'IMPORTANTE: el alumno solo ve un examen —y por tanto la nota que sacó en él— si su interruptor está encendido. Poner la unidad en TERMINADO cierra los intentos nuevos, pero por sí solo NO muestra las notas: si un examen está apagado, desaparece de la pantalla del alumno y su nota con él. Para que el alumno conserve y pueda ver sus notas de una unidad ya terminada, deja encendidos los interruptores de esos exámenes.',
     'También aparece el temario subido con su propio interruptor, así decides qué materiales ve y cuáles no. El material recién subido nace apagado.',
     'Esta es la pantalla que se usa para ir abriendo exámenes y materiales a medida que avanza el temario.'
   ]});
 
-  s.push({ t:'7. Corregir redacciones', p:[
+  s.push({ t:'8. Corregir redacciones', p:[
     'DÓNDE: Área Docente → Correcciones. La tarjeta del Área Docente muestra cuántas tienes pendientes.',
     'Abres la entrega y ves el texto del alumno. Se puede corregir de dos maneras:',
     'MANUAL: le pones la nota y le escribes un comentario. Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá resaltado, como una anotación a mano.',
@@ -2003,20 +2016,13 @@ function manualProfeSecciones(esAula){
     'Al guardar, el alumno ve su respuesta con tus anotaciones intercaladas justo debajo del párrafo que corrigen, y puede descargarse su examen corregido en PDF.'
   ]});
 
-  s.push({ t:'8. Notas y seguimiento', p:[
+  s.push({ t:'9. Notas y seguimiento', p:[
     'DÓNDE: Área Docente → Alumnos y notas, y dentro de cada '+(aa?'materia':'unidad')+'.',
     'Los test se corrigen solos en cuanto el alumno los termina; las redacciones, cuando tú las corriges.',
     'La media se puede mirar de dos formas: por el MEJOR intento de cada alumno o por TODOS sus intentos. En la ficha del alumno tienes ambas más la media de los exámenes que cuentan para la nota final.',
     'Solo cuentan para la nota final los exámenes marcados como tal al crearlos.',
     'Si un alumno tuvo un problema (se le cortó, se le cerró la pantalla), puedes reabrirle el intento para que lo repita.',
     'Los informes se descargan en PDF o en CSV (Excel), por alumno o por clase.'
-  ]});
-
-  s.push({ t:'9. Temario', p:[
-    'DÓNDE: Área Docente → Temario.',
-    'Para subir apuntes y material de apoyo (PDF, imágenes, Word, Excel) organizados por '+(aa?'materia y tema':'unidad')+'. Eliges la unidad de destino, pones un título, adjuntas el archivo y pulsas «Subir material».',
-    'El material nace OCULTO: se enciende en «Exámenes y estados» cuando quieras que el alumno lo vea. Así puedes tenerlo preparado y abrirlo a su debido tiempo.',
-    'El alumno lo ve y lo descarga desde su pantalla, dentro del tema correspondiente. No es obligatorio usarlo.'
   ]});
 
   s.push({ t:'10. Dudas frecuentes', p:[
@@ -7019,7 +7025,15 @@ async function pdfExamenPapel(examId){
       qs.forEach(q=>{ if(!q.material_url && q.pregunta_id!=null && mapM[q.pregunta_id]) q.material_url=mapM[q.pregunta_id]; });
     }catch(_){}
   }
-  const conSol = esRed ? false : await appConfirm('¿Añadir al final la hoja de soluciones?\n\nAceptar = con soluciones (para ti).\nCancelar = sin soluciones (para repartir en clase).');
+  let conSol = false;
+  if(!esRed){
+    const r = await appPicker('Descargar examen para papel', [
+      {label:'🖨️ Con soluciones', sub:'Copia para ti, con las respuestas marcadas', value:'con'},
+      {label:'📄 Sin soluciones', sub:'Para imprimir y repartir al alumno', value:'sin'}
+    ]);
+    if(r===null) return;
+    conSol = (r==='con');
+  }
 
   const { jsPDF }=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4'});
@@ -7042,7 +7056,7 @@ async function pdfExamenPapel(examId){
       doc.splitTextToSize(pdfSafe(ex.titulo||'Examen'),ANCHO).forEach(l=>{ doc.text(l,M,y); y+=6; });
       doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
       doc.text(pdfSafe(sub+(esRed?'  ·  Redaccion':'')),M,y); y+=4.5;
-      const _dat=pdfLineaDatos(fmtFechaES(fecha));
+      const _dat=pdfLineaDatos();
       if(_dat){ doc.text(pdfSafe(_dat),M,y); y+=4; }
       y-=1;
       doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=9;
@@ -7331,6 +7345,7 @@ function renderBuilderSection(temas){
 h.push(`<div class="bld-form"><label style="margin-top:4px">Tema del banco</label><select id="bk-tema">${tOpts}</select><div class="bk-list">${rows}</div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-ghost" id="bk-cancel" style="flex:1">Cancelar</button><button class="btn btn-primary" id="bk-add" style="flex:1">Añadir seleccionadas</button></div></div>`);
   } else {
     h.push(`<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" id="bld-new" style="flex:1">✏️ Pregunta nueva</button><button class="btn btn-ghost" id="bld-bank" style="flex:1">📋 Del banco</button></div>`);
+    h.push('<div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55">💡 Cada pregunta que escribas aquí queda guardada en esta unidad. Podrás reutilizarla en cualquier examen futuro con «📋 Del banco», sin volver a teclearla.</div>');
     h.push(`<button class="btn btn-primary" id="cm-btn" style="margin-top:12px"${builder.items.length?'':' disabled'}>Crear examen (${builder.items.length})</button>`);
   }
   h.push(`</div>`);
