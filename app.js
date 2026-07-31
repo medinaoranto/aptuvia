@@ -1959,16 +1959,7 @@ function manualProfeSecciones(esAula){
     'Esta es la pantalla que se usa para ir abriendo exámenes y materiales a medida que avanza el temario.'
   ]});
 
-  s.push({ t:'7. Situación de la unidad', p:[
-    'DÓNDE: Área Docente → Exámenes y estados (misma pantalla, encima de cada unidad).',
-    'Cada unidad o materia puede estar en uno de tres estados:',
-    'ACTIVO: el alumno entra y trabaja con normalidad.',
-    'PRÓXIMAMENTE: el alumno la ve en la lista pero no puede entrar. Sirve para anunciar lo que viene.',
-    'TERMINADO: se cierra. El alumno ya no puede hacer más intentos, pero conserva sus notas.',
-    'En la misma pantalla se activan dos extras: el repaso largo de la unidad y el repaso de preguntas falladas.'
-  ]});
-
-  s.push({ t:'8. Corregir redacciones', p:[
+  s.push({ t:'7. Corregir redacciones', p:[
     'DÓNDE: Área Docente → Correcciones.',
     'Aquí llegan las redacciones entregadas. La tarjeta del Área Docente muestra cuántas tienes pendientes. Abres la entrega y ves el texto del alumno.',
     'CORRECCIÓN MANUAL: le pones la nota y le escribes un comentario. Lo que escribas entre [[ dobles corchetes ]] el alumno lo verá resaltado, como una anotación a mano.',
@@ -1977,7 +1968,7 @@ function manualProfeSecciones(esAula){
     'Al guardar, el alumno ve su respuesta con tus anotaciones intercaladas justo debajo del párrafo que corrigen. Puede descargarse su examen corregido en PDF.'
   ]});
 
-  s.push({ t:'9. Notas y seguimiento', p:[
+  s.push({ t:'8. Notas y seguimiento', p:[
     'DÓNDE: Área Docente → Alumnos y notas, y Área Docente → Módulos.',
     'Los test se corrigen solos en cuanto el alumno los termina.',
     'La media por unidad se puede mirar de dos formas: por el mejor intento de cada alumno o por todos sus intentos.',
@@ -1986,13 +1977,13 @@ function manualProfeSecciones(esAula){
     'Los informes se descargan en PDF, por alumno o por clase.'
   ]});
 
-  s.push({ t:'10. Temario', p:[
+  s.push({ t:'9. Temario', p:[
     'DÓNDE: Área Docente → Temario.',
     'Para subir apuntes y material de apoyo (PDF y otros archivos) organizados por unidad o materia.',
     'El alumno los ve y los descarga desde su pantalla. No es obligatorio usarlo.'
   ]});
 
-  s.push({ t:'11. Dudas frecuentes', p:[
+  s.push({ t:'10. Dudas frecuentes', p:[
     'EL ALUMNO NO VE UN EXAMEN: en "Exámenes y estados" comprueba que su interruptor esté encendido y que la unidad no esté en Próximamente o Terminado.'
       + (esAula ? ' En Aula Abierta, comprueba además que el alumno tenga marcada esa clase en "Alumnos y notas".' : ''),
     'EL ALUMNO NO PUEDE REPETIR UN EXAMEN: será uno que cuenta para la nota final. Solo permite un intento. Si procede, reábrele el intento.',
