@@ -67,7 +67,7 @@ async function loadPortal(){
     drop.appendChild(gestOpt);
 
     // Aula Abierta va primera en el listado, con el mismo formato que un certificado
-    const aulaLabel = 'AULA-ABIERTA · Materias Propias';
+    const aulaLabel = '📖 AULA-ABIERTA · Materias Propias';
     const aulaOpt = document.createElement('div');
     aulaOpt.className = 'cp-option cp-special';
     aulaOpt.style.cssText = 'font-weight:700;background:#b3e0f2;color:var(--navy);display:flex;align-items:center';
