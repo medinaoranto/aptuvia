@@ -565,10 +565,10 @@ body.tema-aula-abierta .t-welcome .t-course .t-code-inline{color:#0077B6;}
 .t-welcome .t-cert-code{flex-shrink:0;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.8rem;color:#fff;letter-spacing:.02em;background:linear-gradient(135deg,var(--honey-2),var(--honey));padding:5px 12px;border-radius:12px;box-shadow:0 2px 8px -2px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.45);}
 .t-welcome .t-sub{width:100%;font-size:.82rem;color:var(--ink-soft);margin-top:2px;}
 .t-grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:11px;}
-.t-tile{position:relative;background:var(--panel);border:1px solid var(--honey);border-radius:15px;padding:11px 13px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:5px;justify-content:flex-start;transition:transform .08s ease, box-shadow .15s ease;}
+.t-tile{position:relative;background:var(--panel);border:1px solid var(--honey);border-radius:15px;padding:8px 11px;min-height:62px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px;justify-content:center;transition:transform .08s ease, box-shadow .15s ease;}
 .t-tile:active{transform:scale(.975);}
 .t-tile:hover{box-shadow:0 5px 14px rgba(230,126,14,.12);}
-.t-tile .ic{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.15rem;background:var(--navy-tint);}
+.t-tile .ic{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:var(--navy-tint);}
 .t-tile .tt{font-family:'Syne',sans-serif;font-weight:800;color:var(--navy);font-size:.9rem;line-height:1.12;}
 .t-tile .ts{font-size:.68rem;color:var(--ink-soft);line-height:1.2;}
 .t-tile .tile-badge{position:absolute;top:9px;right:9px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--no);color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:.72rem;display:flex;align-items:center;justify-content:center;}

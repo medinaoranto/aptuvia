@@ -2200,7 +2200,7 @@ function manualPill(fn, texto, extra){
   const justify = extra ? 'space-between' : 'flex-end';
   return `<div style="display:flex;justify-content:${justify};gap:8px;align-items:center;flex-wrap:wrap;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
     ${extra||''}
-    <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual de usuario'}</button>
+    <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual'}</button>
   </div>`;
 }
 
@@ -6453,9 +6453,7 @@ function pintarTeacher(){
       <button class="t-tile" onclick="openPassword()">
         <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
       <button class="t-tile" id="t-soporte-tile" onclick="openSoporteProfe()">
-        <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Soporte</span><span class="ts">Contacto directo con Aptuvia</span><span id="t-soporte-badge"></span></button>
-      <button class="t-tile" id="t-cachat-tile" onclick="caProfInbox()">
-        <span class="ic" style="background:var(--navy-tint)">🗨️</span><span class="tt">Chat con alumnos</span><span class="ts">Mensajería con tu clase</span><span id="t-cachat-badge"></span></button>
+        <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Chats</span><span class="ts">Con soporte y con tus alumnos</span><span id="t-soporte-badge"></span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
@@ -6467,8 +6465,10 @@ function pintarTeacher(){
     el.innerHTML=`<span class="online-dot" style="${n===0?'background:#94a3b8;box-shadow:none;animation:none':''}"></span>${n} en línea`;
   });
   const btnEd=$('edit-aula-nombre'); if(btnEd) btnEd.onclick=editarNombreAula;
-  if(!window._demoMode){ call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('t-soporte-badge'); if(el && +n>0){ el.className='tile-badge'; el.textContent=String(n); } }).catch(()=>{}); }
-  if(!window._demoMode){ call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('t-cachat-badge'); if(el && +n>0){ el.className='tile-badge'; el.textContent=String(n); } }).catch(()=>{}); }
+  if(!window._demoMode){ Promise.all([
+    call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0),
+    call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0)
+  ]).then(function(r){ const n=(+r[0]||0)+(+r[1]||0); const el=$('t-soporte-badge'); if(el && n>0){ el.className='tile-badge'; el.textContent=String(n); } }); }
   if(!window._demoMode){ Promise.all([
     call('/rest/v1/rpc/prof_avisos_listar',{method:'POST',body:{}}).catch(()=>[]),
     call('/rest/v1/rpc/cal_prof_listar',{method:'POST',body:{p_desde:fechaISOLocal(new Date()),p_hasta:fechaISOLocal(new Date())}}).catch(()=>[])
@@ -6704,6 +6704,7 @@ async function avProfBorrar(id){
 // ===== fin avisos del profesor =====
 // ===== Calendario (profesor / alumno / admin) =====
 const CAL_DOW_H=['L','M','X','J','V','S','D'];
+const CAL_COLORS=['#E67E0E','#2563a8','#15803d','#9333ea','#dc2626','#0891b2'];
 const CAL_AREAS=[['soporte','Soporte'],['admin','Administración'],['comercial','Comercial'],['todos','Todos']];
 window._cal={mode:'prof',area:'soporte',ref:new Date(),sel:null,entries:[]};
 function calMesNombre(d){ return d.toLocaleDateString('es-ES',{month:'long',year:'numeric'}); }
@@ -6751,8 +6752,9 @@ function calRender(){
   for(let i=1;i<sd;i++) h.push('<div></div>');
   for(let d=1;d<=dim;d++){
     const iso=fechaISOLocal(new Date(y,m,d)), es=byDate[iso]||[];
-    const pend=es.some(e=>!e.hecho), selc=iso===sel, esHoy=iso===hoy;
-    h.push('<button onclick="calSel(\''+iso+'\')" style="aspect-ratio:1;border:1.5px solid '+(selc?'var(--honey)':(esHoy?'var(--navy)':'var(--line)'))+';border-radius:10px;background:'+(selc?'var(--honey-tint)':'#fff')+';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;padding:0"><span style="font-size:.82rem;font-weight:700;color:var(--navy)">'+d+'</span>'+(es.length?'<span style="width:6px;height:6px;border-radius:50%;background:'+(pend?'var(--honey)':'#15803d')+';margin-top:2px"></span>':'')+'</button>');
+    const selc=iso===sel, esHoy=iso===hoy;
+    const dots=es.slice(0,4).map((e,i)=>'<span style="width:5px;height:5px;border-radius:50%;background:'+CAL_COLORS[i%CAL_COLORS.length]+';opacity:'+(e.hecho?'.35':'1')+'"></span>').join('');
+    h.push('<button onclick="calSel(\''+iso+'\')" style="aspect-ratio:1;border:1.5px solid '+(selc?'var(--honey)':(esHoy?'var(--navy)':'var(--line)'))+';border-radius:10px;background:'+(selc?'var(--honey-tint)':'#fff')+';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;padding:0"><span style="font-size:.82rem;font-weight:700;color:var(--navy)">'+d+'</span>'+(es.length?'<div style="display:flex;gap:2px;margin-top:2px;justify-content:center">'+dots+'</div>':'')+'</button>');
   }
   h.push('</div>');
   h.push('<div class="t-card" style="margin-top:14px"><b style="font-size:.85rem;color:var(--navy);text-transform:capitalize">'+calFechaLarga(sel)+'</b>');
@@ -6956,7 +6958,16 @@ function scRenderProfe(msgs){
   const b=$('sc-send'); if(b) b.onclick=scProfEnviar;
   scScrollBottom();
 }
-async function openSoporteProfe(){
+function openSoporteProfe(){
+  showView('teacher'); window.scrollTo(0,0);
+  const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 Chats</h1>');
+  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Elige con quién quieres hablar.</p>');
+  h.push('<button onclick="openChatSoporte()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con soporte</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas o incidencias con Aptuvia</div></button>');
+  h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
+  $('teacher').innerHTML=h.join('');
+}
+async function openChatSoporte(){
   showView('teacher'); window.scrollTo(0,0);
   if(window._demoMode){
     scRenderProfe([
@@ -6980,7 +6991,7 @@ async function scProfEnviar(){
   const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
   try{
     await call('/rest/v1/rpc/sc_prof_enviar',{method:'POST',body:{p_texto:txt}});
-    await openSoporteProfe();
+    await openChatSoporte();
   }catch(e){ if(b){ b.disabled=false; b.textContent='Enviar mensaje'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
 async function scAdminInbox(){
