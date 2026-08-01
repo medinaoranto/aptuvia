@@ -969,6 +969,7 @@ async function descargarMateriaZip(){
     ov.textContent='Recopilando los exámenes…';
     let examenes=[];
     try{ examenes=await call('/rest/v1/examenes?select=id,titulo,unidad,tipo,cuenta_final'+(uid?('&profesor_id=eq.'+encodeURIComponent(uid)):'')+'&order=unidad')||[]; }catch(e){}
+    examenes=(examenes||[]).filter(ex=>!/^repaso-/.test(String(ex.id)));
     for(let i=0;i<examenes.length;i++){
       const ex=examenes[i];
       ov.textContent='Exámenes… ('+(i+1)+'/'+examenes.length+')';
@@ -1586,8 +1587,10 @@ function renderHome(){
         </span>
       </button>
     </div>`;
-  html+=manualPill('docManualAlumno()','Manual del alumnado');
+  html+=manualPill('docManualAlumno()','Manual del alumnado', '<button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">🔔<span id="alum-bell-badge"></span></button>'+calBtnHtml('alum')+'<button id="alum-chat-btn" onclick="caAlumChat()" style="display:none;background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
   $('home').innerHTML=html;
+  if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
+  if(!window._demoMode){ call('/rest/v1/rpc/ca_alum_prof',{method:'POST',body:{}}).then(r=>{ const row=Array.isArray(r)?r[0]:r; if(row && row.activo){ const btn=$('alum-chat-btn'); if(btn) btn.style.display=''; call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); } }).catch(()=>{}); }
   document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
   const teacherBtn=$('dash-open-teacher');
   if(teacherBtn) teacherBtn.onclick=openTeacher;
@@ -2524,6 +2527,7 @@ function docManualArea(area){
 function docsBar(area){
   const est='background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--ink-soft);cursor:pointer;font-family:inherit';
   return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap">
+    <button onclick="openCalendario('adm')" title="Calendario del departamento" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">📅 Calendario</button>
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
     <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
   </div>`;
@@ -2937,11 +2941,11 @@ function saRenderLista(okMsg,errMsg){
     rsRender();
     return;
   }
+  h+=`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:14px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b><br><span style="font-size:.72rem;color:var(--ink-soft)">Mensajes de soporte de tus profesores</span></span><span id="sc-inbox-badge"></span></button>`;
   h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
     <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
   </div>`;
-  h+=`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:14px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b><br><span style="font-size:.72rem;color:var(--ink-soft)">Mensajes de soporte de tus profesores</span></span><span id="sc-inbox-badge"></span></button>`;
   h+=`<div class="sa-cards-grid">`;
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
@@ -6429,8 +6433,9 @@ function pintarTeacher(){
   }else{
     cabecera = `<span class="t-course"><span class="t-code-inline">${certCodigo}</span> · ${certNombre}</span>`;
   }
-  $('teacher').innerHTML=`${window._saImpersona?`<button class="backbtn" onclick="salirImpersona()" style="margin-bottom:10px;background:var(--honey-tint);border-color:var(--honey)">← Volver a la academia</button>`:''}<div class="t-welcome">
-      ${cabecera}
+  $('teacher').innerHTML=`${window._saImpersona?`<button class="backbtn" onclick="salirImpersona()" style="margin-bottom:10px;background:var(--honey-tint);border-color:var(--honey)">← Volver a la academia</button>`:''}<div class="t-welcome" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+      <div>${cabecera}</div>
+      <button id="prof-bell" onclick="openAvisosProfe()" title="Mis avisos" style="background:none;border:none;cursor:pointer;font-size:1.5rem;position:relative;line-height:1;flex-shrink:0;padding:2px 0">🔔<span id="prof-bell-dot" style="display:none;position:absolute;top:-3px;right:-5px;min-width:16px;height:16px;padding:0 3px;background:#e11d1d;color:#fff;border-radius:9px;font-size:.62rem;font-weight:800;line-height:16px;text-align:center;border:1.5px solid #fff"></span></button>
     </div>
     <div class="t-grid">
       <button class="t-tile" onclick="openTemarioProfesor()">
@@ -6449,10 +6454,12 @@ function pintarTeacher(){
         <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
       <button class="t-tile" id="t-soporte-tile" onclick="openSoporteProfe()">
         <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Soporte</span><span class="ts">Contacto directo con Aptuvia</span><span id="t-soporte-badge"></span></button>
+      <button class="t-tile" id="t-cachat-tile" onclick="caProfInbox()">
+        <span class="ic" style="background:var(--navy-tint)">🗨️</span><span class="tt">Chat con alumnos</span><span class="ts">Mensajería con tu clase</span><span id="t-cachat-badge"></span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
-    ${manualPill('docManualProfe()', null, '<button onclick="descargarMateriaZip()" title="Descarga tu materia completa: temario, exámenes y actividades" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar mi materia</button>')}`;
+    ${manualPill('docManualProfe()', null, calBtnHtml('prof')+'<button onclick="descargarMateriaZip()" title="Descarga tu materia completa: temario, exámenes y actividades" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar mi materia</button>')}`;
   // Badge de alumnos en línea — pastilla bajo "Matriculados" en la tarjeta Alumnos
   fetchOnlineCount().then(n=>{
     const el=$('t-sub-count'); if(!el) return;
@@ -6461,6 +6468,11 @@ function pintarTeacher(){
   });
   const btnEd=$('edit-aula-nombre'); if(btnEd) btnEd.onclick=editarNombreAula;
   if(!window._demoMode){ call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('t-soporte-badge'); if(el && +n>0){ el.className='tile-badge'; el.textContent=String(n); } }).catch(()=>{}); }
+  if(!window._demoMode){ call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('t-cachat-badge'); if(el && +n>0){ el.className='tile-badge'; el.textContent=String(n); } }).catch(()=>{}); }
+  if(!window._demoMode){ Promise.all([
+    call('/rest/v1/rpc/prof_avisos_listar',{method:'POST',body:{}}).catch(()=>[]),
+    call('/rest/v1/rpc/cal_prof_listar',{method:'POST',body:{p_desde:fechaISOLocal(new Date()),p_hasta:fechaISOLocal(new Date())}}).catch(()=>[])
+  ]).then(function(r){ const n=((r[0]||[]).filter(avProfDue).length)+((r[1]||[]).filter(e=>!e.hecho).length); const dot=$('prof-bell-dot'); if(dot && n>0){ dot.style.display='block'; dot.textContent=String(n); } }); }
 }
 
 // Editar y guardar el nombre personalizado del aula (columna nombre_aula_abierta)
@@ -6594,6 +6606,325 @@ function tituloMateria(u){
 }
 
 // ---- Cambiar contraseña ----
+// ===== Avisos privados del profesor (campanita) =====
+const AV_DOW=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+let _avProfDraft={texto:'',repetir:'no',fecha:'',dia_semana:1,dia_mes:1};
+function avProfIsoHoy(){ const j=new Date().getDay(); return j===0?7:j; }
+function avProfDue(m){
+  if(m.activo===false) return false;
+  if(m.repetir==='semanal') return avProfIsoHoy()===(m.dia_semana||1);
+  if(m.repetir==='mensual') return new Date().getDate()===(m.dia_mes||1);
+  if(m.fecha) return String(m.fecha)<=fechaISOLocal(new Date());
+  return false;
+}
+function avProfCad(m){
+  if(m.repetir==='semanal') return 'Cada '+AV_DOW[(m.dia_semana||1)-1];
+  if(m.repetir==='mensual') return 'Día '+(m.dia_mes||1)+' de cada mes';
+  return 'Puntual · '+(m.fecha||'sin fecha');
+}
+function avProfSetRep(v){ const t=$('avp-txt'); if(t) _avProfDraft.texto=t.value; _avProfDraft.repetir=v; avProfRender(window._avProfLista||[], null, !!window._demoMode); }
+function avProfRender(lista, okMsg, demo){
+  window._avProfLista=lista;
+  const d=_avProfDraft;
+  const hoy=(lista||[]).filter(avProfDue);
+  const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">🔔 Mis avisos</h1>');
+  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Recordatorios privados para ti. Solo los ves tú.</p>');
+  if(okMsg) h.push('<div class="t-note ok">'+escHtml(okMsg)+'</div>');
+  const calHoy=(demo?[]:(window._calHoyProf||[]));
+  if(hoy.length || calHoy.length){
+    h.push('<div class="t-card" style="border-color:var(--honey);background:var(--honey-tint)"><b style="font-size:.8rem;color:var(--honey-deep)">📌 Para hoy</b>');
+    hoy.forEach(m=>h.push('<div style="font-size:.88rem;color:var(--navy);margin-top:6px">• '+escHtml(m.texto)+'</div>'));
+    calHoy.forEach(e=>h.push('<div style="font-size:.88rem;color:var(--navy);margin-top:6px">📅 '+escHtml(e.titulo)+(e.nota?(' — '+escHtml(e.nota)):'')+'</div>'));
+    h.push('</div>');
+  }
+  h.push('<div class="t-card">');
+  h.push('<label style="margin-top:2px">Nuevo aviso</label>');
+  h.push('<textarea id="avp-txt" rows="2" placeholder="Ej.: Corregir redacciones del viernes"'+(demo?' disabled':'')+'>'+escHtml(d.texto||'')+'</textarea>');
+  h.push('<label style="margin-top:8px">Cuándo</label>');
+  h.push('<select id="avp-rep"'+(demo?' disabled':'')+' onchange="avProfSetRep(this.value)"><option value="no"'+(d.repetir==='no'?' selected':'')+'>Puntual (una fecha)</option><option value="semanal"'+(d.repetir==='semanal'?' selected':'')+'>Cada semana</option><option value="mensual"'+(d.repetir==='mensual'?' selected':'')+'>Cada mes</option></select>');
+  if(d.repetir==='no') h.push('<input type="date" id="avp-fecha" value="'+escAttr(d.fecha||'')+'" style="margin-top:8px;width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem">');
+  else if(d.repetir==='semanal') h.push('<select id="avp-dsem" style="margin-top:8px">'+AV_DOW.map((n,i)=>'<option value="'+(i+1)+'"'+((d.dia_semana||1)===i+1?' selected':'')+'>'+n+'</option>').join('')+'</select>');
+  else h.push('<input type="number" id="avp-dmes" min="1" max="31" value="'+(d.dia_mes||1)+'" style="margin-top:8px;width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem">');
+  h.push('<button class="btn btn-honey" id="avp-add" style="margin-top:12px"'+(demo?' disabled':'')+'>Añadir aviso</button>');
+  h.push('</div>');
+  h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Todos mis avisos</h2>');
+  if(!(lista||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:8px 0">No tienes avisos todavía.</p>');
+  else lista.forEach(m=>{
+    h.push('<div class="t-card" style="padding:11px 13px;'+(m.activo===false?'opacity:.6':'')+'">');
+    h.push('<div style="font-size:.9rem;color:var(--navy);white-space:pre-wrap">'+escHtml(m.texto)+'</div>');
+    h.push('<div style="font-size:.72rem;color:var(--ink-soft);margin-top:3px">'+avProfCad(m)+'</div>');
+    h.push('<div style="display:flex;gap:8px;margin-top:8px">');
+    h.push('<button onclick="avProfActivar(\''+m.id+'\','+(m.activo===false?'true':'false')+')"'+(demo?' disabled':'')+' style="font-size:.72rem;padding:5px 11px;border-radius:14px;cursor:pointer;border:1.5px solid '+(m.activo===false?'#cbd5e1':'#15803d')+';background:'+(m.activo===false?'#fff':'#dcfce7')+';color:'+(m.activo===false?'var(--ink-soft)':'#15803d')+';font-weight:700">'+(m.activo===false?'○ Pausado':'● Activo')+'</button>');
+    h.push('<button onclick="avProfBorrar(\''+m.id+'\')"'+(demo?' disabled':'')+' style="font-size:.72rem;padding:5px 11px;border-radius:14px;cursor:pointer;border:1.5px solid #f3c4c4;background:#fdeaea;margin-left:auto">🗑</button>');
+    h.push('</div></div>');
+  });
+  if(demo) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">En la demo los avisos son de muestra.</p>');
+  $('teacher').innerHTML=h.join('');
+  const add=$('avp-add'); if(add) add.onclick=avProfCrear;
+}
+async function openAvisosProfe(okMsg){
+  showView('teacher'); window.scrollTo(0,0);
+  if(window._demoMode){
+    avProfRender([
+      {id:'d1',texto:'Corregir redacciones del viernes',repetir:'semanal',dia_semana:5,activo:true},
+      {id:'d2',texto:'Abrir el Tema 3 a la clase',repetir:'no',fecha:fechaISOLocal(new Date()),activo:true},
+      {id:'d3',texto:'Repasar notas a fin de mes',repetir:'mensual',dia_mes:28,activo:false}
+    ], okMsg, true);
+    return;
+  }
+  $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="loader"><span class="spin"></span></div>';
+  let lista=[];
+  try{ lista=await call('/rest/v1/rpc/prof_avisos_listar',{method:'POST',body:{}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="t-note err">No se pudieron cargar los avisos: '+escHtml(e.message||'')+'</div>'; return; }
+  try{ const hy=fechaISOLocal(new Date()); window._calHoyProf=(await call('/rest/v1/rpc/cal_prof_listar',{method:'POST',body:{p_desde:hy,p_hasta:hy}})||[]).filter(e=>!e.hecho); }catch(e){ window._calHoyProf=[]; }
+  avProfRender(lista, okMsg, false);
+}
+async function avProfCrear(){
+  const t=$('avp-txt'); const txt=(t&&t.value||'').trim();
+  if(!txt){ appAlert('Escribe el aviso.'); return; }
+  const rep=$('avp-rep')?$('avp-rep').value:'no';
+  const body={p_texto:txt, p_repetir:rep, p_fecha:null, p_dia_semana:null, p_dia_mes:null};
+  if(rep==='no') body.p_fecha=($('avp-fecha')&&$('avp-fecha').value)||null;
+  else if(rep==='semanal') body.p_dia_semana=+(($('avp-dsem')&&$('avp-dsem').value)||1);
+  else if(rep==='mensual'){ let dm=+(($('avp-dmes')&&$('avp-dmes').value)||1); body.p_dia_mes=Math.max(1,Math.min(31,dm)); }
+  const b=$('avp-add'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{ await call('/rest/v1/rpc/prof_aviso_crear',{method:'POST',body}); _avProfDraft={texto:'',repetir:'no',fecha:'',dia_semana:1,dia_mes:1}; await openAvisosProfe('✅ Aviso añadido.'); }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Añadir aviso'; } appAlert('No se pudo: '+(e.message||'')); }
+}
+async function avProfActivar(id, activar){
+  try{ await call('/rest/v1/rpc/prof_aviso_activar',{method:'POST',body:{p_id:id, p_activo:activar}}); await openAvisosProfe(); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function avProfBorrar(id){
+  if(!await appConfirm('¿Borrar este aviso? No se puede deshacer.')) return;
+  try{ await call('/rest/v1/rpc/prof_aviso_borrar',{method:'POST',body:{p_id:id}}); await openAvisosProfe('Aviso borrado.'); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+// ===== fin avisos del profesor =====
+// ===== Calendario (profesor / alumno / admin) =====
+const CAL_DOW_H=['L','M','X','J','V','S','D'];
+const CAL_AREAS=[['soporte','Soporte'],['admin','Administración'],['comercial','Comercial'],['todos','Todos']];
+window._cal={mode:'prof',area:'soporte',ref:new Date(),sel:null,entries:[]};
+function calMesNombre(d){ return d.toLocaleDateString('es-ES',{month:'long',year:'numeric'}); }
+function calFechaLarga(iso){ try{ const p=iso.split('-'); return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'}); }catch(e){ return iso; } }
+function calFechaCorta(iso){ try{ const p=iso.split('-'); return p[2]+'/'+p[1]; }catch(e){ return iso; } }
+function calCont(){ return window._cal.mode==='alum'?'home':'teacher'; }
+function calBtnHtml(mode){ return '<button onclick="openCalendario(\''+mode+'\')" title="Calendario" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">📅 Calendario</button>'; }
+function calDemo(){ const h=fechaISOLocal(new Date()); return [{id:'d1',fecha:h,titulo:'Examen Tema 3',nota:'Aula 2 · 9:00',hecho:false},{id:'d2',fecha:h,titulo:'Entregar redacción',hecho:true}]; }
+async function openCalendario(mode, area){
+  window._cal.mode=mode||'prof'; if(area) window._cal.area=area;
+  if(!window._cal.ref) window._cal.ref=new Date();
+  window._cal.sel=fechaISOLocal(new Date());
+  await calCargar();
+}
+async function calCargar(){
+  const ref=window._cal.ref, y=ref.getFullYear(), m=ref.getMonth();
+  const desde=fechaISOLocal(new Date(y,m,1)), hasta=fechaISOLocal(new Date(y,m+1,0));
+  let rows=[];
+  try{
+    if(window._demoMode) rows=calDemo();
+    else if(window._cal.mode==='prof') rows=await call('/rest/v1/rpc/cal_prof_listar',{method:'POST',body:{p_desde:desde,p_hasta:hasta}})||[];
+    else if(window._cal.mode==='alum') rows=await call('/rest/v1/rpc/cal_alum_listar',{method:'POST',body:{p_desde:desde,p_hasta:hasta}})||[];
+    else rows=await call('/rest/v1/rpc/cal_adm_listar',{method:'POST',body:{p_area:window._cal.area,p_desde:desde,p_hasta:hasta}})||[];
+  }catch(e){ rows=[]; }
+  window._cal.entries=rows; calRender();
+}
+function calMover(n){ const r=window._cal.ref; window._cal.ref=new Date(r.getFullYear(), r.getMonth()+n, 1); calCargar(); }
+function calSel(iso){ window._cal.sel=iso; calRender(); }
+function calAdmSetArea(a){ window._cal.area=a; calCargar(); }
+function calRender(){
+  const mode=window._cal.mode, ref=window._cal.ref, entries=window._cal.entries, sel=window._cal.sel;
+  const editable=(mode!=='alum') && !window._demoMode;
+  const back = mode==='alum'?'renderHome()':(mode==='adm'?'openSuperadmin()':'pintarTeacher()');
+  const byDate={}; (entries||[]).forEach(e=>{ (byDate[e.fecha]=byDate[e.fecha]||[]).push(e); });
+  const y=ref.getFullYear(), m=ref.getMonth();
+  let sd=new Date(y,m,1).getDay(); sd=sd===0?7:sd;
+  const dim=new Date(y,m+1,0).getDate(), hoy=fechaISOLocal(new Date());
+  const btnNav='background:#fff;border:1px solid var(--line);border-radius:10px;width:38px;height:38px;font-size:1.2rem;cursor:pointer;color:var(--navy)';
+  const h=['<button class="backbtn" onclick="'+back+'">← '+(mode==='alum'?'Volver':'Panel')+'</button>'];
+  h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 10px">📅 Calendario'+(mode==='alum'?' de clase':'')+'</h1>');
+  if(mode==='adm') h.push('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+CAL_AREAS.map(a=>'<button onclick="calAdmSetArea(\''+a[0]+'\')" style="font-size:.72rem;padding:5px 10px;border-radius:14px;cursor:pointer;border:1.5px solid '+(window._cal.area===a[0]?'var(--honey)':'var(--line)')+';background:'+(window._cal.area===a[0]?'var(--honey-tint)':'#fff')+';color:var(--navy);font-weight:700">'+a[1]+'</button>').join('')+'</div>');
+  h.push('<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><button onclick="calMover(-1)" style="'+btnNav+'">‹</button><b style="font-size:1rem;color:var(--navy);text-transform:capitalize">'+calMesNombre(ref)+'</b><button onclick="calMover(1)" style="'+btnNav+'">›</button></div>');
+  h.push('<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px">'+CAL_DOW_H.map(d=>'<div style="text-align:center;font-size:.6rem;font-weight:800;color:var(--ink-soft)">'+d+'</div>').join('')+'</div>');
+  h.push('<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">');
+  for(let i=1;i<sd;i++) h.push('<div></div>');
+  for(let d=1;d<=dim;d++){
+    const iso=fechaISOLocal(new Date(y,m,d)), es=byDate[iso]||[];
+    const pend=es.some(e=>!e.hecho), selc=iso===sel, esHoy=iso===hoy;
+    h.push('<button onclick="calSel(\''+iso+'\')" style="aspect-ratio:1;border:1.5px solid '+(selc?'var(--honey)':(esHoy?'var(--navy)':'var(--line)'))+';border-radius:10px;background:'+(selc?'var(--honey-tint)':'#fff')+';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;padding:0"><span style="font-size:.82rem;font-weight:700;color:var(--navy)">'+d+'</span>'+(es.length?'<span style="width:6px;height:6px;border-radius:50%;background:'+(pend?'var(--honey)':'#15803d')+';margin-top:2px"></span>':'')+'</button>');
+  }
+  h.push('</div>');
+  h.push('<div class="t-card" style="margin-top:14px"><b style="font-size:.85rem;color:var(--navy);text-transform:capitalize">'+calFechaLarga(sel)+'</b>');
+  const del=byDate[sel]||[];
+  if(!del.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);margin:8px 0 0">Sin anotaciones.</p>');
+  else del.forEach(e=>{
+    h.push('<div style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)"><div style="flex:1"><div style="font-size:.9rem;color:var(--navy);'+(e.hecho?'text-decoration:line-through;opacity:.55':'')+'">'+escHtml(e.titulo)+'</div>'+(e.nota?'<div style="font-size:.76rem;color:var(--ink-soft);'+(e.hecho?'text-decoration:line-through':'')+'">'+escHtml(e.nota)+'</div>':'')+'</div>'+(editable?'<button onclick="calHecho(\''+e.id+'\','+(e.hecho?'false':'true')+')" style="background:none;border:none;cursor:pointer;font-size:1.05rem">'+(e.hecho?'☑️':'⬜')+'</button><button onclick="calBorrar(\''+e.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem">🗑</button>':'')+'</div>');
+  });
+  if(editable) h.push('<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><input id="cal-tit" type="text" placeholder="Título (ej.: Examen Tema 3)" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem"><input id="cal-nota" type="text" placeholder="Nota (opcional)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem"><button class="btn btn-honey" id="cal-add" style="margin-top:8px">Añadir al '+calFechaCorta(sel)+'</button></div>');
+  h.push('</div>');
+  if(window._demoMode) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Calendario de demostración.</p>');
+  $(calCont()).innerHTML=h.join('');
+  const add=$('cal-add'); if(add) add.onclick=calAdd;
+}
+async function calAdd(){
+  const tit=($('cal-tit')&&$('cal-tit').value||'').trim(); if(!tit){ appAlert('Escribe un título.'); return; }
+  const nota=($('cal-nota')&&$('cal-nota').value||'').trim();
+  const b=$('cal-add'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{
+    if(window._cal.mode==='adm') await call('/rest/v1/rpc/cal_adm_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_area:window._cal.area}});
+    else await call('/rest/v1/rpc/cal_prof_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null}});
+    await calCargar();
+  }catch(e){ if(b){ b.disabled=false; b.textContent='Añadir'; } appAlert('No se pudo: '+(e.message||'')); }
+}
+async function calHecho(id, v){
+  try{ await call('/rest/v1/rpc/'+(window._cal.mode==='adm'?'cal_adm_hecho':'cal_prof_hecho'),{method:'POST',body:{p_id:id,p_hecho:v}}); await calCargar(); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function calBorrar(id){
+  if(!await appConfirm('¿Borrar esta anotación?')) return;
+  try{ await call('/rest/v1/rpc/'+(window._cal.mode==='adm'?'cal_adm_borrar':'cal_prof_borrar'),{method:'POST',body:{p_id:id}}); await calCargar(); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+// ===== fin calendario =====
+// ===== Chat profesor <-> alumno =====
+async function caProfInbox(){
+  showView('teacher'); window.scrollTo(0,0);
+  if(window._demoMode){ caProfRenderInbox(true,[{alumno_id:'a1',nombre:'Adriana',ultimo:'¡Gracias, profe!',ultima:new Date().toISOString(),sin_leer:1}],true); return; }
+  $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="loader"><span class="spin"></span></div>';
+  let on=false, hilos=[];
+  try{ on=await call('/rest/v1/rpc/ca_prof_estado',{method:'POST',body:{}}); }catch(e){}
+  try{ hilos=await call('/rest/v1/rpc/ca_prof_hilos',{method:'POST',body:{}})||[]; }catch(e){}
+  caProfRenderInbox(!!on, hilos, false);
+}
+function caProfRenderInbox(on, hilos, demo){
+  const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
+  h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 4px">🗨️ Chat con alumnos</h1>');
+  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Herramienta opcional. Si la activas, tu alumnado verá un chat para escribirte.</p>');
+  h.push('<div class="t-card" style="display:flex;align-items:center;justify-content:space-between"><div><b style="font-size:.9rem;color:var(--navy)">Chat visible para el alumnado</b><div style="font-size:.75rem;color:var(--ink-soft)">'+(on?'Activado: tus alumnos pueden escribirte.':'Desactivado: tus alumnos no ven el chat.')+'</div></div>');
+  h.push('<button onclick="caProfToggle('+(on?'false':'true')+')"'+(demo?' disabled':'')+' style="font-size:.75rem;padding:7px 14px;border-radius:16px;cursor:pointer;border:1.5px solid '+(on?'#15803d':'#cbd5e1')+';background:'+(on?'#dcfce7':'#fff')+';color:'+(on?'#15803d':'var(--ink-soft)')+';font-weight:800">'+(on?'● Activado':'○ Apagado')+'</button></div>');
+  h.push('<button onclick="openAvAlumnado()"'+(demo?' disabled':'')+' style="width:100%;margin-top:10px;background:var(--honey-tint);border:1px solid var(--honey);border-radius:12px;padding:11px;cursor:pointer;font:inherit;color:var(--honey-deep);font-weight:700;font-size:.9rem">🔔 Enviar avisos al alumnado</button>');
+  h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Conversaciones</h2>');
+  if(!(hilos||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:8px 0">Aún no hay mensajes de tu alumnado.</p>');
+  else hilos.forEach(t=>{
+    let f=''; try{ f=new Date(t.ultima).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){}
+    const b=+t.sin_leer>0?'<span class="tile-badge" style="position:static;margin-left:6px">'+t.sin_leer+'</span>':'';
+    h.push('<button class="ca-hilo" data-aid="'+escAttr(t.alumno_id)+'" data-nom="'+escAttr(t.nombre||'')+'" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">'+escHtml(t.nombre||'Alumno')+b+'</b><span style="font-size:.68rem;color:var(--ink-soft)">'+f+'</span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml((t.ultimo||'').slice(0,70))+'</div></button>');
+  });
+  if(demo) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Chat de demostración.</p>');
+  $('teacher').innerHTML=h.join('');
+  $('teacher').querySelectorAll('.ca-hilo').forEach(b=> b.onclick=()=>caProfHilo(b.dataset.aid, b.dataset.nom));
+}
+async function caProfToggle(v){
+  try{ await call('/rest/v1/rpc/ca_prof_toggle',{method:'POST',body:{p_on:v}}); await caProfInbox(); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function caProfHilo(aid, nombre){
+  showView('teacher'); window.scrollTo(0,0);
+  $('teacher').innerHTML='<button class="backbtn" onclick="caProfInbox()">← Conversaciones</button><div class="loader"><span class="spin"></span></div>';
+  let msgs=[];
+  try{ msgs=await call('/rest/v1/rpc/ca_prof_listar',{method:'POST',body:{p_alumno:aid}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="caProfInbox()">← Conversaciones</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  caRenderHilo(msgs,'profesor', nombre, 'caProfInbox()', function(){ caProfEnviar(aid,nombre); });
+}
+async function caProfEnviar(aid, nombre){
+  const t=$('sc-txt'); const txt=(t&&t.value||'').trim(); if(!txt) return;
+  const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{ await call('/rest/v1/rpc/ca_prof_enviar',{method:'POST',body:{p_alumno:aid,p_texto:txt}}); await caProfHilo(aid,nombre); }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Enviar'; } appAlert('No se pudo: '+(e.message||'')); }
+}
+function caRenderHilo(msgs, yoSoy, titulo, backFn, sendFn){
+  const cont = yoSoy==='alumno' ? 'home' : 'teacher';
+  const h=['<button class="backbtn" onclick="'+backFn+'">← '+(yoSoy==='alumno'?'Volver':'Conversaciones')+'</button>'];
+  h.push('<h1 style="font-size:1.15rem;font-weight:800;color:var(--navy);margin:6px 0 10px">'+escHtml(titulo||'Chat')+'</h1>');
+  h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
+  if(!(msgs||[]).length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">Sin mensajes. Escribe el primero.</p>');
+  else msgs.forEach(m=>h.push(scBurbuja(m,yoSoy)));
+  h.push('</div>');
+  h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+  h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar</button>');
+  $(cont).innerHTML=h.join('');
+  const b=$('sc-send'); if(b) b.onclick=sendFn;
+  scScrollBottom();
+}
+async function caAlumChat(){
+  showView('home'); window.scrollTo(0,0);
+  if(window._demoMode){ caRenderHilo([{de:'profesor',texto:'¡Hola! Recuerda el examen del jueves.',creado_en:new Date().toISOString()}],'alumno','Tu profesor','renderHome()',function(){}); const t=$('sc-txt'),b=$('sc-send'); if(t){t.disabled=true;t.placeholder='(demostración)';} if(b){b.disabled=true;} return; }
+  $('home').innerHTML='<button class="backbtn" onclick="renderHome()">← Volver</button><div class="loader"><span class="spin"></span></div>';
+  let msgs=[];
+  try{ msgs=await call('/rest/v1/rpc/ca_alum_listar',{method:'POST',body:{}})||[]; }
+  catch(e){ $('home').innerHTML='<button class="backbtn" onclick="renderHome()">← Volver</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  caRenderHilo(msgs,'alumno','Chat con tu profesor','renderHome()', caAlumEnviar);
+}
+async function caAlumEnviar(){
+  const t=$('sc-txt'); const txt=(t&&t.value||'').trim(); if(!txt) return;
+  const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{ await call('/rest/v1/rpc/ca_alum_enviar',{method:'POST',body:{p_texto:txt}}); await caAlumChat(); }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Enviar'; } appAlert('No se pudo: '+(e.message||'')); }
+}
+// ===== fin chat profesor-alumno =====
+// ===== Campanitas del alumno (gestionadas por el profe) =====
+let _avAlTarget='';
+async function openAvAlumnado(okMsg){
+  showView('teacher'); window.scrollTo(0,0);
+  if(window._demoMode){ avAlRender([{id:'x',alumno_id:null,nombre:'Toda la clase',texto:'¡Buenos días! Hoy toca repasar el Tema 3.',activo:true,creado_en:new Date().toISOString()}],[{id:'a1',nombre:'Adriana'}],okMsg,true); return; }
+  $('teacher').innerHTML='<button class="backbtn" onclick="caProfInbox()">← Volver</button><div class="loader"><span class="spin"></span></div>';
+  let lista=[], alumnos=[];
+  try{ alumnos=await call('/rest/v1/rpc/av_al_alumnos',{method:'POST',body:{}})||[]; }catch(e){}
+  try{ lista=await call('/rest/v1/rpc/av_al_prof_listar',{method:'POST',body:{}})||[]; }catch(e){}
+  avAlRender(lista, alumnos, okMsg, false);
+}
+function avAlRender(lista, alumnos, okMsg, demo){
+  const h=['<button class="backbtn" onclick="caProfInbox()">← Volver</button>'];
+  h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 4px">🔔 Avisos al alumnado</h1>');
+  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Le aparecen al alumno en su campanita. A un alumno concreto o a toda la clase.</p>');
+  if(okMsg) h.push('<div class="t-note ok">'+escHtml(okMsg)+'</div>');
+  h.push('<div class="t-card"><label>Para</label><select id="avl-dest"'+(demo?' disabled':'')+'><option value="">Toda la clase</option>'+(alumnos||[]).map(a=>'<option value="'+escAttr(a.id)+'">'+escHtml(a.nombre||'Alumno')+'</option>').join('')+'</select>');
+  h.push('<label style="margin-top:8px">Mensaje</label><textarea id="avl-txt" rows="2" placeholder="Ej.: Examen del Tema 3 el jueves"'+(demo?' disabled':'')+'></textarea>');
+  h.push('<button class="btn btn-honey" id="avl-add" style="margin-top:10px"'+(demo?' disabled':'')+'>Enviar aviso</button></div>');
+  h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Enviados</h2>');
+  if(!(lista||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:8px 0">Sin avisos enviados.</p>');
+  else lista.forEach(m=>{
+    h.push('<div class="t-card" style="padding:11px 13px"><div style="font-size:.9rem;color:var(--navy)">'+escHtml(m.texto)+'</div><div style="font-size:.72rem;color:var(--ink-soft);margin-top:3px">'+(m.alumno_id?('Para: '+escHtml(m.nombre||'un alumno')):'Toda la clase')+'</div>');
+    if(!demo) h.push('<button onclick="avAlBorrar(\''+m.id+'\')" style="margin-top:8px;font-size:.72rem;padding:5px 11px;border-radius:14px;cursor:pointer;border:1.5px solid #f3c4c4;background:#fdeaea">🗑 Quitar</button>');
+    h.push('</div>');
+  });
+  if(demo) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Avisos de demostración.</p>');
+  $('teacher').innerHTML=h.join('');
+  const b=$('avl-add'); if(b) b.onclick=avAlCrear;
+}
+async function avAlCrear(){
+  const dest=$('avl-dest')?$('avl-dest').value:''; const txt=($('avl-txt')&&$('avl-txt').value||'').trim();
+  if(!txt){ appAlert('Escribe el aviso.'); return; }
+  const b=$('avl-add'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{ await call('/rest/v1/rpc/av_al_prof_crear',{method:'POST',body:{p_alumno:dest||null,p_texto:txt}}); await openAvAlumnado('✅ Aviso enviado.'); }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Enviar aviso'; } appAlert('No se pudo: '+(e.message||'')); }
+}
+async function avAlBorrar(id){
+  if(!await appConfirm('¿Quitar este aviso?')) return;
+  try{ await call('/rest/v1/rpc/av_al_prof_borrar',{method:'POST',body:{p_id:id}}); await openAvAlumnado('Aviso quitado.'); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function openAvAlumBell(){
+  showView('home'); window.scrollTo(0,0);
+  if(window._demoMode){ avAlBellRender([{id:'d',texto:'¡Buenos días! Hoy toca repasar el Tema 3.',personal:false,creado_en:new Date().toISOString()}],true); return; }
+  $('home').innerHTML='<button class="backbtn" onclick="renderHome()">← Volver</button><div class="loader"><span class="spin"></span></div>';
+  let lista=[];
+  try{ lista=await call('/rest/v1/rpc/av_al_alum_listar',{method:'POST',body:{}})||[]; }catch(e){}
+  try{ await call('/rest/v1/rpc/av_al_alum_marcar',{method:'POST',body:{}}); }catch(e){}
+  avAlBellRender(lista,false);
+}
+function avAlBellRender(lista, demo){
+  const h=['<button class="backbtn" onclick="renderHome()">← Volver</button>'];
+  h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 12px">🔔 Avisos de tu profesor</h1>');
+  if(!(lista||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:14px 0">No tienes avisos.</p>');
+  else lista.forEach(m=>{
+    let f=''; try{ f=new Date(m.creado_en).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'}); }catch(e){}
+    h.push('<div class="t-card" style="padding:11px 13px"><div style="font-size:.92rem;color:var(--navy)">'+escHtml(m.texto)+'</div><div style="font-size:.7rem;color:var(--ink-soft);margin-top:3px">'+(m.personal?'Para ti':'Para la clase')+' · '+f+'</div></div>');
+  });
+  $('home').innerHTML=h.join('');
+}
+// ===== fin campanitas del alumno =====
 function scBurbuja(m, yoSoy){
   yoSoy = yoSoy || 'profesor';
   const mine = m.de===yoSoy;
@@ -6608,11 +6939,13 @@ function scBurbuja(m, yoSoy){
   </div>`;
 }
 function scScrollBottom(){ const c=$('sc-hilo'); if(c) c.scrollTop=c.scrollHeight; }
+function soporteEnHorario(){ const d=new Date(); const dow=d.getDay(); const h=d.getHours(); return dow>=1 && dow<=5 && h>=9 && h<18; }
 function scRenderProfe(msgs){
   const h=[];
   h.push('<button class="backbtn" onclick="pintarTeacher()">← Panel</button>');
   h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Soporte</h1>');
   h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Chat directo con Aptuvia. Escríbeme tu duda, incidencia o sugerencia y te respondo aquí mismo.</p>');
+  if(!soporteEnHorario()) h.push('<div class="t-note" style="background:#fff7e6;border:1px solid var(--honey);color:var(--honey-deep);font-size:.8rem">🕘 Fuera del horario de atención (L-V, 9:00–18:00). Deja tu mensaje y te respondo en cuanto pueda.</div>');
   h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
   if(!msgs.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">Aún no hay mensajes. Escribe el primero y te contesto en cuanto lo vea.</p>');
   else msgs.forEach(m=>h.push(scBurbuja(m,'profesor')));
@@ -6686,9 +7019,17 @@ async function scAdminHilo(pid, nombre){
   h.push('</div>');
   h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu respuesta…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
   h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Responder</button>');
+  h.push('<button class="btn btn-ghost" id="sc-del" style="margin-top:8px;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar conversación</button>');
   $('teacher').innerHTML=h.join('');
   const b=$('sc-send'); if(b) b.onclick=()=>scSopResponder(pid, nombre);
+  const bd=$('sc-del'); if(bd) bd.onclick=()=>scSopBorrar(pid, nombre);
   scScrollBottom();
+}
+async function scSopBorrar(pid, nombre){
+  if(!await appConfirm('¿Borrar toda la conversación con '+(nombre||'este profesor')+'? No se puede deshacer.')) return;
+  if(!await appConfirm('Confirma de nuevo: se borrarán TODOS los mensajes de este chat.')) return;
+  try{ await call('/rest/v1/rpc/sc_sop_borrar',{method:'POST',body:{p_profesor:pid}}); await scAdminInbox(); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function scSopResponder(pid, nombre){
   const t=$('sc-txt'); const txt=(t&&t.value||'').trim(); if(!txt) return;
