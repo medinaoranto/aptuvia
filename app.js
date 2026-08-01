@@ -916,6 +916,95 @@ async function temarioSubir(unidad, file, titulo, nota, temaId){
 }
 
 // Descarga (URL firmada temporal para bucket privado)
+function scZipSanea(s){ return String(s||'').replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim().slice(0,80)||'sin-titulo'; }
+function scZipExamenTexto(ex, preguntas){
+  const L=[];
+  L.push('EXAMEN: '+(ex.titulo||'(sin título)'));
+  L.push('Unidad: '+(ex.unidad||''));
+  L.push('Tipo: '+(ex.tipo==='redaccion'||ex.tipo==='abierta'?'Redacción':'Test'));
+  L.push('Cuenta para la nota final: '+(ex.cuenta_final?'Sí':'No'));
+  L.push('');
+  (preguntas||[]).forEach((q,i)=>{
+    L.push((i+1)+'. '+(q.enunciado||''));
+    if(q.tipo==='abierta'){
+      L.push('   [Redacción] Respuesta modelo: '+(q.explicacion||'(sin respuesta modelo)'));
+    }else{
+      const ops=Array.isArray(q.opciones)?q.opciones:[];
+      ops.forEach((op,k)=>{ const letra=String.fromCharCode(65+k); const ok=(k===q.respuesta_correcta)?'  <- correcta':''; L.push('   '+letra+') '+op+ok); });
+      if(q.explicacion) L.push('   Explicación: '+q.explicacion);
+    }
+    L.push('');
+  });
+  return L.join('\n');
+}
+async function descargarMateriaZip(){
+  const uid=_authUid();
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,22,45,.55);display:flex;align-items:center;justify-content:center;z-index:99999;color:#fff;font-weight:700;font-size:.95rem;text-align:center;padding:24px';
+  ov.textContent='Preparando tu materia…';
+  document.body.appendChild(ov);
+  try{
+    await cargarJSZip();
+    const zip=new JSZip();
+    let algo=false;
+    ov.textContent='Recopilando el temario…';
+    let temario=[];
+    try{ temario=await call('/rest/v1/temario?select=archivo_path,archivo_nombre,unidad&order=creado_en.asc')||[]; }catch(e){}
+    temario=(temario||[]).filter(t=>t.archivo_path);
+    const usados={};
+    for(let i=0;i<temario.length;i++){
+      const t=temario[i];
+      ov.textContent='Temario… ('+(i+1)+'/'+temario.length+')';
+      try{
+        const r=await fetch(SUPABASE_URL+'/storage/v1/object/sign/temario/'+encodeURI(t.archivo_path),{ method:'POST', headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+token, 'Content-Type':'application/json' }, body:JSON.stringify({expiresIn:3600}) });
+        const j=await r.json(); if(!j.signedURL) continue;
+        const blob=await (await fetch(SUPABASE_URL+'/storage/v1'+j.signedURL)).blob();
+        let carpeta=scZipSanea(t.unidad||'temario');
+        let nombre=scZipSanea(t.archivo_nombre||('material-'+(i+1)));
+        let full='temario/'+carpeta+'/'+nombre;
+        if(usados[full]){ usados[full]++; const p=nombre.lastIndexOf('.'); nombre=(p>0?nombre.slice(0,p)+'-'+usados[full]+nombre.slice(p):nombre+'-'+usados[full]); full='temario/'+carpeta+'/'+nombre; } else usados[full]=1;
+        zip.file(full, blob); algo=true;
+      }catch(_){}
+    }
+    ov.textContent='Recopilando los exámenes…';
+    let examenes=[];
+    try{ examenes=await call('/rest/v1/examenes?select=id,titulo,unidad,tipo,cuenta_final'+(uid?('&profesor_id=eq.'+encodeURIComponent(uid)):'')+'&order=unidad')||[]; }catch(e){}
+    for(let i=0;i<examenes.length;i++){
+      const ex=examenes[i];
+      ov.textContent='Exámenes… ('+(i+1)+'/'+examenes.length+')';
+      let preg=[];
+      try{
+        const rows=await call('/rest/v1/examen_preguntas?select=posicion,preguntas(enunciado,opciones,respuesta_correcta,explicacion,tipo)&examen_id=eq.'+encodeURIComponent(ex.id)+'&order=posicion.asc')||[];
+        preg=rows.map(r=>r.preguntas).filter(Boolean);
+      }catch(e){}
+      const carpeta=scZipSanea(ex.unidad||'examenes');
+      zip.file('examenes/'+carpeta+'/'+scZipSanea(ex.titulo)+'.txt', scZipExamenTexto(ex, preg)); algo=true;
+    }
+    ov.textContent='Recopilando las actividades…';
+    let acts=[];
+    try{ acts=await call('/rest/v1/preguntas?select=tema,enunciado,explicacion,codigo,unidad&tipo=eq.abierta'+(uid?('&profesor_id=eq.'+encodeURIComponent(uid)):'')+'&order=unidad')||[]; }catch(e){}
+    if(acts.length){
+      const porU={};
+      acts.forEach(a=>{ const u=scZipSanea(a.unidad||'actividades'); (porU[u]=porU[u]||[]).push(a); });
+      Object.keys(porU).forEach(u=>{
+        const L=['ACTIVIDADES DE REDACCIÓN — '+u,''];
+        porU[u].forEach((a,i)=>{
+          L.push((i+1)+'. '+(a.codigo?('['+a.codigo+'] '):'')+(a.tema?('('+a.tema+') '):'')+(a.enunciado||''));
+          L.push('   Respuesta modelo: '+(a.explicacion||'(sin respuesta modelo)'));
+          L.push('');
+        });
+        zip.file('actividades/'+u+'.txt', L.join('\n')); algo=true;
+      });
+    }
+    if(!algo){ ov.remove(); appAlert('No hay nada que descargar todavía (ni temario, ni exámenes, ni actividades).'); return; }
+    ov.textContent='Comprimiendo…';
+    const content=await zip.generateAsync({type:'blob'});
+    const url=URL.createObjectURL(content);
+    const a=document.createElement('a'); a.href=url; a.download='mi-materia-aptuvia.zip'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }catch(e){ appAlert('No se pudo crear el ZIP: '+(e.message||'')); }
+  finally{ ov.remove(); }
+}
 function cargarJSZip(){
   return new Promise((res,rej)=>{
     if(typeof JSZip!=='undefined') return res();
@@ -2104,8 +2193,9 @@ function docManualProfe(){
 
 // Pastilla discreta para el manual, con el mismo aire que la barra de documentos.
 function manualPill(fn, texto, extra){
-  const est='background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--ink-soft);cursor:pointer;font-family:inherit';
-  return `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit';
+  const justify = extra ? 'space-between' : 'flex-end';
+  return `<div style="display:flex;justify-content:${justify};gap:8px;align-items:center;flex-wrap:wrap;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
     ${extra||''}
     <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual de usuario'}</button>
   </div>`;
@@ -6362,7 +6452,7 @@ function pintarTeacher(){
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
-    ${manualPill('docManualProfe()', null, '<button onclick="descargarTemarioZip()" title="Descarga todo tu temario en un ZIP" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar temario</button>')}`;
+    ${manualPill('docManualProfe()', null, '<button onclick="descargarMateriaZip()" title="Descarga tu materia completa: temario, exámenes y actividades" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar mi materia</button>')}`;
   // Badge de alumnos en línea — pastilla bajo "Matriculados" en la tarjeta Alumnos
   fetchOnlineCount().then(n=>{
     const el=$('t-sub-count'); if(!el) return;
