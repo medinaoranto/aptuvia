@@ -916,6 +916,56 @@ async function temarioSubir(unidad, file, titulo, nota, temaId){
 }
 
 // Descarga (URL firmada temporal para bucket privado)
+function cargarJSZip(){
+  return new Promise((res,rej)=>{
+    if(typeof JSZip!=='undefined') return res();
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('No se pudo cargar el compresor.'));
+    document.head.appendChild(s);
+  });
+}
+async function descargarTemarioZip(){
+  let rows;
+  try{ rows=await call('/rest/v1/temario?select=archivo_path,archivo_nombre,titulo,unidad&order=creado_en.asc')||[]; }
+  catch(e){ appAlert('No se pudo leer el temario: '+(e.message||'')); return; }
+  rows=(rows||[]).filter(r=>r.archivo_path);
+  if(!rows.length){ appAlert('No tienes temario subido para descargar.'); return; }
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,22,45,.55);display:flex;align-items:center;justify-content:center;z-index:99999;color:#fff;font-weight:700;font-size:.95rem;text-align:center;padding:24px';
+  ov.textContent='Preparando tu ZIP… (0/'+rows.length+')';
+  document.body.appendChild(ov);
+  try{
+    await cargarJSZip();
+    const zip=new JSZip();
+    const usados={};
+    for(let i=0;i<rows.length;i++){
+      const t=rows[i];
+      ov.textContent='Preparando tu ZIP… ('+(i+1)+'/'+rows.length+')';
+      try{
+        const r=await fetch(SUPABASE_URL+'/storage/v1/object/sign/temario/'+encodeURI(t.archivo_path),{
+          method:'POST',
+          headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+token, 'Content-Type':'application/json' },
+          body:JSON.stringify({expiresIn:3600})
+        });
+        const j=await r.json();
+        if(!j.signedURL) continue;
+        const blob=await (await fetch(SUPABASE_URL+'/storage/v1'+j.signedURL)).blob();
+        let carpeta=String(t.unidad||'temario').replace(/[\\/:*?"<>|]/g,'-');
+        let nombre=String(t.archivo_nombre||('material-'+(i+1))).replace(/[\\/:*?"<>|]/g,'-');
+        let full=carpeta+'/'+nombre;
+        if(usados[full]){ usados[full]++; const p=nombre.lastIndexOf('.'); nombre=(p>0?nombre.slice(0,p)+'-'+usados[full]+nombre.slice(p):nombre+'-'+usados[full]); full=carpeta+'/'+nombre; } else usados[full]=1;
+        zip.file(full, blob);
+      }catch(_){}
+    }
+    ov.textContent='Comprimiendo…';
+    const content=await zip.generateAsync({type:'blob'});
+    const url=URL.createObjectURL(content);
+    const a=document.createElement('a'); a.href=url; a.download='temario-aptuvia.zip'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }catch(e){ appAlert('No se pudo crear el ZIP: '+(e.message||'')); }
+  finally{ ov.remove(); }
+}
 async function temarioDescargar(path, nombre){
   try{
     const r=await fetch(SUPABASE_URL+'/storage/v1/object/sign/temario/'+encodeURI(path),{
@@ -2032,7 +2082,8 @@ function manualProfeSecciones(esAula){
     'SE COLABA UNA ACTIVIDAD DE REDACCIÓN EN UN TEST: no debería. El generador de test solo usa preguntas tipo test; las actividades de redacción viven en su propio banco y en la pestaña Redacción.',
     'NO ME SALE EL AVISO DE NORMAS AL EMPEZAR: ese aviso solo aparece en los exámenes marcados como que cuentan para la nota.',
     'HE BORRADO ALGO SIN QUERER: no hay papelera de reciclaje. Los borrados de exámenes'+(aa?', materias':'')+' y preguntas son definitivos, por eso se piden confirmaciones.',
-    'HE OLVIDADO MI CONTRASEÑA: la reactiva quien gestiona la plataforma. La de tus alumnos la regeneras tú desde Registrados.'
+    'HE OLVIDADO MI CONTRASEÑA: la reactiva quien gestiona la plataforma. La de tus alumnos la regeneras tú desde Registrados.',
+    'TIENES UNA DUDA O UN PROBLEMA: en el Área Docente, la tarjeta «Soporte» abre un chat directo con Aptuvia. Escríbeme ahí lo que necesites y te respondo en el mismo chat; cuando conteste, te saldrá un aviso en esa tarjeta.'
   ]});
 
   return s;
@@ -2052,9 +2103,10 @@ function docManualProfe(){
 }
 
 // Pastilla discreta para el manual, con el mismo aire que la barra de documentos.
-function manualPill(fn, texto){
+function manualPill(fn, texto, extra){
   const est='background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--ink-soft);cursor:pointer;font-family:inherit';
-  return `<div style="display:flex;justify-content:flex-end;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+  return `<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+    ${extra||''}
     <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual de usuario'}</button>
   </div>`;
 }
@@ -2229,7 +2281,8 @@ const MANUAL_AREAS = {
       { t:'1. Qué se hace desde aquí', p:[
         'Soporte es quien monta y desmonta clientes: da de alta la academia o el usuario de Aula Abierta, lo configura para que pueda trabajar, y lo revoca cuando termina el contrato o hay impago.',
         'Soporte NO factura ni prepara presupuestos. Solo ejecuta el alta y la baja, y avisa a las otras áreas.',
-        'La pantalla tiene dos pestañas: Aptuvia (academias con certificados de profesionalidad) y Aula Abierta (usuarios independientes).'
+        'La pantalla tiene dos pestañas: Aptuvia (academias con certificados de profesionalidad) y Aula Abierta (usuarios independientes).',
+        'CHAT CON PROFESORADO: arriba de Soporte está la tarjeta "💬 Chat con profesorado". Ahí llegan los mensajes que los profesores escriben desde su tarjeta "Soporte". La tarjeta lleva un número con los mensajes sin leer; se abre la conversación, se responde y al profesor le aparece el aviso de respuesta en su panel. Cada profesor tiene su propio hilo privado.'
       ]},
       { t:'2. Dar de alta un cliente', p:[
         'BOTÓN NARANJA: "Alta desde presupuesto". Es el que hay que usar siempre que el cliente venga de un presupuesto aceptado.',
@@ -2798,6 +2851,7 @@ function saRenderLista(okMsg,errMsg){
     <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
     <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
   </div>`;
+  h+=`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:14px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b><br><span style="font-size:.72rem;color:var(--ink-soft)">Mensajes de soporte de tus profesores</span></span><span id="sc-inbox-badge"></span></button>`;
   h+=`<div class="sa-cards-grid">`;
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
@@ -2812,6 +2866,8 @@ function saRenderLista(okMsg,errMsg){
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
+  if($('sc-inbox-card')) $('sc-inbox-card').onclick=scAdminInbox;
+  call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.textContent=String(n); } }).catch(()=>{});
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
   saPintarMantenimiento();
 }
@@ -6301,10 +6357,12 @@ function pintarTeacher(){
         <span class="ic-row"><span class="ic" style="background:var(--navy-tint)">👥</span><span class="t-online-pill" id="t-sub-count"><span class="online-dot" style="background:#94a3b8;box-shadow:none;animation:none"></span>… en línea</span></span><span class="tt">Alumnos y notas</span><span class="ts">Registrados: ${nAl}</span></button>
       <button class="t-tile" onclick="openPassword()">
         <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
+      <button class="t-tile" id="t-soporte-tile" onclick="openSoporteProfe()">
+        <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Soporte</span><span class="ts">Contacto directo con Aptuvia</span><span id="t-soporte-badge"></span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
-    ${manualPill('docManualProfe()')}`;
+    ${manualPill('docManualProfe()', null, '<button onclick="descargarTemarioZip()" title="Descarga todo tu temario en un ZIP" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar temario</button>')}`;
   // Badge de alumnos en línea — pastilla bajo "Matriculados" en la tarjeta Alumnos
   fetchOnlineCount().then(n=>{
     const el=$('t-sub-count'); if(!el) return;
@@ -6312,6 +6370,7 @@ function pintarTeacher(){
     el.innerHTML=`<span class="online-dot" style="${n===0?'background:#94a3b8;box-shadow:none;animation:none':''}"></span>${n} en línea`;
   });
   const btnEd=$('edit-aula-nombre'); if(btnEd) btnEd.onclick=editarNombreAula;
+  if(!window._demoMode){ call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('t-soporte-badge'); if(el && +n>0){ el.className='tile-badge'; el.textContent=String(n); } }).catch(()=>{}); }
 }
 
 // Editar y guardar el nombre personalizado del aula (columna nombre_aula_abierta)
@@ -6378,13 +6437,6 @@ function openModulosTeacher(okMsg, errMsg){
     }
   }
   html+=renderModulosCardsHtml(esAula);
-  html+=`<div class="cert">
-      <div class="cert-top">
-        <h1>${heroTitulo}</h1>
-        <div class="cert-code">${certCodigo||'ADGG0508'}</div>
-      </div>
-      <div class="sub">${certNombre||''}</div>
-    </div>`;
   $('teacher').innerHTML=html;
   document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
   document.querySelectorAll('[data-delmat]').forEach(b=> b.onclick=(ev)=>{ ev.stopPropagation(); borrarMateriaUI(b.dataset.delmat, b.dataset.mattit); });
@@ -6449,6 +6501,110 @@ function tituloMateria(u){
   const p=partesMateria(u.titulo||'');
   if(!p.nombre) return p.etiqueta==='MATERIA'?'':p.etiqueta;
   return (p.etiqueta && p.etiqueta!=='MATERIA') ? (p.nombre+' · '+p.etiqueta) : p.nombre;
+}
+
+// ---- Cambiar contraseña ----
+function scBurbuja(m, yoSoy){
+  yoSoy = yoSoy || 'profesor';
+  const mine = m.de===yoSoy;
+  const fecha = (function(){ try{ return new Date(m.creado_en).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } })();
+  const quien = m.de==='profesor' ? (yoSoy==='profesor'?'Tú':'Profesor') : (yoSoy==='soporte'?'Tú':'Soporte');
+  const est = mine
+    ? 'align-self:flex-end;background:var(--honey-tint);border:1px solid var(--honey)'
+    : 'align-self:flex-start;background:var(--navy-tint);border:1px solid #c9cef0';
+  return `<div style="max-width:82%;${est};border-radius:12px;padding:8px 11px;margin:4px 0">
+    <div style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:2px">${quien} · ${fecha}</div>
+    <div style="font-size:.88rem;line-height:1.5;color:var(--navy);white-space:pre-wrap">${escHtml(m.texto||'')}</div>
+  </div>`;
+}
+function scScrollBottom(){ const c=$('sc-hilo'); if(c) c.scrollTop=c.scrollHeight; }
+function scRenderProfe(msgs){
+  const h=[];
+  h.push('<button class="backbtn" onclick="pintarTeacher()">← Panel</button>');
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Soporte</h1>');
+  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Chat directo con Aptuvia. Escríbeme tu duda, incidencia o sugerencia y te respondo aquí mismo.</p>');
+  h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
+  if(!msgs.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">Aún no hay mensajes. Escribe el primero y te contesto en cuanto lo vea.</p>');
+  else msgs.forEach(m=>h.push(scBurbuja(m,'profesor')));
+  h.push('</div>');
+  h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+  h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar mensaje</button>');
+  $('teacher').innerHTML=h.join('');
+  const b=$('sc-send'); if(b) b.onclick=scProfEnviar;
+  scScrollBottom();
+}
+async function openSoporteProfe(){
+  showView('teacher'); window.scrollTo(0,0);
+  if(window._demoMode){
+    scRenderProfe([
+      {de:'profesor',texto:'Hola, ¿cómo adjunto un PDF a un examen de redacción?',creado_en:new Date(Date.now()-3600000).toISOString()},
+      {de:'soporte',texto:'¡Hola! En la pestaña Redacción, debajo del título, tienes "PDF del examen (opcional)". Súbelo ahí y el alumno lo verá incrustado.',creado_en:new Date(Date.now()-1800000).toISOString()}
+    ]);
+    const t=$('sc-txt'), b=$('sc-send');
+    if(t){ t.disabled=true; t.placeholder='(Chat de demostración)'; }
+    if(b){ b.disabled=true; b.textContent='Chat de demostración'; }
+    return;
+  }
+  $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="loader"><span class="spin"></span></div>';
+  let msgs=[];
+  try{ msgs=await call('/rest/v1/rpc/sc_prof_listar',{method:'POST',body:{}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="t-note err">No se pudo abrir el chat: '+escHtml(e.message||'')+'</div>'; return; }
+  scRenderProfe(msgs);
+}
+async function scProfEnviar(){
+  const t=$('sc-txt'); const txt=(t&&t.value||'').trim();
+  if(!txt){ return; }
+  const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{
+    await call('/rest/v1/rpc/sc_prof_enviar',{method:'POST',body:{p_texto:txt}});
+    await openSoporteProfe();
+  }catch(e){ if(b){ b.disabled=false; b.textContent='Enviar mensaje'; } appAlert('No se pudo enviar: '+(e.message||'')); }
+}
+async function scAdminInbox(){
+  showView('teacher'); window.scrollTo(0,0);
+  $('teacher').innerHTML='<button class="backbtn" onclick="openSuperadmin()">← Torre de control</button><div class="loader"><span class="spin"></span></div>';
+  let hilos=[];
+  try{ hilos=await call('/rest/v1/rpc/sc_sop_hilos',{method:'POST',body:{}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="openSuperadmin()">← Torre de control</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  const h=['<button class="backbtn" onclick="openSuperadmin()">← Torre de control</button>'];
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 12px;color:var(--navy)">💬 Chat con profesorado</h1>');
+  if(!hilos.length){ h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:20px 0">No hay conversaciones todavía.</p>'); }
+  else{
+    hilos.forEach(t=>{
+      let fecha=''; try{ fecha=new Date(t.ultima).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){}
+      const badge = +t.sin_leer>0 ? `<span class="tile-badge" style="position:static;margin-left:6px">${t.sin_leer}</span>` : '';
+      h.push(`<button class="sc-hilo-row" data-pid="${escAttr(t.profesor_id)}" data-nom="${escAttr(t.nombre||'')}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">${escHtml(t.nombre||'Profesor')}${badge}</b><span style="font-size:.68rem;color:var(--ink-soft)">${fecha}</span></div>
+        <div style="font-size:.78rem;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml((t.ultimo||'').slice(0,70))}</div>
+      </button>`);
+    });
+  }
+  $('teacher').innerHTML=h.join('');
+  $('teacher').querySelectorAll('.sc-hilo-row').forEach(b=> b.onclick=()=>scAdminHilo(b.dataset.pid, b.dataset.nom));
+}
+async function scAdminHilo(pid, nombre){
+  showView('teacher'); window.scrollTo(0,0);
+  $('teacher').innerHTML='<button class="backbtn" onclick="scAdminInbox()">← Conversaciones</button><div class="loader"><span class="spin"></span></div>';
+  let msgs=[];
+  try{ msgs=await call('/rest/v1/rpc/sc_sop_listar',{method:'POST',body:{p_profesor:pid}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="scAdminInbox()">← Conversaciones</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  const h=['<button class="backbtn" onclick="scAdminInbox()">← Conversaciones</button>'];
+  h.push('<h1 style="font-size:1.15rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">'+escHtml(nombre||'Profesor')+'</h1>');
+  h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
+  if(!msgs.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">Sin mensajes.</p>');
+  else msgs.forEach(m=>h.push(scBurbuja(m,'soporte')));
+  h.push('</div>');
+  h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu respuesta…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+  h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Responder</button>');
+  $('teacher').innerHTML=h.join('');
+  const b=$('sc-send'); if(b) b.onclick=()=>scSopResponder(pid, nombre);
+  scScrollBottom();
+}
+async function scSopResponder(pid, nombre){
+  const t=$('sc-txt'); const txt=(t&&t.value||'').trim(); if(!txt) return;
+  const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{ await call('/rest/v1/rpc/sc_sop_responder',{method:'POST',body:{p_profesor:pid,p_texto:txt}}); await scAdminHilo(pid,nombre); }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Responder'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
 
 // ---- Cambiar contraseña ----
