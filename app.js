@@ -61,7 +61,7 @@ async function loadPortal(){
     // (es_cuenta_academia / admin) decide a qué pantalla van.
     const gestOpt = document.createElement('div');
     gestOpt.className = 'cp-option cp-special';
-    gestOpt.style.cssText = 'font-weight:700;background:#f7e2b8;color:var(--navy)';
+    gestOpt.style.cssText = 'font-weight:700;background:#f7e2b8;color:var(--navy);display:flex;align-items:center;min-height:60px';
     gestOpt.textContent = '🔑 Acceso de dirección / administración';
     gestOpt.onclick = ()=>selectCert('__gestion', '🔑 Acceso de dirección / administración');
     drop.appendChild(gestOpt);
@@ -70,7 +70,7 @@ async function loadPortal(){
     const aulaLabel = 'AULA-ABIERTA · Materias Propias / Exámenes Libres';
     const aulaOpt = document.createElement('div');
     aulaOpt.className = 'cp-option cp-special';
-    aulaOpt.style.cssText = 'font-weight:700;background:#b3e0f2;color:var(--navy)';
+    aulaOpt.style.cssText = 'font-weight:700;background:#b3e0f2;color:var(--navy);display:flex;align-items:center;min-height:60px';
     aulaOpt.textContent = aulaLabel;
     aulaOpt.onclick = ()=>selectCert('__aula_abierta', aulaLabel);
     drop.appendChild(aulaOpt);
@@ -78,8 +78,8 @@ async function loadPortal(){
     // Tercera entrada: Certificados de profesionalidad (despliega el resto al tocar)
     const certsToggle = document.createElement('div');
     certsToggle.className = 'cp-option cp-special';
-    certsToggle.style.cssText = 'font-weight:700;background:#eef0f7;color:var(--navy);display:flex;justify-content:space-between;align-items:center';
-    certsToggle.innerHTML = '<span>🎓 Certificados de profesionalidad</span><span id="cp-certs-caret" style="transition:transform .15s">▸</span>';
+    certsToggle.style.cssText = 'font-weight:700;background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center;min-height:60px';
+    certsToggle.innerHTML = '<span style="display:flex;align-items:center;gap:6px"><span style="filter:brightness(0) invert(1)">🎓</span>Certificados de profesionalidad</span><span id="cp-certs-caret" style="transition:transform .15s;color:#fff">▸</span>';
     drop.appendChild(certsToggle);
 
     const certsWrap = document.createElement('div');
