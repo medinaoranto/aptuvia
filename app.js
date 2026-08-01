@@ -125,7 +125,7 @@ function closeCertSoon(e){
 
 function portalEntrar(){
   const val = $('portal-select').value;
-  if(!val){ $('portal-msg').textContent = 'Selecciona un certificado para continuar.'; return; }
+  if(!val){ $('portal-msg').textContent = 'Selecciona una opción para continuar.'; return; }
 
   currentCertificado = val;
   window._activeCertId = val;
