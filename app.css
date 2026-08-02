@@ -1040,3 +1040,94 @@ select option{color:var(--navy);padding:8px;}
 .aa-chips{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;align-items:center;margin:10px 0 2px;scrollbar-width:none;-ms-overflow-style:none;}
 .aa-chips::-webkit-scrollbar{display:none;}
 .aa-chips-lb{font-size:.74rem;color:var(--ink-soft);font-weight:700;margin-right:2px;flex:0 0 auto;}
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY / NEUMORFISMO · rediseño visual (REVERSIBLE)
+   Revertir: borra desde esta línea hasta el final del archivo,
+   o restaura tu copia de seguridad. Solo cambia aspecto.
+   Nota: pestañas de área, campana y píldoras van inline en app.js;
+   esas NO cambian con este bloque (requieren pasada a app.js).
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --clay-field:#c9dbe8;
+  --clay-surf:#e9f1f8;
+  --clay-surf-2:#dfe9f2;
+  --clay-dark:rgba(108,133,160,.55);
+  --clay-lite:rgba(255,255,255,.95);
+  --clay-r:22px;
+  --clay-sh:8px 8px 18px var(--clay-dark), -7px -7px 15px var(--clay-lite);
+  --clay-sh-sm:5px 5px 12px var(--clay-dark), -4px -4px 10px var(--clay-lite);
+  --clay-sh-lg:11px 11px 24px var(--clay-dark), -9px -9px 20px var(--clay-lite);
+  --clay-in:inset 4px 4px 9px var(--clay-dark), inset -4px -4px 9px var(--clay-lite);
+}
+
+/* Fondo = panel/archivador físico */
+body{ background:linear-gradient(160deg,#d5e3ed 0%,#c4d6e4 100%)!important; }
+header{ background:rgba(206,222,234,.9)!important; border-bottom:1px solid rgba(255,255,255,.6)!important; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+#portal, #login{ background:transparent!important; }
+
+/* Tarjetas y bloques flotantes = fichas elevadas */
+.card,.portal-card,.t-card,.result,.fact-menu,.dl-row,.instr-box,.qcard,.bloq-box{
+  background:var(--clay-surf)!important;
+  border:1px solid rgba(255,255,255,.85)!important;
+  border-radius:var(--clay-r)!important;
+  box-shadow:var(--clay-sh)!important;
+}
+
+/* Tiles del home = carpetas clay */
+.t-grid{ gap:14px!important; }
+.t-tile{
+  background:var(--clay-surf)!important;
+  border:1px solid rgba(255,255,255,.9)!important;
+  border-radius:20px!important;
+  box-shadow:var(--clay-sh)!important;
+  min-height:76px!important;
+  padding:12px 14px!important;
+  transition:box-shadow .12s ease, transform .08s ease!important;
+}
+.t-tile:hover{ box-shadow:var(--clay-sh-lg)!important; }
+.t-tile:active{ box-shadow:var(--clay-in)!important; transform:none!important; }
+.t-tile .ic{
+  background:linear-gradient(145deg,#eef5fb,#d4e2ee)!important;
+  box-shadow:3px 3px 7px var(--clay-dark), -3px -3px 6px var(--clay-lite)!important;
+}
+.t-tile-slim{ min-height:0!important; }
+
+/* Botones plásticos extruidos */
+.btn{ border-radius:14px!important; box-shadow:var(--clay-sh-sm)!important; transition:box-shadow .12s, transform .08s, filter .15s!important; }
+.btn:active{ box-shadow:var(--clay-in)!important; transform:none!important; }
+.btn-ghost,.backbtn,.iconbtn,.sa-mini,.ord-b,.gx-mini,.est-b{
+  background:var(--clay-surf-2)!important;
+  border:1px solid rgba(255,255,255,.8)!important;
+  border-radius:12px!important;
+  box-shadow:var(--clay-sh-sm)!important;
+}
+.btn-ghost:active,.backbtn:active,.iconbtn:active,.sa-mini:active,.ord-b:active,.gx-mini:active{ box-shadow:var(--clay-in)!important; transform:none!important; }
+
+/* Filas tipo ficha física */
+.unit,.exam-row,.al-row,.pub-row,.ce-row,.gx-card,.gx-kpi,.sa-card,.sa-prof-card,.bld-row,.repaso-card{
+  background:var(--clay-surf)!important;
+  border:1px solid rgba(255,255,255,.8)!important;
+  border-radius:16px!important;
+  box-shadow:var(--clay-sh-sm)!important;
+}
+.unit:hover,.exam-row:hover,.al-row:hover{ box-shadow:var(--clay-sh)!important; }
+.unit:active,.al-row:active{ box-shadow:var(--clay-in)!important; transform:none!important; }
+
+/* Campos hundidos (entrada de datos) */
+input,select,textarea,#portal select,.red-q textarea,.ans-box{
+  background:#dfeaf2!important;
+  border:1px solid rgba(255,255,255,.7)!important;
+  box-shadow:var(--clay-in)!important;
+}
+input:focus,select:focus,textarea:focus{ outline:none!important; box-shadow:var(--clay-in), 0 0 0 2px var(--honey)!important; }
+
+/* Interruptor clay */
+.switch{ background:#cddae6!important; box-shadow:inset 3px 3px 6px var(--clay-dark), inset -2px -2px 5px var(--clay-lite)!important; }
+.switch.on{ background:var(--honey)!important; box-shadow:inset 3px 3px 6px rgba(150,80,10,.5)!important; }
+.switch .knob{ box-shadow:2px 2px 5px var(--clay-dark), -1px -1px 3px var(--clay-lite)!important; }
+
+@media (prefers-reduced-motion: reduce){
+  .t-tile,.btn,.unit,.al-row{ transition:none!important; }
+}
+/* ═══════════════ fin bloque CLAY ═══════════════ */
