@@ -938,6 +938,7 @@ function scZipExamenTexto(ex, preguntas){
   return L.join('\n');
 }
 async function descargarMateriaZip(){
+  if(!await appConfirm('¿Descargar tu materia completa (temario, exámenes y actividades) en un ZIP?')) return;
   const uid=_authUid();
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(20,22,45,.55);display:flex;align-items:center;justify-content:center;z-index:99999;color:#fff;font-weight:700;font-size:.95rem;text-align:center;padding:24px';
@@ -1587,10 +1588,10 @@ function renderHome(){
         </span>
       </button>
     </div>`;
-  html+=manualPill('docManualAlumno()','Manual del alumnado', '<button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">🔔<span id="alum-bell-badge"></span></button>'+calBtnHtml('alum')+'<button id="alum-chat-btn" onclick="caAlumChat()" style="display:none;background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
+  html+=manualPill('docManualAlumno()','Manual del alumnado', '<button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">🔔<span id="alum-bell-badge"></span></button>'+calBtnHtml('alum')+'<button onclick="caAlumChat()" title="Chat con tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
   $('home').innerHTML=html;
   if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
-  if(!window._demoMode){ call('/rest/v1/rpc/ca_alum_prof',{method:'POST',body:{}}).then(r=>{ const row=Array.isArray(r)?r[0]:r; if(row && row.activo){ const btn=$('alum-chat-btn'); if(btn) btn.style.display=''; call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); } }).catch(()=>{}); }
+  if(!window._demoMode){ call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
   document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
   const teacherBtn=$('dash-open-teacher');
   if(teacherBtn) teacherBtn.onclick=openTeacher;
@@ -2525,12 +2526,23 @@ function docManualArea(area){
 
 // Barra discreta de documentos internos. Va al pie de cada área, sin robar atención.
 function docsBar(area){
-  const est='background:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--ink-soft);cursor:pointer;font-family:inherit';
+  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700';
+  const mon=!!window._mantOn;
+  const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:3px 10px;font-size:.68rem;cursor:pointer;font-family:inherit;font-weight:800';
   return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap">
-    <button onclick="openCalendario('adm')" title="Calendario del departamento" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">📅 Calendario</button>
+    <button onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenimiento':'Operativo'}</button>
+    <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
     <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
   </div>`;
+}
+async function saMantToggle(){
+  let on=false;
+  try{ const m=await call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento'); on=(m&&m[0]&&m[0].valor==='on'); }catch(e){}
+  if(!on && !await appConfirm('Activar mantenimiento: NADIE podrá entrar (alumnos y profesores) hasta que lo apagues. ¿Seguro?')) return;
+  if(on && !await appConfirm('¿Apagar el mantenimiento y volver a funcionar con normalidad?')) return;
+  try{ await call('/rest/v1/rpc/set_mantenimiento',{method:'POST',body:{p_on:!on}}); window._mantOn=!on; openSuperadmin(); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 
 function avAreaActual(){
@@ -2913,6 +2925,7 @@ function saShell(inner){
     </div>
     ${window._avRaiz?`<div id="av-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
     ${window._avRaiz?`<div id="ai-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
+    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin:0 0 12px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b><br><span style="font-size:.72rem;color:var(--ink-soft)">Mensajes de soporte de tus profesores</span></span><span id="sc-inbox-badge"></span></button>`:''}
     ${enSoporte?`<div class="t-toggle" style="margin:0 0 16px;display:flex;gap:5px;flex-wrap:nowrap">
       <button style="${sub('ev')}" onclick="saSetMain('ev')">Aptuvia</button>
       <button style="${sub('aa')}" onclick="saSetMain('aa')">Aula Abierta</button>
@@ -2941,7 +2954,6 @@ function saRenderLista(okMsg,errMsg){
     rsRender();
     return;
   }
-  h+=`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:14px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b><br><span style="font-size:.72rem;color:var(--ink-soft)">Mensajes de soporte de tus profesores</span></span><span id="sc-inbox-badge"></span></button>`;
   h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
     <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
@@ -2950,7 +2962,7 @@ function saRenderLista(okMsg,errMsg){
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
     h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" style="background:#fff;padding:9px 12px;margin-bottom:7px;${rev?'opacity:.72':''}">
-      <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:.92rem">${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id}</span></div>
+      <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:1.02rem;color:var(--navy)">${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id}</span></div>
       <div class="sa-counts" style="display:none"><span>${a.n_profes} profes</span><span>${a.n_alumnos} alumnos</span><span>${a.n_examenes} exs</span></div>
     </div>`;
   });
@@ -2967,8 +2979,10 @@ function saRenderLista(okMsg,errMsg){
 }
 async function saPintarMantenimiento(){
   const box=$('sa-mant-box'); if(!box) return;
+  window._mantSync=1;
   let on=false;
   try{ const m=await call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento'); on=(m&&m[0]&&m[0].valor==='on'); }catch(e){}
+  window._mantOn=on;
   box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border:1.5px solid ${on?'#f3c4c4':'var(--line)'};border-radius:12px;background:${on?'#fdeaea':'#fff'}">
       <span><b style="color:${on?'#b4232a':'var(--navy)'}">🛠️ Modo mantenimiento</b><br><span style="font-size:.78rem;color:var(--ink-soft)">${on?'ACTIVO: nadie puede entrar salvo tú.':'Apagado: la app funciona con normalidad.'}</span></span>
       <button class="switch${on?' on':''}" id="sa-mant-sw"><span class="knob"></span></button>
@@ -6429,7 +6443,7 @@ function pintarTeacher(){
   if(esAula){
     const nombreAula = (window._aulaNombre||'').trim();
     const textoIzq = nombreAula || 'Materias propias';
-    cabecera = `<button class="t-course" id="edit-aula-nombre" title="Cambiar este texto" style="background:none;border:none;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit">${escHtml(textoIzq)} <span style="opacity:.5">✎</span></button><span class="t-cert-code"><span style="color:#2e3163">A</span>ula <span style="color:#2e3163">A</span>bierta</span>`;
+    cabecera = `<button class="t-course" id="edit-aula-nombre" title="Cambiar este texto" style="background:none;border:none;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit">${escHtml(textoIzq)} <span style="opacity:.5">✎</span></button>`;
   }else{
     cabecera = `<span class="t-course"><span class="t-code-inline">${certCodigo}</span> · ${certNombre}</span>`;
   }
@@ -6442,18 +6456,18 @@ function pintarTeacher(){
         <span class="ic" style="background:var(--honey-tint)">📚</span><span class="tt">Temario</span><span class="ts">Apuntes para el alumno</span></button>
       <button class="t-tile" onclick="openExamMgmt()">
         <span class="ic" style="background:var(--honey-tint)">⚙️</span><span class="tt">Crear y gestionar exámenes</span></button>
-      <button class="t-tile" onclick="openCorrecciones()">
-        <span class="ic" style="background:var(--honey-tint)">✍️</span><span class="tt">Correcciones</span><span class="ts">Redacciones por corregir</span>${pendientesCount>0?`<span class="tile-badge">${pendientesCount}</span>`:''}</button>
       <button class="t-tile" onclick="openPublicar()">
         <span class="ic" style="background:var(--honey-tint)">👁️</span><span class="tt">Exámenes y estados</span><span class="ts">Qué ve el alumno · situación</span></button>
       <button class="t-tile" onclick="openModulosTeacher()">
         <span class="ic" style="background:var(--navy-tint)">📚</span><span class="tt">Módulos</span><span class="ts">Evolución de la clase</span></button>
+      <button class="t-tile" onclick="openCorrecciones()">
+        <span class="ic" style="background:var(--honey-tint)">✍️</span><span class="tt">Correcciones</span><span class="ts">Redacciones por corregir</span>${pendientesCount>0?`<span class="tile-badge">${pendientesCount}</span>`:''}</button>
       <button class="t-tile" onclick="openAlumnos()">
         <span class="ic-row"><span class="ic" style="background:var(--navy-tint)">👥</span><span class="t-online-pill" id="t-sub-count"><span class="online-dot" style="background:#94a3b8;box-shadow:none;animation:none"></span>… en línea</span></span><span class="tt">Alumnos y notas</span><span class="ts">Registrados: ${nAl}</span></button>
-      <button class="t-tile" onclick="openPassword()">
-        <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
       <button class="t-tile" id="t-soporte-tile" onclick="openSoporteProfe()">
         <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Chats</span><span class="ts">Con soporte y con tus alumnos</span><span id="t-soporte-badge"></span></button>
+      <button class="t-tile" onclick="openPassword()">
+        <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
@@ -6806,6 +6820,7 @@ function caProfRenderInbox(on, hilos, demo){
   h.push('<div class="t-card" style="display:flex;align-items:center;justify-content:space-between"><div><b style="font-size:.9rem;color:var(--navy)">Chat visible para el alumnado</b><div style="font-size:.75rem;color:var(--ink-soft)">'+(on?'Activado: tus alumnos pueden escribirte.':'Desactivado: tus alumnos no ven el chat.')+'</div></div>');
   h.push('<button onclick="caProfToggle('+(on?'false':'true')+')"'+(demo?' disabled':'')+' style="font-size:.75rem;padding:7px 14px;border-radius:16px;cursor:pointer;border:1.5px solid '+(on?'#15803d':'#cbd5e1')+';background:'+(on?'#dcfce7':'#fff')+';color:'+(on?'#15803d':'var(--ink-soft)')+';font-weight:800">'+(on?'● Activado':'○ Apagado')+'</button></div>');
   h.push('<button onclick="openAvAlumnado()"'+(demo?' disabled':'')+' style="width:100%;margin-top:10px;background:var(--honey-tint);border:1px solid var(--honey);border-radius:12px;padding:11px;cursor:pointer;font:inherit;color:var(--honey-deep);font-weight:700;font-size:.9rem">🔔 Enviar avisos al alumnado</button>');
+  h.push('<button onclick="caProfNuevo()"'+((demo||!on)?' disabled':'')+' style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;cursor:pointer;font:inherit;color:var(--navy);font-weight:700;font-size:.9rem">✏️ Escribir a un alumno</button>');
   h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Conversaciones</h2>');
   if(!(hilos||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:8px 0">Aún no hay mensajes de tu alumnado.</p>');
   else hilos.forEach(t=>{
@@ -6816,6 +6831,12 @@ function caProfRenderInbox(on, hilos, demo){
   if(demo) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Chat de demostración.</p>');
   $('teacher').innerHTML=h.join('');
   $('teacher').querySelectorAll('.ca-hilo').forEach(b=> b.onclick=()=>caProfHilo(b.dataset.aid, b.dataset.nom));
+}
+async function caProfNuevo(){
+  let al=[]; try{ al=await call('/rest/v1/rpc/av_al_alumnos',{method:'POST',body:{}})||[]; }catch(e){}
+  if(!al.length){ appAlert('No tienes alumnado registrado todavía.'); return; }
+  const pick=await appPicker('Escribir a…', al.map(a=>({label:a.nombre||'Alumno', value:a.id})));
+  if(pick){ const a=al.find(x=>String(x.id)===String(pick)); caProfHilo(pick, a?a.nombre:''); }
 }
 async function caProfToggle(v){
   try{ await call('/rest/v1/rpc/ca_prof_toggle',{method:'POST',body:{p_on:v}}); await caProfInbox(); }
