@@ -1131,3 +1131,61 @@ input:focus,select:focus,textarea:focus{ outline:none!important; box-shadow:var(
   .t-tile,.btn,.unit,.al-row{ transition:none!important; }
 }
 /* ═══════════════ fin bloque CLAY ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v2 · "archivador de papel" (REVERSIBLE, va sobre el bloque anterior)
+   Tiles del home = carpetas con pestaña · Materias = fichas físicas.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Tiles del home como carpetas de archivo (pestaña superior) */
+.t-grid{ gap:20px 14px!important; }
+.t-tile{
+  background:#f3f8fc!important;
+  margin-top:13px!important;
+  overflow:visible!important;
+  border:1px solid rgba(255,255,255,.9)!important;
+  border-radius:6px 16px 16px 16px!important;
+}
+.t-tile::before{
+  content:"";
+  position:absolute;
+  top:-12px; left:14px;
+  width:84px; height:16px;
+  background:#f3f8fc;
+  border:1px solid rgba(255,255,255,.9);
+  border-bottom:none;
+  border-radius:10px 10px 0 0;
+  box-shadow:-3px -3px 7px var(--clay-lite), 2px 0 6px rgba(108,133,160,.16);
+  z-index:0;
+}
+.t-tile > *{ position:relative; z-index:1; }
+.t-tile-slim{ margin-top:0!important; border-radius:14px!important; }
+.t-tile-slim::before{ display:none!important; }
+
+/* Materias (.mod) = fichas/carpetas de papel apiladas, con lomo de color */
+.mod{
+  background:#ffffff!important;
+  border-top:1px solid rgba(255,255,255,.9)!important;
+  border-right:1px solid rgba(255,255,255,.9)!important;
+  border-bottom:1px solid rgba(255,255,255,.9)!important;
+  border-left-width:7px!important;
+  border-left-style:solid!important;
+  border-radius:6px 18px 18px 6px!important;
+  box-shadow:10px 12px 22px rgba(90,115,145,.42), -6px -6px 14px rgba(255,255,255,.85)!important;
+  margin-bottom:16px!important;
+  padding:16px 16px 16px 17px!important;
+}
+.mod:hover{ box-shadow:12px 14px 27px rgba(90,115,145,.5), -6px -6px 14px rgba(255,255,255,.85)!important; }
+.mod:active{ transform:none!important; box-shadow:inset 4px 4px 10px rgba(90,115,145,.32), inset -3px -3px 8px rgba(255,255,255,.8)!important; }
+
+/* Papelera de la materia = esquina doblada (dog-ear) */
+.mat-del{
+  top:-7px!important; right:-5px!important;
+  border-radius:12px!important;
+  background:#fbe0e0!important;
+  border:1px solid #f2bcbc!important;
+  box-shadow:3px 3px 7px rgba(120,60,60,.32), inset 0 1px 0 rgba(255,255,255,.75)!important;
+  padding:6px 9px!important;
+}
+.mat-del:active{ box-shadow:inset 2px 2px 5px rgba(120,60,60,.35)!important; }
+/* ═══════════════ fin bloque CLAY v2 ═══════════════ */
