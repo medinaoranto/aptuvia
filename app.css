@@ -1189,3 +1189,88 @@ input:focus,select:focus,textarea:focus{ outline:none!important; box-shadow:var(
 }
 .mat-del:active{ box-shadow:inset 2px 2px 5px rgba(120,60,60,.35)!important; }
 /* ═══════════════ fin bloque CLAY v2 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v3 · MATE tipo carpeta de papel (REVERSIBLE, sobre v1+v2)
+   Mata el brillo neumórfico: solo sombra de caída + borde nítido.
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --clay-lite:rgba(255,255,255,.4);
+  --clay-dark:rgba(70,95,125,.26);
+  --clay-sh:0 7px 15px rgba(70,95,125,.22);
+  --clay-sh-sm:0 4px 9px rgba(70,95,125,.2);
+  --clay-sh-lg:0 10px 20px rgba(70,95,125,.26);
+  --clay-in:inset 3px 3px 7px rgba(70,95,125,.2), inset -2px -2px 4px rgba(255,255,255,.5);
+  --paper:#eef4fa;
+  --paper-edge:#c8d8e8;
+}
+
+/* Fondo un pelín más azul, tipo caja/archivador */
+body{ background:linear-gradient(165deg,#d3e2ee 0%,#bcd0e2 100%)!important; }
+
+/* Tarjetas y filas: mate, borde nítido, sombra de caída */
+.card,.portal-card,.t-card,.result,.fact-menu,.instr-box,.qcard,.bloq-box,
+.unit,.exam-row,.al-row,.pub-row,.ce-row,.gx-card,.gx-kpi,.sa-card,.sa-prof-card,.bld-row,.repaso-card{
+  border:1.5px solid var(--paper-edge)!important;
+  box-shadow:0 5px 12px rgba(70,95,125,.2)!important;
+}
+
+/* Tiles del home = carpeta de papel con pestaña (mate) */
+.t-grid{ gap:22px 14px!important; }
+.t-tile{
+  background:var(--paper)!important;
+  border:1.5px solid var(--paper-edge)!important;
+  border-radius:3px 14px 14px 14px!important;
+  box-shadow:0 6px 13px rgba(70,95,125,.22)!important;
+  margin-top:15px!important;
+  overflow:visible!important;
+}
+.t-tile::before{
+  content:"";
+  position:absolute;
+  top:-15px; left:-1px;
+  width:108px; height:18px;
+  background:var(--paper);
+  border:1.5px solid var(--paper-edge);
+  border-bottom:none;
+  border-radius:8px 13px 0 0;
+  box-shadow:none;
+  z-index:0;
+}
+.t-tile > *{ position:relative; z-index:1; }
+.t-tile:hover{ box-shadow:0 9px 18px rgba(70,95,125,.28)!important; }
+.t-tile:active{ box-shadow:inset 2px 2px 6px rgba(70,95,125,.22)!important; transform:none!important; }
+.t-tile .ic{ background:#f6f9fc!important; box-shadow:none!important; border:1px solid var(--paper-edge)!important; }
+.t-tile-slim{ margin-top:0!important; border-radius:12px!important; }
+.t-tile-slim::before{ display:none!important; }
+
+/* Materias (.mod) = carpetas apiladas, mate, con lomo de color */
+.mod{
+  background:#ffffff!important;
+  border-top:1.5px solid #d3dde8!important;
+  border-right:1.5px solid #d3dde8!important;
+  border-bottom:1.5px solid #d3dde8!important;
+  border-left-width:8px!important;
+  border-left-style:solid!important;
+  border-radius:3px 14px 14px 3px!important;
+  box-shadow:0 6px 13px rgba(70,95,125,.22)!important;
+  margin-bottom:12px!important;
+}
+.mod:hover{ box-shadow:0 9px 18px rgba(70,95,125,.28)!important; }
+.mod:active{ transform:none!important; box-shadow:inset 3px 3px 7px rgba(70,95,125,.2)!important; }
+
+/* Papelera = esquina doblada, mate */
+.mat-del{
+  top:-6px!important; right:-4px!important;
+  border-radius:11px!important;
+  background:#f7d9d9!important;
+  border:1.5px solid #e6adad!important;
+  box-shadow:0 3px 7px rgba(120,60,60,.22)!important;
+}
+.mat-del:active{ box-shadow:inset 2px 2px 5px rgba(120,60,60,.3)!important; }
+
+/* Botones: menos brillo */
+.btn{ box-shadow:0 4px 9px rgba(70,95,125,.22)!important; }
+.btn:active{ box-shadow:inset 3px 3px 7px rgba(70,95,125,.22)!important; }
+.btn-ghost,.backbtn,.iconbtn{ background:#eaf1f8!important; border:1.5px solid var(--paper-edge)!important; box-shadow:0 3px 7px rgba(70,95,125,.18)!important; }
+/* ═══════════════ fin bloque CLAY v3 ═══════════════ */
