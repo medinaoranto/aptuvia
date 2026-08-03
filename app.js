@@ -7615,7 +7615,7 @@ function renderBancoLista(){
     const titulo=sinNumeroInicial(String(q.enunciado||'').split('\n')[0]);
     const cod=q.codigo?`<b style="color:var(--navy)">${escHtml(q.codigo)}</b> · `:'';
     const okm=String(q.explicacion||'').trim();
-    h.push(`<label class="bk-row" style="cursor:pointer" data-bqedit="${q.id}"><span>${cod}${escHtml(titulo)}<br><span style="font-size:.7rem;color:${okm?'#1c7a44':'#b4232a'}">${okm?'✔ con respuesta modelo':'sin respuesta modelo'}</span></span></label>`);
+    h.push(`<div class="bk-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><label style="cursor:pointer;flex:1;margin:0" data-bqedit="${q.id}"><span>${cod}${escHtml(titulo)}<br><span style="font-size:.7rem;color:${okm?'#1c7a44':'#b4232a'}">${okm?'✔ con respuesta modelo':'sin respuesta modelo'}</span></span></label><button type="button" class="bk-del" data-bqdel="${q.id}" style="flex:0 0 auto;background:#f7d9d9;border:1.5px solid #e6adad;color:#b4232a;border-radius:9px;padding:6px 9px;cursor:pointer;font-family:inherit">🗑</button></div>`);
   });
   h.push('</div>');
   return h.join('');
@@ -7626,6 +7626,16 @@ function wireBanco(){
   const bf=$('bq-file'); if(bf) bf.onchange=()=>{ if(bf.files&&bf.files[0]){ bancoDraft.matFile=bf.files[0]; bancoDraft.matName=bf.files[0].name; } };
   const bqx=$('bq-quitar'); if(bqx) bqx.onclick=()=>{ captureBanco(); bancoDraft.matFile=null; bancoDraft.matUrl=''; bancoDraft.matName=''; renderExamMgmt(); };
   $('teacher').querySelectorAll('[data-bqedit]').forEach(b=> b.onclick=()=>{ const q=(bancoList||[]).find(x=>String(x.id)===String(b.dataset.bqedit)); if(q){ bancoDraft={codigo:String(q.codigo||''),tema:String(q.tema||''),enun:String(q.enunciado||''),expl:String(q.explicacion||''),id:q.id,matUrl:String(q.material_url||''),matName:(q.material_url?'📎 PDF adjunto':''),matFile:null}; window.scrollTo(0,0); renderExamMgmt(); } });
+  $('teacher').querySelectorAll('[data-bqdel]').forEach(b=> b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); bancoBorrar(b.dataset.bqdel); });
+}
+async function bancoBorrar(id){
+  if(!await appConfirm('¿Borrar esta actividad del banco? No se puede deshacer.')) return;
+  try{
+    await call('/rest/v1/rpc/borrar_respuesta_banco',{method:'POST',body:impProf({p_id:+id})});
+    bancoList=(bancoList||[]).filter(x=>String(x.id)!==String(id));
+    if(bancoDraft && String(bancoDraft.id)===String(id)) bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null,matUrl:'',matName:'',matFile:null};
+    renderExamMgmt(null,'🗑 Actividad borrada.');
+  }catch(e){ appAlert('No se pudo borrar: '+(e.message||'')); }
 }
 async function bancoGuardar(){
   captureBanco();
@@ -7659,7 +7669,7 @@ function renderExamMgmt(okMsg,errMsg){
   h.push(`<button class="backbtn" onclick="pintarTeacher()">← Resultados</button>`);
   h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Gestión de exámenes</h1>`);
   h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Genera un examen por tema o monta uno a medida con tus propias preguntas. Aparece para el alumnado al instante.</p>`);
-  h.push(`<button onclick="driveAbrir()" style="width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;margin-bottom:14px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive (materiales de exámenes)</button>`);
+  h.push(`<button onclick="driveAbrir()" style="width:100%;background:#eef4fa;border:1.5px solid var(--paper-edge);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;margin-bottom:14px;cursor:pointer;font-family:inherit;font-size:.82rem;box-shadow:inset 2px 2px 5px rgba(70,95,125,.2), inset -2px -2px 4px rgba(255,255,255,.7)">📁 Abrir Drive (materiales de exámenes)</button>`);
   if(okMsg) h.push(`<div class="t-note ok">${okMsg}</div>`);
   if(errMsg) h.push(`<div class="t-note err">${errMsg}</div>`);
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button><button id="kd-banco" class="${builder.kind==='banco'?'on':''}">📚 Banco</button></div>`);
@@ -10448,7 +10458,7 @@ function openExamProfesor(examId, unitId){
   }
 
   let html=`<button class="backbtn" onclick="${backFn}">← ${u?u.codigo:'Unidad'}</button>
-    <div class="prof-exam-head" style="background:var(--navy-tint);color:var(--navy);border:1px solid var(--line);border-radius:16px;padding:14px">
+    <div class="prof-exam-head" style="background:var(--navy-tint);color:var(--navy);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 7px 16px rgba(70,95,125,.2)">
       <div class="peh-title" style="color:var(--navy);font-weight:800;font-size:1.1rem;margin-bottom:12px">${escHtml(ex.titulo||examId)}</div>
       ${statsHtml}
     </div>
