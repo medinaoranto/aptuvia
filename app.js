@@ -1160,7 +1160,7 @@ async function renderTemarioProfesor(unidad){
       <label style="font-size:.75rem;color:var(--ink-soft)">Unidad de destino</label>
       <select id="tem-unidad" style="width:100%;padding:9px 10px;border:2px solid #E67E0E;border-radius:10px;margin:4px 0 8px;font-size:.9rem;background:#fff">${opts}</select>
       <p style="font-size:.72rem;color:var(--ink-soft);line-height:1.55;margin:0 2px 14px">Elige la ${aa?'materia':'unidad'} de destino, pon un título, adjunta el archivo (PDF, imagen, Word o Excel) y pulsa «Subir material». Nace oculto: actívalo en «Exámenes y estados» cuando quieras que el alumno lo vea.</p>
-      <div style="border:1.5px solid var(--honey);background:var(--honey-tint);border-radius:14px;padding:14px;margin-bottom:16px">
+      <div style="border:1.5px solid var(--honey);background:var(--paper);border-radius:14px;padding:14px;margin-bottom:16px">
         <label style="font-size:.75rem;color:var(--ink-soft)">Título</label>
         <input id="tem-tit" placeholder="Ej.: Apuntes tema 1" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 8px;box-sizing:border-box">
         <label style="font-size:.75rem;color:var(--ink-soft)">Nota (opcional)</label>
@@ -6512,7 +6512,7 @@ function pintarTeacher(){
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
-    ${manualPill('docManualProfe()', null, calBtnHtml('prof')+'<button onclick="descargarMateriaZip()" title="Descarga tu materia completa: temario, exámenes y actividades" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar mi materia</button>')}`;
+    ${manualPill('docManualProfe()', null, calBtnHtml('prof')+'<button onclick="descargarMateriaZip()" title="Descarga tu materia completa: temario, exámenes y actividades" style="background:transparent;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar mi materia</button>')}`;
   // Badge de alumnos en línea — pastilla bajo "Matriculados" en la tarjeta Alumnos
   fetchOnlineCount().then(n=>{
     const el=$('t-sub-count'); if(!el) return;

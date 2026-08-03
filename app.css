@@ -1373,4 +1373,12 @@ input,select,textarea{ background:#eaf2f9!important; }
 /* — ca5: aspecto hundido en chips/pestañas de listados, manteniendo sus colores — */
 .ord-b,.uf-chip{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), inset -2px -2px 4px rgba(255,255,255,.6)!important; border:1.5px solid var(--paper-edge)!important; }
 .ord-b.on,.uf-chip.on{ box-shadow:inset 3px 3px 7px rgba(70,95,125,.3)!important; }
+
+/* — PDF/CSV: fuera el recuadro que los une; cada botón hundido — */
+.dl-row{ background:transparent!important; border:none!important; box-shadow:none!important; padding:0!important; }
+.dl-row .btn{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.2), inset -2px -2px 4px rgba(255,255,255,.6)!important; border:1.5px solid var(--paper-edge)!important; }
+.dl-row .btn:active{ box-shadow:inset 3px 3px 7px rgba(70,95,125,.3)!important; }
+
+/* — Cuadrículas de calificaciones hundidas — */
+.al-card{ box-shadow:inset 2px 2px 6px rgba(70,95,125,.2), inset -2px -2px 5px rgba(255,255,255,.6)!important; }
 /* ═══════════════ fin bloque CLAY v8 ═══════════════ */
