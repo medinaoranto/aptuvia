@@ -2170,7 +2170,7 @@ function manualProfeSecciones(esAula){
 
   s.push({ t:'10. Comunicación: chats, calendario y avisos', p:[
     'CHATS. DÓNDE: Área Docente → Chats. Hay dos: «Chat con soporte» (dudas o incidencias con Aptuvia; te responde el equipo) y «Chat con alumnos» (mensajería opcional con tu clase). La tarjeta avisa con un número cuando tienes mensajes sin leer.',
-    'ARCHIVAR Y BORRAR. En cualquier chat, «🗂 Archivar» guarda la conversación en la carpeta Archivados sin perderla; «Ver archivados» la muestra y «Desarchivar» la devuelve al chat. En el chat con soporte, «🗑 Borrar» solo oculta TU copia (el soporte conserva la suya) y al revés: cada lado gestiona la suya por separado. Con los alumnos solo se archiva. Cualquier mensaje nuevo devuelve la conversación a activos.',
+    'ARCHIVAR Y BORRAR. En cualquier chat, «🗂 Archivar» guarda la conversación en la carpeta Archivados sin perderla; «Ver archivados» la muestra y «Desarchivar» la devuelve al chat. «🗑 Borrar» solo oculta TU copia (el otro lado conserva la suya) y al revés: cada lado gestiona la suya por separado, tanto con el soporte como con tus alumnos. Cualquier mensaje nuevo devuelve la conversación a activos.',
     'CHAT CON ALUMNOS. Es opcional: mientras no lo actives con el interruptor, tus alumnos no ven ningún chat. Puedes escribir tú primero con «✏️ Escribir a un alumno».',
     'CALENDARIO. DÓNDE: botón «📅 Calendario» abajo. Anotas tareas y fechas; cada evento sale con su puntito de color y las tareas hechas aparecen tachadas. Las de hoy te saltan en la campanita.',
     'CAMPANITA (🔔). La campana de arriba te muestra tus avisos —puntuales, semanales o mensuales— y las tareas del calendario para hoy.',
@@ -2249,7 +2249,7 @@ function manualAlumnoSecciones(esAula){
   ]});
   s.push({ t:'7. Avisos, chat y calendario', p:[
     'CAMPANITA (🔔): arriba tienes una campana con los avisos que te manda tu profesor (un examen, una entrega, un recordatorio). El número indica los que no has leído.',
-    'CHAT CON TU PROFESOR (💬): si tu profesor lo ha activado, tienes un chat para escribirle. Puedes archivar una conversación con «🗂 Archivar» y recuperarla en «Ver archivados»; un mensaje nuevo la devuelve al chat.',
+    'CHAT CON TU PROFESOR (💬): si tu profesor lo ha activado, tienes un chat para escribirle. Puedes archivar una conversación con «🗂 Archivar» y recuperarla en «Ver archivados»; con «🗑 Borrar» la quitas de tu vista (tu profesor conserva su copia). Un mensaje nuevo la devuelve al chat.',
     'CALENDARIO (📅): muestra las tareas y fechas que ha puesto tu profesor. Es solo de consulta: tú no lo editas.'
   ]});
   s.push({ t:'8. Qué NO es Aptuvia', p:[
@@ -6877,14 +6877,15 @@ async function caProfHilo(aid, nombre, verArch){
   let acc='';
   if(!window._demoMode){
     if(verArch) acc='<button class="btn btn-honey" id="ca-desarch" style="margin-top:8px">↩ Desarchivar</button>';
-    else{ acc='<button class="btn btn-ghost" id="ca-arch" style="margin-top:8px">🗂 Archivar</button>'; if(nArch>0) acc+='<button class="btn btn-ghost" id="ca-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>'; }
+    else{ acc='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-ghost" id="ca-arch" style="margin:0;flex:1">🗂 Archivar</button><button class="btn btn-ghost" id="ca-borr" style="margin:0;flex:1;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar</button></div>'; if(nArch>0) acc+='<button class="btn btn-ghost" id="ca-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>'; }
   }
   caRenderHilo(shown,'profesor', nombre, backFn, function(){ caProfEnviar(aid,nombre); }, {
     soloLectura:!!verArch, sufijo:verArch?' · Archivados':'', backTxt:'Conversaciones', accionesHtml:acc,
     vacio: verArch?'No hay mensajes archivados.':'Sin mensajes. Escribe el primero.',
     wire:function(){
-      const a=$('ca-arch'); if(a) a.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await chatArchivar('alu',aid); caProfInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
-      const d=$('ca-desarch'); if(d) d.onclick=async()=>{ try{ await chatDesarchivar('alu',aid); caProfInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+      const a=$('ca-arch'); if(a) a.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await chatArchivar('alu',aid); caProfInbox(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } };
+      const bo=$('ca-borr'); if(bo) bo.onclick=async()=>{ if(!await appConfirm('¿Borrar esta conversación de tu vista? El alumno conserva su copia.')) return; try{ await chatBorrar('alu',aid); caProfInbox(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } };
+      const d=$('ca-desarch'); if(d) d.onclick=async()=>{ try{ await chatDesarchivar('alu',aid); caProfInbox(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } };
       const v=$('ca-verarch'); if(v) v.onclick=()=>caProfHilo(aid,nombre,true);
     }
   });
@@ -6939,12 +6940,13 @@ async function caAlumChat(verArch){
   const nArch=(msgs||[]).filter(m=>chatArchivado(m.creado_en,e)).length;
   let acc='';
   if(verArch) acc='<button class="btn btn-honey" id="ca-desarch" style="margin-top:8px">↩ Desarchivar</button>';
-  else{ acc='<button class="btn btn-ghost" id="ca-arch" style="margin-top:8px">🗂 Archivar</button>'; if(nArch>0) acc+='<button class="btn btn-ghost" id="ca-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>'; }
+  else{ acc='<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-ghost" id="ca-arch" style="margin:0;flex:1">🗂 Archivar</button><button class="btn btn-ghost" id="ca-borr" style="margin:0;flex:1;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar</button></div>'; if(nArch>0) acc+='<button class="btn btn-ghost" id="ca-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>'; }
   caRenderHilo(shown,'alumno', verArch?'Archivados':'Chat con tu profesor','renderHome()', caAlumEnviar, {
     soloLectura:!!verArch, backTxt:'Volver', accionesHtml:acc,
     vacio: verArch?'No hay mensajes archivados.':'Sin mensajes. Escribe el primero.',
     wire:function(){
       const a=$('ca-arch'); if(a) a.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await chatArchivar('alu',_authUid()); caAlumChat(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+      const bo=$('ca-borr'); if(bo) bo.onclick=async()=>{ if(!await appConfirm('¿Borrar esta conversación de tu vista? Tu profesor conserva su copia.')) return; try{ await chatBorrar('alu',_authUid()); caAlumChat(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
       const d=$('ca-desarch'); if(d) d.onclick=async()=>{ try{ await chatDesarchivar('alu',_authUid()); caAlumChat(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
       const v=$('ca-verarch'); if(v) v.onclick=()=>caAlumChat(true);
     }
