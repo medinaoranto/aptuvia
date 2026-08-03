@@ -7090,9 +7090,13 @@ function openSoporteProfe(){
   const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
   h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 Chats</h1>');
   h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Elige con quién quieres hablar.</p>');
-  h.push('<button onclick="openChatSoporte()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con soporte</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas o incidencias con Aptuvia</div></button>');
-  h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
+  h.push('<button onclick="openChatSoporte()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con soporte<span id="soporte-menu-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas o incidencias con Aptuvia</div></button>');
+  h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos<span id="alum-menu-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
   $('teacher').innerHTML=h.join('');
+  if(!window._demoMode){
+    call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('soporte-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+    call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('alum-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+  }
 }
 async function openChatSoporte(verArch){
   showView('teacher'); window.scrollTo(0,0);
