@@ -1838,7 +1838,7 @@ async function fetchOnlineCount(){
   }catch(e){ return 0; }
 }
 // ============ PANEL SUPERADMIN (solo admin@evaluatest.com) ============
-let saAcademias=[], saSelAcad=null, saUsuarios=[], saExamenes=[], saTab='profes', saMainTab='ev', saProfExp=null, saExamProf={};
+let saAcademias=[], saSelAcad=null, saUsuarios=[], saExamenes=[], saTab='profes', saMainTab='sop', saProfExp=null, saExamProf={};
 async function saToggleProf(profId){
   if(saProfExp===profId){ saProfExp=null; saDetalle(); return; }
   saProfExp=profId;
@@ -1867,7 +1867,7 @@ async function openSuperadmin(okMsg,errMsg){
     window._panelRestaurado=true;
     const p=leerPanel();
     if(p){
-      saMainTab=p.main||'ev'; window._factSub=p.fsub||null;
+      saMainTab=p.main||'sop'; window._factSub=p.fsub||null;
       gxTab=p.gtab||'facturas'; window._rsSub=p.rsub||null; rsTab=p.rtab||'redactor';
     }
   }
@@ -2929,23 +2929,21 @@ function saShell(inner){
   const base=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#eaf6fd,#7fc3e8);color:var(--navy)`;
   const on=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#5aa9d6,#1d4f78);color:#fff`;
   const st=(t)=>saMainTab===t?on:base;
-  const enSoporte = (saMainTab==='ev' || saMainTab==='aa');
-  const sub=(t)=>saMainTab===t
-    ? 'font-size:.7rem;padding:7px 4px;border:1.5px solid var(--honey);background:linear-gradient(to right,#5aa9d6,#1d4f78);color:#fff'
-    : 'font-size:.7rem;padding:7px 4px;border:1.5px solid var(--honey);background:linear-gradient(to right,#eaf6fd,#7fc3e8);color:var(--navy)';
+  const enSoporte = (saMainTab==='sop' || saMainTab==='acadprof' || saMainTab==='ev' || saMainTab==='aa');
+  if(enSoporte) setTimeout(scWireInbox,0);
   return `<div class="t-toggle" style="margin:8px 0 ${enSoporte?'8px':'16px'};display:flex;gap:5px;flex-wrap:nowrap">
-      <button style="${enSoporte?on:base}" onclick="saSetMain('ev')">Soporte</button>
+      <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${st('rs')}" onclick="saSetMain('rs')">Comercial</button>
     </div>
     ${window._avRaiz?`<div id="av-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
     ${window._avRaiz?`<div id="ai-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
-    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin:0 0 12px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b></span><span id="sc-inbox-badge"></span></button>`:''}
-    ${enSoporte?`<div class="t-toggle" style="margin:0 0 16px;display:flex;gap:5px;flex-wrap:nowrap">
-      <button style="${sub('ev')}" onclick="saSetMain('ev')">Aptuvia</button>
-      <button style="${sub('aa')}" onclick="saSetMain('aa')">Aula Abierta</button>
-    </div>`:''}
+    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;margin:0 0 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem"><span>💬 Chat con profesorado</span><span id="sc-inbox-badge"></span></button>`:''}
     ${inner}`;
+}
+function scWireInbox(){
+  const c=$('sc-inbox-card'); if(c) c.onclick=()=>scAdminInbox();
+  call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.textContent=String(n); } }).catch(()=>{});
 }
 function saRenderLista(okMsg,errMsg){
   saSelAcad=null;
@@ -2969,6 +2967,23 @@ function saRenderLista(okMsg,errMsg){
     rsRender();
     return;
   }
+  if(saMainTab==='sop'){
+    h+=`<div class="sa-cards-grid"><button class="fact-menu" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores</b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button></div>`;
+    h+=docsBar('soporte');
+    $('teacher').innerHTML=saShell(h);
+    return;
+  }
+  if(saMainTab==='acadprof'){
+    h+=`<button class="backbtn" onclick="saSetMain('sop')" style="margin-bottom:12px">← Soporte</button>`;
+    h+=`<div class="sa-cards-grid">
+      <button class="fact-menu" onclick="saSetMain('ev')"><b>📝 Crear usuario Aptuvia</b><span>Academias con certificados de profesionalidad</span></button>
+      <button class="fact-menu" onclick="saSetMain('aa')"><b>📝 Crear usuario Aula Abierta</b><span>Profesores independientes · formación libre</span></button>
+    </div>`;
+    h+=docsBar('soporte');
+    $('teacher').innerHTML=saShell(h);
+    return;
+  }
+  h+=`<button class="backbtn" onclick="saSetMain('acadprof')" style="margin-bottom:12px">← Academias y profesores</button>`;
   h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
     <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
@@ -2987,9 +3002,7 @@ function saRenderLista(okMsg,errMsg){
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
-  if($('sc-inbox-card')) $('sc-inbox-card').onclick=()=>scAdminInbox();
   const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); } };
-  call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.textContent=String(n); } }).catch(()=>{});
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
   call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento').then(m=>{ const on=(m&&m[0]&&m[0].valor==='on'); window._mantOn=on; const p=$('sa-mant-pill'); if(p){ p.textContent='🛠️ '+(on?'Mantenimiento':'Operativo'); p.style.borderColor=on?'#b4232a':'#15803d'; p.style.background=on?'#fdeaea':'#dcfce7'; p.style.color=on?'#b4232a':'#15803d'; } }).catch(()=>{});
 }
@@ -3066,7 +3079,7 @@ function saDetalle(msg){
   };
   let h='';
   if(msg) h+=msg;
-  h+=`${esAA?'':'<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:12px">← Todas las academias</button>'}
+  h+=`${esAA?'<button class="backbtn" onclick="saSetMain(\'acadprof\')" style="margin-bottom:12px">← Academias y profesores</button>':'<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:12px">← Todas las academias</button>'}
     <div class="sa-head-acad">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b id="sa-nombre">${escHtml(a.nombre)}</b>${(!esAA && a.activa===false)?' <span style="color:#b4232a;font-size:.72rem;font-weight:800">🔒 REVOCADA</span>':''}
