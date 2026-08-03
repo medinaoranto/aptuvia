@@ -1274,3 +1274,59 @@ body{ background:linear-gradient(165deg,#d3e2ee 0%,#bcd0e2 100%)!important; }
 .btn:active{ box-shadow:inset 3px 3px 7px rgba(70,95,125,.22)!important; }
 .btn-ghost,.backbtn,.iconbtn{ background:#eaf1f8!important; border:1.5px solid var(--paper-edge)!important; box-shadow:0 3px 7px rgba(70,95,125,.18)!important; }
 /* ═══════════════ fin bloque CLAY v3 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v4 · tiles rectangulares (sin pestaña de carpeta) — REVERSIBLE
+   ═══════════════════════════════════════════════════════════════ */
+.t-tile::before{ display:none!important; }
+.t-tile{ border-radius:14px!important; margin-top:0!important; }
+.t-grid{ gap:14px!important; }
+/* ═══════════════ fin bloque CLAY v4 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v5 · unificar Aula Abierta al look EV (naranja+navy) + cobertura
+   REVERSIBLE. Anula el celeste de AA y refuerza hundido/flotante.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Aula Abierta = paleta EV (naranja + azul marino) */
+body.tema-aula-abierta{ --honey:#E67E0E!important; --honey-2:#F7A823!important; --honey-deep:#B45905!important; --honey-tint:#fdf6e3!important; }
+body.tema-aula-abierta .cert{ background:linear-gradient(100deg,#E67E0E 0%,#F7A823 60%,#F9B94E 100%)!important; box-shadow:0 10px 24px -10px rgba(230,126,14,.45)!important; border-color:#B45905!important; }
+body.tema-aula-abierta .cert-code{ background:linear-gradient(100deg,#16203f 0%,#1E294B 40%,#3a539e 80%,#6d8fd6 100%)!important; box-shadow:none!important; }
+body.tema-aula-abierta .cert h1, body.tema-aula-abierta .cert .sub{ color:#fff5e8!important; }
+body.tema-aula-abierta .btn-primary{ background:linear-gradient(135deg,#F7A823,#E67E0E)!important; }
+body.tema-aula-abierta .unit .code{ background:linear-gradient(135deg,#F7A823,#E67E0E)!important; }
+body.tema-aula-abierta header{ background:rgba(206,222,234,.9)!important; backdrop-filter:blur(8px)!important; }
+body.tema-aula-abierta .t-welcome .t-course .t-code-inline{ color:#B45905!important; }
+body.tema-aula-abierta .t-welcome .t-cert-code{ background:linear-gradient(135deg,#F7A823,#E67E0E)!important; color:#fff!important; }
+body.tema-aula-abierta .bar{ background:linear-gradient(transparent,#fdf6e3 24%)!important; }
+body.tema-aula-abierta .uf-chip.on{ background:#E67E0E!important; border-color:#E67E0E!important; }
+body.tema-aula-abierta .nota-sticky{ background:#fdf6e3!important; }
+body.tema-aula-abierta .ns-card b{ color:#B45905!important; }
+#login.aula-celeste{ background:linear-gradient(165deg,#d3e2ee 0%,#bcd0e2 100%)!important; }
+#login.aula-celeste .login-hero{ background:linear-gradient(145deg,#16203f 0%,#1E294B 55%,#3a539e 100%)!important; }
+#login.aula-celeste .btn-primary{ background:linear-gradient(135deg,#F7A823,#E67E0E)!important; }
+#login.aula-celeste #authToggle, #login.aula-celeste #authTitle{ color:#B45905!important; }
+
+/* Cobertura: campos de datos SIEMPRE hundidos */
+input,select,textarea,.gx-form input,.gx-form select,.gx-filtros input,.gx-filtros select,.al-sort select,.bld-form textarea,.red-q textarea{
+  background:#dfeaf2!important;
+  border:1.5px solid var(--paper-edge)!important;
+  box-shadow:inset 3px 3px 7px rgba(70,95,125,.2), inset -2px -2px 4px rgba(255,255,255,.5)!important;
+}
+input:focus,select:focus,textarea:focus{ outline:none!important; box-shadow:inset 3px 3px 7px rgba(70,95,125,.2), 0 0 0 2px var(--honey)!important; }
+
+/* Cobertura: elementos para "entrar" = flotantes mate */
+.fact-menu,.leg-card,.dl-row .btn,.mod-lock-badge,.sa-head-acad{
+  border:1.5px solid var(--paper-edge)!important;
+  box-shadow:0 5px 12px rgba(70,95,125,.2)!important;
+}
+/* ═══════════════ fin bloque CLAY v5 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v6 · color tarjeta academia (fuera amarillo) + docs-bar 1 línea
+   ═══════════════════════════════════════════════════════════════ */
+.sa-head-acad{ background:#e8f1f9!important; border:1.5px solid #aebfd2!important; }
+.docs-bar{ scrollbar-width:none!important; -ms-overflow-style:none!important; }
+.docs-bar::-webkit-scrollbar{ display:none!important; }
+.docs-bar > *{ flex:0 0 auto!important; }
+/* ═══════════════ fin bloque CLAY v6 ═══════════════ */

@@ -2197,9 +2197,8 @@ function docManualProfe(){
 
 // Pastilla discreta para el manual, con el mismo aire que la barra de documentos.
 function manualPill(fn, texto, extra){
-  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit';
-  const justify = extra ? 'space-between' : 'flex-end';
-  return `<div style="display:flex;justify-content:${justify};gap:8px;align-items:center;flex-wrap:wrap;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:4px 11px;font-size:.66rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;white-space:nowrap;flex:0 0 auto';
+  return `<div class="docs-bar" style="display:flex;justify-content:flex-start;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
     ${extra||''}
     <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual'}</button>
   </div>`;
@@ -2526,11 +2525,11 @@ function docManualArea(area){
 
 // Barra discreta de documentos internos. Va al pie de cada área, sin robar atención.
 function docsBar(area){
-  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700';
+  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:4px 11px;font-size:.66rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap;flex:0 0 auto';
   const mon=!!window._mantOn;
-  const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:3px 10px;font-size:.68rem;cursor:pointer;font-family:inherit;font-weight:800';
-  return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap">
-    <button onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenimiento':'Operativo'}</button>
+  const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:4px 11px;font-size:.66rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+  return `<div class="docs-bar" style="display:flex;gap:6px;justify-content:flex-start;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap;overflow-x:auto">
+    <button id="sa-mant-pill" onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenimiento':'Operativo'}</button>
     <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
     <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
@@ -2925,7 +2924,7 @@ function saShell(inner){
     </div>
     ${window._avRaiz?`<div id="av-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
     ${window._avRaiz?`<div id="ai-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
-    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin:0 0 12px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b><br><span style="font-size:.72rem;color:var(--ink-soft)">Mensajes de soporte de tus profesores</span></span><span id="sc-inbox-badge"></span></button>`:''}
+    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin:0 0 12px;cursor:pointer;font:inherit;display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:.92rem;color:var(--navy)">💬 Chat con profesorado</b></span><span id="sc-inbox-badge"></span></button>`:''}
     ${enSoporte?`<div class="t-toggle" style="margin:0 0 16px;display:flex;gap:5px;flex-wrap:nowrap">
       <button style="${sub('ev')}" onclick="saSetMain('ev')">Aptuvia</button>
       <button style="${sub('aa')}" onclick="saSetMain('aa')">Aula Abierta</button>
@@ -2958,7 +2957,8 @@ function saRenderLista(okMsg,errMsg){
     <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
     <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
   </div>`;
-  h+=`<div class="sa-cards-grid">`;
+  h+=`<button id="sa-acad-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">🏫 Academias<span style="font-weight:800;color:var(--ink-soft)">${saAcademias.length} ▾</span></button>`;
+  h+=`<div id="sa-acad-list" class="sa-cards-grid hidden">`;
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
     h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" style="background:#fff;padding:9px 12px;margin-bottom:7px;${rev?'opacity:.72':''}">
@@ -2967,15 +2967,15 @@ function saRenderLista(okMsg,errMsg){
     </div>`;
   });
   h+=`</div>`;
-  h+=`<div id="sa-mant-box" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)"></div>`;
   h+=docsBar('soporte');
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
   if($('sc-inbox-card')) $('sc-inbox-card').onclick=scAdminInbox;
+  const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); } };
   call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.textContent=String(n); } }).catch(()=>{});
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
-  saPintarMantenimiento();
+  call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento').then(m=>{ const on=(m&&m[0]&&m[0].valor==='on'); window._mantOn=on; const p=$('sa-mant-pill'); if(p){ p.textContent='🛠️ '+(on?'Mantenimiento':'Operativo'); p.style.borderColor=on?'#b4232a':'#15803d'; p.style.background=on?'#fdeaea':'#dcfce7'; p.style.color=on?'#b4232a':'#15803d'; } }).catch(()=>{});
 }
 async function saPintarMantenimiento(){
   const box=$('sa-mant-box'); if(!box) return;
