@@ -2541,14 +2541,14 @@ function docManualArea(area){
 
 // Barra discreta de documentos internos. Va al pie de cada área, sin robar atención.
 function docsBar(area){
-  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:4px 11px;font-size:.66rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap;flex:0 0 auto';
+  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:4px 9px;font-size:.6rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap;flex:0 0 auto';
   const mon=!!window._mantOn;
-  const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:4px 11px;font-size:.66rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
-  return `<div class="docs-bar" style="display:flex;gap:6px;justify-content:flex-start;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap;overflow-x:auto">
-    <button id="sa-mant-pill" onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenimiento':'Operativo'}</button>
+  const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:4px 9px;font-size:.6rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+  return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:space-between;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
+    <button id="sa-mant-pill" onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenim.':'Operativo'}</button>
     <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
-    <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
+    <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Traza.</button>
   </div>`;
 }
 async function saMantToggle(){
