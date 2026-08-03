@@ -2168,7 +2168,16 @@ function manualProfeSecciones(esAula){
     'Los informes se descargan en PDF o en CSV (Excel), por alumno o por clase.'
   ]});
 
-  s.push({ t:'10. Dudas frecuentes', p:[
+  s.push({ t:'10. Comunicación: chats, calendario y avisos', p:[
+    'CHATS. DÓNDE: Área Docente → Chats. Hay dos: «Chat con soporte» (dudas o incidencias con Aptuvia; te responde el equipo) y «Chat con alumnos» (mensajería opcional con tu clase). La tarjeta avisa con un número cuando tienes mensajes sin leer.',
+    'ARCHIVAR Y BORRAR. En cualquier chat, «🗂 Archivar» guarda la conversación en la carpeta Archivados sin perderla; «Ver archivados» la muestra y «Desarchivar» la devuelve al chat. En el chat con soporte, «🗑 Borrar» solo oculta TU copia (el soporte conserva la suya) y al revés: cada lado gestiona la suya por separado. Con los alumnos solo se archiva. Cualquier mensaje nuevo devuelve la conversación a activos.',
+    'CHAT CON ALUMNOS. Es opcional: mientras no lo actives con el interruptor, tus alumnos no ven ningún chat. Puedes escribir tú primero con «✏️ Escribir a un alumno».',
+    'CALENDARIO. DÓNDE: botón «📅 Calendario» abajo. Anotas tareas y fechas; cada evento sale con su puntito de color y las tareas hechas aparecen tachadas. Las de hoy te saltan en la campanita.',
+    'CAMPANITA (🔔). La campana de arriba te muestra tus avisos —puntuales, semanales o mensuales— y las tareas del calendario para hoy.',
+    'AVISOS AL ALUMNADO. DÓNDE: dentro de «Chat con alumnos» → «🔔 Enviar avisos al alumnado». Le llegan al alumno en SU campanita, a uno concreto o a toda la clase. Ideal para recordar un examen o una entrega sin abrir conversación.'
+  ]});
+
+  s.push({ t:'11. Dudas frecuentes', p:[
     'EL ALUMNO NO VE UN EXAMEN: en «Exámenes y estados» comprueba que su interruptor esté encendido y que la unidad no esté en Próximamente o Terminado.'
       + (aa ? ' En Aula Abierta, comprueba además que el alumno tenga marcada esa clase en «Alumnos y notas».' : ''),
     'EL ALUMNO NO PUEDE REPETIR UN EXAMEN: será uno que cuenta para la nota final; solo permite un intento. Si procede, reábrele el intento.',
@@ -2238,7 +2247,12 @@ function manualAlumnoSecciones(esAula){
   s.push({ t:'6. Temario', p:[
     'Si tu profesor ha subido apuntes, los tienes en el apartado de temario de la unidad. Se descargan y se pueden leer fuera de la plataforma.'
   ]});
-  s.push({ t:'7. Qué NO es Aptuvia', p:[
+  s.push({ t:'7. Avisos, chat y calendario', p:[
+    'CAMPANITA (🔔): arriba tienes una campana con los avisos que te manda tu profesor (un examen, una entrega, un recordatorio). El número indica los que no has leído.',
+    'CHAT CON TU PROFESOR (💬): si tu profesor lo ha activado, tienes un chat para escribirle. Puedes archivar una conversación con «🗂 Archivar» y recuperarla en «Ver archivados»; un mensaje nuevo la devuelve al chat.',
+    'CALENDARIO (📅): muestra las tareas y fechas que ha puesto tu profesor. Es solo de consulta: tú no lo editas.'
+  ]});
+  s.push({ t:'8. Qué NO es Aptuvia', p:[
     'Aptuvia es una herramienta de apoyo al estudio. Las notas de la plataforma no son notas oficiales.',
     'Aprobar aquí no expide ningún título ni certificación: la acreditación oficial la da el centro acreditado o el SEPE, con sus propias pruebas.'
   ]});
@@ -2375,7 +2389,7 @@ const MANUAL_AREAS = {
         'Soporte es quien monta y desmonta clientes: da de alta la academia o el usuario de Aula Abierta, lo configura para que pueda trabajar, y lo revoca cuando termina el contrato o hay impago.',
         'Soporte NO factura ni prepara presupuestos. Solo ejecuta el alta y la baja, y avisa a las otras áreas.',
         'La pantalla tiene dos pestañas: Aptuvia (academias con certificados de profesionalidad) y Aula Abierta (usuarios independientes).',
-        'CHAT CON PROFESORADO: arriba de Soporte está la tarjeta "💬 Chat con profesorado". Ahí llegan los mensajes que los profesores escriben desde su tarjeta "Soporte". La tarjeta lleva un número con los mensajes sin leer; se abre la conversación, se responde y al profesor le aparece el aviso de respuesta en su panel. Cada profesor tiene su propio hilo privado.'
+        'CHAT CON PROFESORADO: arriba de Soporte está la tarjeta "💬 Chat con profesorado". Ahí llegan los mensajes que los profesores escriben desde su tarjeta "Soporte". La tarjeta lleva un número con los mensajes sin leer; se abre la conversación, se responde y al profesor le aparece el aviso de respuesta. Cada profesor tiene su hilo privado. En cada hilo puedes "🗂 Archivar" (va a la carpeta Archivados y se recupera con "Desarchivar") o "🗑 Borrar", que solo oculta TU copia: el profesor conserva la suya. Cada lado gestiona la suya por separado.'
       ]},
       { t:'2. Dar de alta un cliente', p:[
         'BOTÓN NARANJA: "Alta desde presupuesto". Es el que hay que usar siempre que el cliente venga de un presupuesto aceptado.',
@@ -2390,8 +2404,10 @@ const MANUAL_AREAS = {
         'Hasta que la academia no esté montada y funcionando, no se factura al cliente. Si Administración pregunta, esta es la respuesta.'
       ]},
       { t:'4. Mantenimiento del día a día', p:[
+        'ACADEMIAS: en Soporte, la pestaña "🏫 Academias" despliega la lista de academias. Tocas una y entras en su ficha.',
         'Desde la ficha de cada academia: renombrarla, ver sus profesores y alumnos, y generar contraseñas nuevas a quien la pierda.',
-        'MODO MANTENIMIENTO: interruptor al final de la pantalla. Cierra la app a todo el mundo mientras se hace una intervención. Acuérdate de apagarlo.',
+        'MODO MANTENIMIENTO: la píldora "🛠️ Operativo / Mantenimiento" de la barra inferior. En verde, la app funciona; al pulsarla y confirmar, la cierra a todo el mundo (alumnos y profesores) mientras se hace una intervención, y se pone en rojo. Acuérdate de volver a dejarla en Operativo.',
+        'CALENDARIO: la píldora "📅 Calendario" de la barra inferior abre el calendario del departamento (tareas y fechas comunes).',
         'Los avisos de tu campana son los tuyos. Los de Administración y Comercial los ves en solo lectura, para saber por dónde van.'
       ]},
       { t:'5. Dar de baja un cliente', p:[
@@ -2971,7 +2987,7 @@ function saRenderLista(okMsg,errMsg){
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
-  if($('sc-inbox-card')) $('sc-inbox-card').onclick=scAdminInbox;
+  if($('sc-inbox-card')) $('sc-inbox-card').onclick=()=>scAdminInbox();
   const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); } };
   call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.textContent=String(n); } }).catch(()=>{});
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
@@ -6804,33 +6820,39 @@ async function calBorrar(id){
 }
 // ===== fin calendario =====
 // ===== Chat profesor <-> alumno =====
-async function caProfInbox(){
+async function caProfInbox(verArch){
   showView('teacher'); window.scrollTo(0,0);
-  if(window._demoMode){ caProfRenderInbox(true,[{alumno_id:'a1',nombre:'Adriana',ultimo:'¡Gracias, profe!',ultima:new Date().toISOString(),sin_leer:1}],true); return; }
+  if(window._demoMode){ caProfRenderInbox(true,[{alumno_id:'a1',nombre:'Adriana',ultimo:'¡Gracias, profe!',ultima:new Date().toISOString(),sin_leer:1}],true,false,0); return; }
   $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="loader"><span class="spin"></span></div>';
   let on=false, hilos=[];
   try{ on=await call('/rest/v1/rpc/ca_prof_estado',{method:'POST',body:{}}); }catch(e){}
   try{ hilos=await call('/rest/v1/rpc/ca_prof_hilos',{method:'POST',body:{}})||[]; }catch(e){}
-  caProfRenderInbox(!!on, hilos, false);
+  const est=await chatEstadoMias('alu');
+  const live=[], arch=[];
+  (hilos||[]).forEach(t=>{ const e=est[String(t.alumno_id)]; if(chatVivo(t.ultima,e)) live.push(t); else if(chatArchivado(t.ultima,e)) arch.push(t); });
+  caProfRenderInbox(!!on, verArch?arch:live, false, !!verArch, arch.length);
 }
-function caProfRenderInbox(on, hilos, demo){
-  const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
-  h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 4px">🗨️ Chat con alumnos</h1>');
-  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Herramienta opcional. Si la activas, tu alumnado verá un chat para escribirte.</p>');
-  h.push('<div class="t-card" style="display:flex;align-items:center;justify-content:space-between"><div><b style="font-size:.9rem;color:var(--navy)">Chat visible para el alumnado</b><div style="font-size:.75rem;color:var(--ink-soft)">'+(on?'Activado: tus alumnos pueden escribirte.':'Desactivado: tus alumnos no ven el chat.')+'</div></div>');
-  h.push('<button onclick="caProfToggle('+(on?'false':'true')+')"'+(demo?' disabled':'')+' style="font-size:.75rem;padding:7px 14px;border-radius:16px;cursor:pointer;border:1.5px solid '+(on?'#15803d':'#cbd5e1')+';background:'+(on?'#dcfce7':'#fff')+';color:'+(on?'#15803d':'var(--ink-soft)')+';font-weight:800">'+(on?'● Activado':'○ Apagado')+'</button></div>');
-  h.push('<button onclick="openAvAlumnado()"'+(demo?' disabled':'')+' style="width:100%;margin-top:10px;background:var(--honey-tint);border:1px solid var(--honey);border-radius:12px;padding:11px;cursor:pointer;font:inherit;color:var(--honey-deep);font-weight:700;font-size:.9rem">🔔 Enviar avisos al alumnado</button>');
-  h.push('<button onclick="caProfNuevo()"'+((demo||!on)?' disabled':'')+' style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;cursor:pointer;font:inherit;color:var(--navy);font-weight:700;font-size:.9rem">✏️ Escribir a un alumno</button>');
+function caProfRenderInbox(on, hilos, demo, verArch, nArch){
+  const h=['<button class="backbtn" onclick="'+(verArch?'caProfInbox()':'pintarTeacher()')+'">← '+(verArch?'Conversaciones':'Panel')+'</button>'];
+  h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 4px">🗨️ Chat con alumnos'+(verArch?' · Archivados':'')+'</h1>');
+  if(!verArch){
+    h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Herramienta opcional. Si la activas, tu alumnado verá un chat para escribirte.</p>');
+    h.push('<div class="t-card" style="display:flex;align-items:center;justify-content:space-between"><div><b style="font-size:.9rem;color:var(--navy)">Chat visible para el alumnado</b><div style="font-size:.75rem;color:var(--ink-soft)">'+(on?'Activado: tus alumnos pueden escribirte.':'Desactivado: tus alumnos no ven el chat.')+'</div></div>');
+    h.push('<button onclick="caProfToggle('+(on?'false':'true')+')"'+(demo?' disabled':'')+' style="font-size:.75rem;padding:7px 14px;border-radius:16px;cursor:pointer;border:1.5px solid '+(on?'#15803d':'#cbd5e1')+';background:'+(on?'#dcfce7':'#fff')+';color:'+(on?'#15803d':'var(--ink-soft)')+';font-weight:800">'+(on?'● Activado':'○ Apagado')+'</button></div>');
+    h.push('<button onclick="openAvAlumnado()"'+(demo?' disabled':'')+' style="width:100%;margin-top:10px;background:var(--honey-tint);border:1px solid var(--honey);border-radius:12px;padding:11px;cursor:pointer;font:inherit;color:var(--honey-deep);font-weight:700;font-size:.9rem">🔔 Enviar avisos al alumnado</button>');
+    h.push('<button onclick="caProfNuevo()"'+((demo||!on)?' disabled':'')+' style="width:100%;margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;cursor:pointer;font:inherit;color:var(--navy);font-weight:700;font-size:.9rem">✏️ Escribir a un alumno</button>');
+    if(nArch>0) h.push('<button onclick="caProfInbox(true)" style="width:100%;margin-top:8px;background:#eef2f7;border:1px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;font:inherit;color:var(--ink-soft);font-weight:700;font-size:.82rem">🗂 Archivados ('+nArch+')</button>');
+  }
   h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Conversaciones</h2>');
-  if(!(hilos||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:8px 0">Aún no hay mensajes de tu alumnado.</p>');
+  if(!(hilos||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:8px 0">'+(verArch?'No hay conversaciones archivadas.':'Aún no hay mensajes de tu alumnado.')+'</p>');
   else hilos.forEach(t=>{
     let f=''; try{ f=new Date(t.ultima).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){}
     const b=+t.sin_leer>0?'<span class="tile-badge" style="position:static;margin-left:6px">'+t.sin_leer+'</span>':'';
-    h.push('<button class="ca-hilo" data-aid="'+escAttr(t.alumno_id)+'" data-nom="'+escAttr(t.nombre||'')+'" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">'+escHtml(t.nombre||'Alumno')+b+'</b><span style="font-size:.68rem;color:var(--ink-soft)">'+f+'</span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml((t.ultimo||'').slice(0,70))+'</div></button>');
+    h.push('<button class="ca-hilo" data-aid="'+escAttr(t.alumno_id)+'" data-nom="'+escAttr(t.nombre||'')+'" data-arch="'+(verArch?'1':'')+'" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">'+escHtml(t.nombre||'Alumno')+b+'</b><span style="font-size:.68rem;color:var(--ink-soft)">'+f+'</span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml((t.ultimo||'').slice(0,70))+'</div></button>');
   });
   if(demo) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Chat de demostración.</p>');
   $('teacher').innerHTML=h.join('');
-  $('teacher').querySelectorAll('.ca-hilo').forEach(b=> b.onclick=()=>caProfHilo(b.dataset.aid, b.dataset.nom));
+  $('teacher').querySelectorAll('.ca-hilo').forEach(b=> b.onclick=()=>caProfHilo(b.dataset.aid, b.dataset.nom, b.dataset.arch==='1'));
 }
 async function caProfNuevo(){
   let al=[]; try{ al=await call('/rest/v1/rpc/av_al_alumnos',{method:'POST',body:{}})||[]; }catch(e){}
@@ -6842,13 +6864,30 @@ async function caProfToggle(v){
   try{ await call('/rest/v1/rpc/ca_prof_toggle',{method:'POST',body:{p_on:v}}); await caProfInbox(); }
   catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
-async function caProfHilo(aid, nombre){
+async function caProfHilo(aid, nombre, verArch){
   showView('teacher'); window.scrollTo(0,0);
-  $('teacher').innerHTML='<button class="backbtn" onclick="caProfInbox()">← Conversaciones</button><div class="loader"><span class="spin"></span></div>';
+  const backFn='caProfInbox('+(verArch?'true':'')+')';
+  $('teacher').innerHTML='<button class="backbtn" onclick="'+backFn+'">← Conversaciones</button><div class="loader"><span class="spin"></span></div>';
   let msgs=[];
   try{ msgs=await call('/rest/v1/rpc/ca_prof_listar',{method:'POST',body:{p_alumno:aid}})||[]; }
-  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="caProfInbox()">← Conversaciones</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
-  caRenderHilo(msgs,'profesor', nombre, 'caProfInbox()', function(){ caProfEnviar(aid,nombre); });
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="'+backFn+'">← Conversaciones</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  const estMap=await chatEstadoMias('alu'); const e=estMap[String(aid)];
+  const shown=(msgs||[]).filter(m=> verArch?chatArchivado(m.creado_en,e):chatVivo(m.creado_en,e));
+  const nArch=(msgs||[]).filter(m=>chatArchivado(m.creado_en,e)).length;
+  let acc='';
+  if(!window._demoMode){
+    if(verArch) acc='<button class="btn btn-honey" id="ca-desarch" style="margin-top:8px">↩ Desarchivar</button>';
+    else{ acc='<button class="btn btn-ghost" id="ca-arch" style="margin-top:8px">🗂 Archivar</button>'; if(nArch>0) acc+='<button class="btn btn-ghost" id="ca-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>'; }
+  }
+  caRenderHilo(shown,'profesor', nombre, backFn, function(){ caProfEnviar(aid,nombre); }, {
+    soloLectura:!!verArch, sufijo:verArch?' · Archivados':'', backTxt:'Conversaciones', accionesHtml:acc,
+    vacio: verArch?'No hay mensajes archivados.':'Sin mensajes. Escribe el primero.',
+    wire:function(){
+      const a=$('ca-arch'); if(a) a.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await chatArchivar('alu',aid); caProfInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+      const d=$('ca-desarch'); if(d) d.onclick=async()=>{ try{ await chatDesarchivar('alu',aid); caProfInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+      const v=$('ca-verarch'); if(v) v.onclick=()=>caProfHilo(aid,nombre,true);
+    }
+  });
 }
 async function caProfEnviar(aid, nombre){
   const t=$('sc-txt'); const txt=(t&&t.value||'').trim(); if(!txt) return;
@@ -6856,28 +6895,60 @@ async function caProfEnviar(aid, nombre){
   try{ await call('/rest/v1/rpc/ca_prof_enviar',{method:'POST',body:{p_alumno:aid,p_texto:txt}}); await caProfHilo(aid,nombre); }
   catch(e){ if(b){ b.disabled=false; b.textContent='Enviar'; } appAlert('No se pudo: '+(e.message||'')); }
 }
-function caRenderHilo(msgs, yoSoy, titulo, backFn, sendFn){
+// ===== Archivar / borrar chats (tabla chat_estado + RPCs) =====
+async function chatEstadoMias(ambito){
+  if(window._demoMode) return {};
+  let rows=[]; try{ rows=await call('/rest/v1/rpc/chat_estado_mias',{method:'POST',body:{p_ambito:ambito}})||[]; }catch(e){}
+  const map={};
+  rows.forEach(r=>{ map[String(r.contraparte)]={arch:(r.arch_hasta?Date.parse(r.arch_hasta):0), del:(r.del_hasta?Date.parse(r.del_hasta):0)}; });
+  return map;
+}
+function chatVivo(ts, est){ const t=Date.parse(ts)||0; const c=Math.max(est?est.arch:0, est?est.del:0); return t>c; }
+function chatArchivado(ts, est){ if(!est||!est.arch) return false; const t=Date.parse(ts)||0; return t<=est.arch && t>(est.del||0); }
+function chatArchivar(ambito, cp){ return call('/rest/v1/rpc/chat_estado_archivar',{method:'POST',body:{p_ambito:ambito,p_contraparte:cp}}); }
+function chatBorrar(ambito, cp){ return call('/rest/v1/rpc/chat_estado_borrar',{method:'POST',body:{p_ambito:ambito,p_contraparte:cp}}); }
+function chatDesarchivar(ambito, cp){ return call('/rest/v1/rpc/chat_estado_desarchivar',{method:'POST',body:{p_ambito:ambito,p_contraparte:cp}}); }
+function caRenderHilo(msgs, yoSoy, titulo, backFn, sendFn, opts){
+  opts=opts||{};
   const cont = yoSoy==='alumno' ? 'home' : 'teacher';
-  const h=['<button class="backbtn" onclick="'+backFn+'">← '+(yoSoy==='alumno'?'Volver':'Conversaciones')+'</button>'];
-  h.push('<h1 style="font-size:1.15rem;font-weight:800;color:var(--navy);margin:6px 0 10px">'+escHtml(titulo||'Chat')+'</h1>');
+  const h=['<button class="backbtn" onclick="'+backFn+'">← '+(opts.backTxt||(yoSoy==='alumno'?'Volver':'Conversaciones'))+'</button>'];
+  h.push('<h1 style="font-size:1.15rem;font-weight:800;color:var(--navy);margin:6px 0 10px">'+escHtml(titulo||'Chat')+(opts.sufijo||'')+'</h1>');
   h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
-  if(!(msgs||[]).length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">Sin mensajes. Escribe el primero.</p>');
+  if(!(msgs||[]).length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">'+(opts.vacio||'Sin mensajes. Escribe el primero.')+'</p>');
   else msgs.forEach(m=>h.push(scBurbuja(m,yoSoy)));
   h.push('</div>');
-  h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
-  h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar</button>');
+  if(!opts.soloLectura){
+    h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+    h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar</button>');
+  }
+  if(opts.accionesHtml) h.push(opts.accionesHtml);
   $(cont).innerHTML=h.join('');
   const b=$('sc-send'); if(b) b.onclick=sendFn;
+  if(opts.wire) opts.wire();
   scScrollBottom();
 }
-async function caAlumChat(){
+async function caAlumChat(verArch){
   showView('home'); window.scrollTo(0,0);
   if(window._demoMode){ caRenderHilo([{de:'profesor',texto:'¡Hola! Recuerda el examen del jueves.',creado_en:new Date().toISOString()}],'alumno','Tu profesor','renderHome()',function(){}); const t=$('sc-txt'),b=$('sc-send'); if(t){t.disabled=true;t.placeholder='(demostración)';} if(b){b.disabled=true;} return; }
   $('home').innerHTML='<button class="backbtn" onclick="renderHome()">← Volver</button><div class="loader"><span class="spin"></span></div>';
   let msgs=[];
   try{ msgs=await call('/rest/v1/rpc/ca_alum_listar',{method:'POST',body:{}})||[]; }
   catch(e){ $('home').innerHTML='<button class="backbtn" onclick="renderHome()">← Volver</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
-  caRenderHilo(msgs,'alumno','Chat con tu profesor','renderHome()', caAlumEnviar);
+  const estMap=await chatEstadoMias('alu'); const e=estMap[String(_authUid())];
+  const shown=(msgs||[]).filter(m=> verArch?chatArchivado(m.creado_en,e):chatVivo(m.creado_en,e));
+  const nArch=(msgs||[]).filter(m=>chatArchivado(m.creado_en,e)).length;
+  let acc='';
+  if(verArch) acc='<button class="btn btn-honey" id="ca-desarch" style="margin-top:8px">↩ Desarchivar</button>';
+  else{ acc='<button class="btn btn-ghost" id="ca-arch" style="margin-top:8px">🗂 Archivar</button>'; if(nArch>0) acc+='<button class="btn btn-ghost" id="ca-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>'; }
+  caRenderHilo(shown,'alumno', verArch?'Archivados':'Chat con tu profesor','renderHome()', caAlumEnviar, {
+    soloLectura:!!verArch, backTxt:'Volver', accionesHtml:acc,
+    vacio: verArch?'No hay mensajes archivados.':'Sin mensajes. Escribe el primero.',
+    wire:function(){
+      const a=$('ca-arch'); if(a) a.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await chatArchivar('alu',_authUid()); caAlumChat(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+      const d=$('ca-desarch'); if(d) d.onclick=async()=>{ try{ await chatDesarchivar('alu',_authUid()); caAlumChat(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+      const v=$('ca-verarch'); if(v) v.onclick=()=>caAlumChat(true);
+    }
+  });
 }
 async function caAlumEnviar(){
   const t=$('sc-txt'); const txt=(t&&t.value||'').trim(); if(!txt) return;
@@ -6963,20 +7034,40 @@ function scBurbuja(m, yoSoy){
 }
 function scScrollBottom(){ const c=$('sc-hilo'); if(c) c.scrollTop=c.scrollHeight; }
 function soporteEnHorario(){ const d=new Date(); const dow=d.getDay(); const h=d.getHours(); return dow>=1 && dow<=5 && h>=9 && h<18; }
-function scRenderProfe(msgs){
+function scRenderProfe(allMsgs, est, verArch){
+  const demo=window._demoMode;
+  const msgs=(allMsgs||[]).filter(m=> verArch?chatArchivado(m.creado_en,est):chatVivo(m.creado_en,est));
+  const nArch=(allMsgs||[]).filter(m=>chatArchivado(m.creado_en,est)).length;
   const h=[];
-  h.push('<button class="backbtn" onclick="pintarTeacher()">← Panel</button>');
-  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Soporte</h1>');
-  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Chat directo con Aptuvia. Escríbeme tu duda, incidencia o sugerencia y te respondo aquí mismo.</p>');
-  if(!soporteEnHorario()) h.push('<div class="t-note" style="background:#fff7e6;border:1px solid var(--honey);color:var(--honey-deep);font-size:.8rem">🕘 Fuera del horario de atención (L-V, 9:00–18:00). Deja tu mensaje y te respondo en cuanto pueda.</div>');
+  h.push('<button class="backbtn" onclick="'+(verArch?'openChatSoporte()':'pintarTeacher()')+'">← '+(verArch?'Chat':'Panel')+'</button>');
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Soporte'+(verArch?' · Archivados':'')+'</h1>');
+  if(!verArch) h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Chat directo con Aptuvia. Escríbeme tu duda, incidencia o sugerencia y te respondo aquí mismo.</p>');
+  if(!verArch && !soporteEnHorario()) h.push('<div class="t-note" style="background:#fff7e6;border:1px solid var(--honey);color:var(--honey-deep);font-size:.8rem">🕘 Fuera del horario de atención (L-V, 9:00–18:00). Deja tu mensaje y te respondo en cuanto pueda.</div>');
   h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
-  if(!msgs.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">Aún no hay mensajes. Escribe el primero y te contesto en cuanto lo vea.</p>');
+  if(!msgs.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">'+(verArch?'No hay mensajes archivados.':'Aún no hay mensajes. Escribe el primero y te contesto en cuanto lo vea.')+'</p>');
   else msgs.forEach(m=>h.push(scBurbuja(m,'profesor')));
   h.push('</div>');
-  h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
-  h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar mensaje</button>');
+  if(verArch){
+    if(!demo) h.push('<button class="btn btn-honey" id="sc-desarch" style="margin-top:4px">↩ Desarchivar y volver al chat</button>');
+  }else{
+    h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+    h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar mensaje</button>');
+    if(!demo){
+      h.push('<div style="display:flex;gap:8px;margin-top:8px">');
+      h.push('<button class="btn btn-ghost" id="sc-arch" style="margin:0;flex:1">🗂 Archivar</button>');
+      h.push('<button class="btn btn-ghost" id="sc-borr" style="margin:0;flex:1;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar</button>');
+      h.push('</div>');
+      if(nArch>0) h.push('<button class="btn btn-ghost" id="sc-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>');
+    }
+  }
   $('teacher').innerHTML=h.join('');
-  const b=$('sc-send'); if(b) b.onclick=scProfEnviar;
+  if(verArch){ const d=$('sc-desarch'); if(d) d.onclick=async()=>{ try{ await chatDesarchivar('sop',_authUid()); openChatSoporte(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } }; }
+  else{
+    const b=$('sc-send'); if(b) b.onclick=scProfEnviar;
+    const a=$('sc-arch'); if(a) a.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await chatArchivar('sop',_authUid()); openChatSoporte(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } };
+    const bo=$('sc-borr'); if(bo) bo.onclick=async()=>{ if(!await appConfirm('¿Borrar esta conversación de tu vista? El soporte conserva su copia.')) return; try{ await chatBorrar('sop',_authUid()); openChatSoporte(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } };
+    const v=$('sc-verarch'); if(v) v.onclick=()=>openChatSoporte(true);
+  }
   scScrollBottom();
 }
 function openSoporteProfe(){
@@ -6988,13 +7079,13 @@ function openSoporteProfe(){
   h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
   $('teacher').innerHTML=h.join('');
 }
-async function openChatSoporte(){
+async function openChatSoporte(verArch){
   showView('teacher'); window.scrollTo(0,0);
   if(window._demoMode){
     scRenderProfe([
       {de:'profesor',texto:'Hola, ¿cómo adjunto un PDF a un examen de redacción?',creado_en:new Date(Date.now()-3600000).toISOString()},
       {de:'soporte',texto:'¡Hola! En la pestaña Redacción, debajo del título, tienes "PDF del examen (opcional)". Súbelo ahí y el alumno lo verá incrustado.',creado_en:new Date(Date.now()-1800000).toISOString()}
-    ]);
+    ], null, false);
     const t=$('sc-txt'), b=$('sc-send');
     if(t){ t.disabled=true; t.placeholder='(Chat de demostración)'; }
     if(b){ b.disabled=true; b.textContent='Chat de demostración'; }
@@ -7004,7 +7095,8 @@ async function openChatSoporte(){
   let msgs=[];
   try{ msgs=await call('/rest/v1/rpc/sc_prof_listar',{method:'POST',body:{}})||[]; }
   catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="pintarTeacher()">← Panel</button><div class="t-note err">No se pudo abrir el chat: '+escHtml(e.message||'')+'</div>'; return; }
-  scRenderProfe(msgs);
+  const estMap=await chatEstadoMias('sop');
+  scRenderProfe(msgs, estMap[String(_authUid())], !!verArch);
 }
 async function scProfEnviar(){
   const t=$('sc-txt'); const txt=(t&&t.value||'').trim();
@@ -7015,52 +7107,71 @@ async function scProfEnviar(){
     await openChatSoporte();
   }catch(e){ if(b){ b.disabled=false; b.textContent='Enviar mensaje'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
-async function scAdminInbox(){
+async function scAdminInbox(verArch){
   showView('teacher'); window.scrollTo(0,0);
   $('teacher').innerHTML='<button class="backbtn" onclick="openSuperadmin()">← Torre de control</button><div class="loader"><span class="spin"></span></div>';
   let hilos=[];
   try{ hilos=await call('/rest/v1/rpc/sc_sop_hilos',{method:'POST',body:{}})||[]; }
   catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="openSuperadmin()">← Torre de control</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
-  const h=['<button class="backbtn" onclick="openSuperadmin()">← Torre de control</button>'];
-  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 12px;color:var(--navy)">💬 Chat con profesorado</h1>');
-  if(!hilos.length){ h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:20px 0">No hay conversaciones todavía.</p>'); }
+  const est=await chatEstadoMias('sop');
+  const live=[], arch=[];
+  (hilos||[]).forEach(t=>{ const e=est[String(t.profesor_id)]; if(chatVivo(t.ultima,e)) live.push(t); else if(chatArchivado(t.ultima,e)) arch.push(t); });
+  const lista = verArch?arch:live;
+  const h=['<button class="backbtn" onclick="'+(verArch?'scAdminInbox()':'openSuperadmin()')+'">← '+(verArch?'Conversaciones':'Torre de control')+'</button>'];
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 12px;color:var(--navy)">💬 Chat con profesorado'+(verArch?' · Archivados':'')+'</h1>');
+  if(!verArch && arch.length) h.push('<button class="btn btn-ghost" onclick="scAdminInbox(true)" style="margin-bottom:10px;font-size:.82rem">🗂 Archivados ('+arch.length+')</button>');
+  if(!lista.length){ h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:20px 0">'+(verArch?'No hay conversaciones archivadas.':'No hay conversaciones todavía.')+'</p>'); }
   else{
-    hilos.forEach(t=>{
+    lista.forEach(t=>{
       let fecha=''; try{ fecha=new Date(t.ultima).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){}
       const badge = +t.sin_leer>0 ? `<span class="tile-badge" style="position:static;margin-left:6px">${t.sin_leer}</span>` : '';
-      h.push(`<button class="sc-hilo-row" data-pid="${escAttr(t.profesor_id)}" data-nom="${escAttr(t.nombre||'')}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit">
+      h.push(`<button class="sc-hilo-row" data-pid="${escAttr(t.profesor_id)}" data-nom="${escAttr(t.nombre||'')}" data-arch="${verArch?'1':''}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit">
         <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">${escHtml(t.nombre||'Profesor')}${badge}</b><span style="font-size:.68rem;color:var(--ink-soft)">${fecha}</span></div>
         <div style="font-size:.78rem;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml((t.ultimo||'').slice(0,70))}</div>
       </button>`);
     });
   }
   $('teacher').innerHTML=h.join('');
-  $('teacher').querySelectorAll('.sc-hilo-row').forEach(b=> b.onclick=()=>scAdminHilo(b.dataset.pid, b.dataset.nom));
+  $('teacher').querySelectorAll('.sc-hilo-row').forEach(b=> b.onclick=()=>scAdminHilo(b.dataset.pid, b.dataset.nom, b.dataset.arch==='1'));
 }
-async function scAdminHilo(pid, nombre){
+async function scAdminHilo(pid, nombre, verArch){
   showView('teacher'); window.scrollTo(0,0);
-  $('teacher').innerHTML='<button class="backbtn" onclick="scAdminInbox()">← Conversaciones</button><div class="loader"><span class="spin"></span></div>';
+  const backFn='scAdminInbox('+(verArch?'true':'')+')';
+  $('teacher').innerHTML='<button class="backbtn" onclick="'+backFn+'">← Conversaciones</button><div class="loader"><span class="spin"></span></div>';
   let msgs=[];
   try{ msgs=await call('/rest/v1/rpc/sc_sop_listar',{method:'POST',body:{p_profesor:pid}})||[]; }
-  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="scAdminInbox()">← Conversaciones</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
-  const h=['<button class="backbtn" onclick="scAdminInbox()">← Conversaciones</button>'];
-  h.push('<h1 style="font-size:1.15rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">'+escHtml(nombre||'Profesor')+'</h1>');
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="'+backFn+'">← Conversaciones</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  const estMap=await chatEstadoMias('sop'); const e=estMap[String(pid)];
+  const shown=(msgs||[]).filter(m=> verArch?chatArchivado(m.creado_en,e):chatVivo(m.creado_en,e));
+  const nArch=(msgs||[]).filter(m=>chatArchivado(m.creado_en,e)).length;
+  const h=['<button class="backbtn" onclick="'+backFn+'">← Conversaciones</button>'];
+  h.push('<h1 style="font-size:1.15rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">'+escHtml(nombre||'Profesor')+(verArch?' · Archivados':'')+'</h1>');
   h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
-  if(!msgs.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">Sin mensajes.</p>');
-  else msgs.forEach(m=>h.push(scBurbuja(m,'soporte')));
+  if(!shown.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">'+(verArch?'No hay mensajes archivados.':'Sin mensajes.')+'</p>');
+  else shown.forEach(m=>h.push(scBurbuja(m,'soporte')));
   h.push('</div>');
   h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu respuesta…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
   h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Responder</button>');
-  h.push('<button class="btn btn-ghost" id="sc-del" style="margin-top:8px;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar conversación</button>');
+  if(verArch){
+    h.push('<button class="btn btn-honey" id="sc-desarch" style="margin-top:8px">↩ Desarchivar</button>');
+  }else{
+    h.push('<div style="display:flex;gap:8px;margin-top:8px">');
+    h.push('<button class="btn btn-ghost" id="sc-arch" style="margin:0;flex:1">🗂 Archivar</button>');
+    h.push('<button class="btn btn-ghost" id="sc-del" style="margin:0;flex:1;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar</button>');
+    h.push('</div>');
+    if(nArch>0) h.push('<button class="btn btn-ghost" id="sc-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>');
+  }
   $('teacher').innerHTML=h.join('');
-  const b=$('sc-send'); if(b) b.onclick=()=>scSopResponder(pid, nombre);
+  const b=$('sc-send'); if(b) b.onclick=()=>scSopResponder(pid, nombre, verArch);
   const bd=$('sc-del'); if(bd) bd.onclick=()=>scSopBorrar(pid, nombre);
+  const ba=$('sc-arch'); if(ba) ba.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación en tu bandeja? Podrás verla en Archivados.')) return; try{ await chatArchivar('sop',pid); scAdminInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bde=$('sc-desarch'); if(bde) bde.onclick=async()=>{ try{ await chatDesarchivar('sop',pid); scAdminInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bv=$('sc-verarch'); if(bv) bv.onclick=()=>scAdminHilo(pid,nombre,true);
   scScrollBottom();
 }
 async function scSopBorrar(pid, nombre){
-  if(!await appConfirm('¿Borrar toda la conversación con '+(nombre||'este profesor')+'? No se puede deshacer.')) return;
-  if(!await appConfirm('Confirma de nuevo: se borrarán TODOS los mensajes de este chat.')) return;
-  try{ await call('/rest/v1/rpc/sc_sop_borrar',{method:'POST',body:{p_profesor:pid}}); await scAdminInbox(); }
+  if(!await appConfirm('¿Borrar esta conversación de tu bandeja? El profesor conserva su copia.')) return;
+  try{ await chatBorrar('sop',pid); await scAdminInbox(); }
   catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function scSopResponder(pid, nombre){
