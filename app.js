@@ -7100,8 +7100,8 @@ function openSoporteProfe(){
   const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
   h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 Chats</h1>');
   h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Elige con quién quieres hablar.</p>');
-  h.push('<button onclick="openChatSoporte()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con soporte<span id="soporte-menu-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas o incidencias con Aptuvia</div></button>');
-  h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos<span id="alum-menu-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
+  h.push('<button onclick="openChatSoporte()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con soporte</b><span id="soporte-menu-badge"></span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas o incidencias con Aptuvia</div></button>');
+  h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos</b><span id="alum-menu-badge"></span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
   $('teacher').innerHTML=h.join('');
   if(!window._demoMode){
     call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('soporte-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
@@ -7155,7 +7155,7 @@ async function scAdminInbox(verArch){
       let fecha=''; try{ fecha=new Date(t.ultima).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){}
       const badge = +t.sin_leer>0 ? `<span class="tile-badge" style="position:static;margin-left:6px">${t.sin_leer}</span>` : '';
       h.push(`<button class="sc-hilo-row" data-pid="${escAttr(t.profesor_id)}" data-nom="${escAttr(t.nombre||'')}" data-arch="${verArch?'1':''}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit">
-        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">${escHtml(t.nombre||'Profesor')}${badge}</b><span style="font-size:.68rem;color:var(--ink-soft)">${fecha}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">${escHtml(t.nombre||'Profesor')}</b><span style="display:flex;align-items:center;gap:6px"><span style="font-size:.68rem;color:var(--ink-soft)">${fecha}</span>${badge}</span></div>
         <div style="font-size:.78rem;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml((t.ultimo||'').slice(0,70))}</div>
       </button>`);
     });
