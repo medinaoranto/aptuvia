@@ -2984,9 +2984,15 @@ function saRenderLista(okMsg,errMsg){
     return;
   }
   h+=`<button class="backbtn" onclick="saSetMain('acadprof')" style="margin-bottom:12px">← Academias y profesores</button>`;
-  h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
-    <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
+  h+=`<div class="sa-head-acad">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div><b>🏫 Aptuvia</b>
+        <div class="sa-counts" style="margin-top:6px"><span>${saAcademias.length} academias</span></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
+      <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
+    </div>
   </div>`;
   h+=`<button id="sa-acad-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">🏫 Academias<span style="font-weight:800;color:var(--ink-soft)">${saAcademias.length} ▾</span></button>`;
   h+=`<div id="sa-acad-list" class="sa-cards-grid hidden">`;
@@ -3096,9 +3102,13 @@ function saDetalle(msg){
       </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>${a._grupo_id?`<button class="btn btn-ghost" id="sa-add-acad-grupo" style="width:100%;margin-top:8px">👑 Grupo #${a._grupo_id} · ➕ Añadir academia al grupo</button>`:''}`}
     </div>
     ${esAA?'':saPremiumCard(a)}
-    ${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}`;
+    ${esAA
+      ? `<button id="sa-aa-users-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">👥 Usuarios<span style="font-weight:800;color:var(--ink-soft)">${profes.length} ▾</span></button>
+         <div id="sa-aa-users-list" class="hidden">${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}</div>`
+      : (profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>')}`;
   $('teacher').innerHTML=saShell(h);
   const g=(id)=>$(id);
+  if(esAA){ const ut=$('sa-aa-users-toggle'); if(ut) ut.onclick=()=>{ const l=$('sa-aa-users-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=ut.querySelector('span'); if(cap) cap.textContent=profes.length+(abre?' ▴':' ▾'); } }; }
   if(g('sa-prem-tog')) g('sa-prem-tog').onclick=()=>saPremiumToggle(a.academia_id);
   if(g('sa-prem-link')) g('sa-prem-link').onclick=()=>saPremiumEnlazar(a.academia_id);
   if(g('sa-prem-fact')) g('sa-prem-fact').onchange=(ev)=>saPremiumFacturada(a.academia_id, ev.target.checked);
@@ -7094,8 +7104,8 @@ function openSoporteProfe(){
   h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos<span id="alum-menu-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
   $('teacher').innerHTML=h.join('');
   if(!window._demoMode){
-    call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('soporte-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
-    call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('alum-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+    call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('soporte-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+    call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('alum-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
   }
 }
 async function openChatSoporte(verArch){
