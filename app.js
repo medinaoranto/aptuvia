@@ -1840,6 +1840,7 @@ async function fetchOnlineCount(){
 // ============ PANEL SUPERADMIN (solo admin@evaluatest.com) ============
 let saAcademias=[], saSelAcad=null, saUsuarios=[], saExamenes=[], saTab='profes', saMainTab='sop', saProfExp=null, saExamProf={};
 async function saToggleProf(profId){
+  window._saAAUsersOpen=true;
   if(saProfExp===profId){ saProfExp=null; saDetalle(); return; }
   saProfExp=profId;
   if(!saExamProf[profId]){
@@ -2545,7 +2546,7 @@ function docsBar(area){
   const mon=!!window._mantOn;
   const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:4px 9px;font-size:.6rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
   return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:space-between;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
-    <button id="sa-mant-pill" onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenim.':'Operativo'}</button>
+    ${area==='soporte'?`<button id="sa-mant-pill" onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenim.':'Operativo'}</button>`:''}
     <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
     <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Traza.</button>
@@ -3083,6 +3084,7 @@ function saDetalle(msg){
       ${interior}
     </div>`;
   };
+  const uOpen = esAA && (window._saAAUsersOpen || !!saProfExp);
   let h='';
   if(msg) h+=msg;
   h+=`${esAA?'<button class="backbtn" onclick="saSetMain(\'acadprof\')" style="margin-bottom:12px">← Academias y profesores</button>':'<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:12px">← Todas las academias</button>'}
@@ -3103,12 +3105,12 @@ function saDetalle(msg){
     </div>
     ${esAA?'':saPremiumCard(a)}
     ${esAA
-      ? `<button id="sa-aa-users-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">👥 Usuarios<span style="font-weight:800;color:var(--ink-soft)">${profes.length} ▾</span></button>
-         <div id="sa-aa-users-list" class="hidden">${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}</div>`
+      ? `<button id="sa-aa-users-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">👥 Usuarios<span style="font-weight:800;color:var(--ink-soft)">${profes.length}${uOpen?' ▴':' ▾'}</span></button>
+         <div id="sa-aa-users-list" class="${uOpen?'':'hidden'}">${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}</div>`
       : (profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>')}`;
   $('teacher').innerHTML=saShell(h);
   const g=(id)=>$(id);
-  if(esAA){ const ut=$('sa-aa-users-toggle'); if(ut) ut.onclick=()=>{ const l=$('sa-aa-users-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=ut.querySelector('span'); if(cap) cap.textContent=profes.length+(abre?' ▴':' ▾'); } }; }
+  if(esAA){ const ut=$('sa-aa-users-toggle'); if(ut) ut.onclick=()=>{ const l=$('sa-aa-users-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); window._saAAUsersOpen=abre; const cap=ut.querySelector('span'); if(cap) cap.textContent=profes.length+(abre?' ▴':' ▾'); } }; }
   if(g('sa-prem-tog')) g('sa-prem-tog').onclick=()=>saPremiumToggle(a.academia_id);
   if(g('sa-prem-link')) g('sa-prem-link').onclick=()=>saPremiumEnlazar(a.academia_id);
   if(g('sa-prem-fact')) g('sa-prem-fact').onchange=(ev)=>saPremiumFacturada(a.academia_id, ev.target.checked);
@@ -3270,7 +3272,7 @@ async function saEditarProfesorUI(userId,nombreActual){
   catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function saAbrirAula(){
-  saMainTab='aa'; saTab='profes'; saProfExp=null; saExamProf={};
+  saMainTab='aa'; saTab='profes'; saProfExp=null; saExamProf={}; window._saAAUsersOpen=false;
   saSelAcad={academia_id:'__aa', nombre:'Aula Abierta', _aa:true};
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   try{
@@ -7272,12 +7274,20 @@ async function openPublicar(okMsg){
       }
       if(exs.length){
         h.push(`<div class="pub-bulk"><button class="pub-allbtn" data-all="${uid}" data-val="1">Activar todas</button><button class="pub-allbtn ghost" data-all="${uid}" data-val="0">Quitar todas</button></div>`);
-        exs.forEach(e=>{
-          const on=!!e.publicado;
-          h.push(`<div class="pub-row">
-              <span class="pub-info"><b>${escHtml(e.titulo)}</b><span>${escHtml(e.tema||'')}</span></span>
-              <button class="switch${on?' on':''}" data-pub="${e.id}" data-on="${on?1:0}" aria-label="${on?'Visible':'Oculto'}"><span class="knob"></span></button>
-            </div>`);
+        const grupos={}, ordenT=[];
+        exs.forEach(e=>{ const k=(e.tema||'Sin tema'); if(!grupos[k]){ grupos[k]=[]; ordenT.push(k); } grupos[k].push(e); });
+        ordenT.forEach((k,gi)=>{
+          const tid='pub-tema-'+uid+'-'+gi;
+          h.push(`<button class="btn btn-ghost pub-tema-toggle" data-target="${tid}" style="width:100%;justify-content:space-between;margin:6px 0 4px"><span style="font-weight:700;color:var(--navy)">📄 ${escHtml(k)}</span><span style="font-weight:800;color:var(--ink-soft)">${grupos[k].length} ▾</span></button>`);
+          h.push(`<div id="${tid}" class="hidden">`);
+          grupos[k].forEach(e=>{
+            const on=!!e.publicado;
+            h.push(`<div class="pub-row">
+                <span class="pub-info"><b>${escHtml(e.titulo)}</b><span>${escHtml(e.nivel||'')}</span></span>
+                <button class="switch${on?' on':''}" data-pub="${e.id}" data-on="${on?1:0}" aria-label="${on?'Visible':'Oculto'}"><span class="knob"></span></button>
+              </div>`);
+          });
+          h.push(`</div>`);
         });
       }
       if(mats.length){
@@ -7308,6 +7318,7 @@ async function openPublicar(okMsg){
   $('teacher').querySelectorAll('[data-tem]').forEach(b=> b.onclick=()=>toggleTemarioVisible(b));
   $('teacher').querySelectorAll('[data-extra]').forEach(b=> b.onclick=()=>toggleExtra(b));
   $('teacher').querySelectorAll('[data-all]').forEach(b=> b.onclick=()=>togglePublicadoTodos(b.dataset.all, b.dataset.val==='1'));
+  $('teacher').querySelectorAll('.pub-tema-toggle').forEach(b=> b.onclick=()=>{ const l=$(b.dataset.target); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=b.querySelector('span:last-child'); if(cap){ const n=cap.textContent.replace(/[^0-9]/g,''); cap.textContent=n+(abre?' ▴':' ▾'); } } });
 }
 async function toggleTemarioVisible(btn){
   const id=btn.dataset.tem, nuevo=btn.dataset.on==='0';
@@ -10425,17 +10436,20 @@ function openExamProfesor(examId, unitId){
 
   let statsHtml='';
   if(st){
-    statsHtml=`<div class="peh-stats">
-      <div class="peh-stat"><span>Media clase</span><b>${mediaGlobal}%</b></div>
-      <div class="peh-stat"><span>Alumnos</span><b>${nAl}</b></div>
-      <div class="peh-stat"><span>≥50%</span><b>${nAptos}</b></div>
-      <div class="peh-stat"><span>Intentos</span><b>${st.intentos}</b></div>
+    const cel='background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 4px;text-align:center;min-width:0';
+    const lab='display:block;font-size:.54rem;font-weight:700;letter-spacing:.3px;color:var(--ink-soft);text-transform:uppercase;line-height:1.15';
+    const val='display:block;font-size:1.05rem;font-weight:800;color:var(--navy);margin-top:3px';
+    statsHtml=`<div class="peh-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div class="peh-stat" style="${cel}"><span style="${lab}">Media clase</span><b style="${val}">${mediaGlobal}%</b></div>
+      <div class="peh-stat" style="${cel}"><span style="${lab}">Alumnos</span><b style="${val}">${nAl}</b></div>
+      <div class="peh-stat" style="${cel}"><span style="${lab}">≥50%</span><b style="${val}">${nAptos}</b></div>
+      <div class="peh-stat" style="${cel}"><span style="${lab}">Intentos</span><b style="${val}">${st.intentos}</b></div>
     </div>`;
   }
 
   let html=`<button class="backbtn" onclick="${backFn}">← ${u?u.codigo:'Unidad'}</button>
-    <div class="prof-exam-head">
-      <div class="peh-title">${escHtml(ex.titulo||examId)}</div>
+    <div class="prof-exam-head" style="background:var(--navy-tint);color:var(--navy);border:1px solid var(--line);border-radius:16px;padding:14px">
+      <div class="peh-title" style="color:var(--navy);font-weight:800;font-size:1.1rem;margin-bottom:12px">${escHtml(ex.titulo||examId)}</div>
       ${statsHtml}
     </div>
     <button class="btn btn-ghost pv-toggle" id="btn-pv-preguntas">👁 Revisar preguntas del examen</button>

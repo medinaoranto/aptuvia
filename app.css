@@ -1338,3 +1338,39 @@ input:focus,select:focus,textarea:focus{ outline:none!important; box-shadow:inse
 :root{ --honey-tint:#ffffff; }
 body.tema-aula-abierta{ --honey-tint:#ffffff!important; }
 /* ═══════════════ fin bloque CLAY v7 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v8 · celestes más claros + situación sombreada + hundidos
+   REVERSIBLE. Va sobre v1–v7. Borra este bloque para revertir.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* — Fondo y superficies celestes, un punto más claras (sin tocar sombras) — */
+body{ background:linear-gradient(165deg,#e8f0f7 0%,#dae6f1 100%)!important; }
+:root{
+  --paper:#f4f8fc!important;
+  --paper-edge:#d3e0ec!important;
+  --clay-surf:#f1f7fc!important;
+  --clay-surf-2:#e9f1f8!important;
+  --clay-field:#d8e6f0!important;
+}
+header{ background:rgba(226,236,246,.92)!important; }
+body.tema-aula-abierta header{ background:rgba(226,236,246,.92)!important; }
+input,select,textarea{ background:#eaf2f9!important; }
+.btn-ghost,.backbtn,.iconbtn{ background:#f0f6fb!important; }
+.sa-head-acad{ background:#f0f6fb!important; border-color:#c3d3e2!important; }
+.t-tile .ic{ background:#f7fafd!important; }
+
+/* — ca4: al elegir situación, la pestaña se sombrea del color correspondiente — */
+.est-b.activo.on{ background:var(--navy-tint)!important; color:var(--navy)!important; border-color:var(--navy)!important; box-shadow:inset 3px 3px 7px rgba(70,95,125,.24)!important; }
+.est-b.terminado.on{ background:#fde7d1!important; color:var(--honey-deep)!important; border-color:var(--honey)!important; box-shadow:inset 3px 3px 7px rgba(150,90,20,.22)!important; }
+.est-b.proximamente.on{ background:#e5e8ee!important; color:var(--ink-soft)!important; border-color:#a9b3c2!important; box-shadow:inset 3px 3px 7px rgba(80,95,120,.2)!important; }
+
+/* — Descargar mi materia: transparente como Calendario/Manual — */
+.btn-download{ background:transparent!important; color:var(--honey-deep)!important; border:1.5px solid var(--honey)!important; box-shadow:0 3px 7px rgba(70,95,125,.18)!important; }
+.btn-download:hover{ background:rgba(230,126,14,.06)!important; }
+.btn-download:active{ box-shadow:inset 3px 3px 7px rgba(70,95,125,.22)!important; }
+
+/* — ca5: aspecto hundido en chips/pestañas de listados, manteniendo sus colores — */
+.ord-b,.uf-chip{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), inset -2px -2px 4px rgba(255,255,255,.6)!important; border:1.5px solid var(--paper-edge)!important; }
+.ord-b.on,.uf-chip.on{ box-shadow:inset 3px 3px 7px rgba(70,95,125,.3)!important; }
+/* ═══════════════ fin bloque CLAY v8 ═══════════════ */
