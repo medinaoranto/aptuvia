@@ -1330,3 +1330,11 @@ input:focus,select:focus,textarea:focus{ outline:none!important; box-shadow:inse
 .docs-bar::-webkit-scrollbar{ display:none!important; }
 .docs-bar > *{ flex:0 0 auto!important; }
 /* ═══════════════ fin bloque CLAY v6 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v7 · fuera el amarillo (honey-tint) en EV-base y Aula Abierta
+   Los temas por certificado conservan su tinte (sin !important en :root).
+   ═══════════════════════════════════════════════════════════════ */
+:root{ --honey-tint:#ffffff; }
+body.tema-aula-abierta{ --honey-tint:#ffffff!important; }
+/* ═══════════════ fin bloque CLAY v7 ═══════════════ */

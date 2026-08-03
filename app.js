@@ -679,7 +679,7 @@ function applyAuthLabels(){
   const aula = window._activeCertId==='__aula_abierta';
   const NV='#2e3163';
   if(aula && authMode==='login'){
-    $('authTitle').innerHTML = `<span style="color:${NV}">A</span>ula <span style="color:${NV}">A</span>bierta`;
+    $('authTitle').innerHTML = `<span style="color:${NV}">A</span><span style="color:#E67E0E">ula </span><span style="color:${NV}">A</span><span style="color:#E67E0E">bierta</span>`;
   } else {
     $('authTitle').textContent = aula
       ? 'Crear cuenta · Aula Abierta'
