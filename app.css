@@ -1408,3 +1408,28 @@ input,select,textarea{ background:#eaf2f9!important; }
 /* — Pastillas de nota de la LISTA de alumnos, hundidas — */
 .al-g{ box-shadow:inset 2px 2px 6px rgba(70,95,125,.2), inset -2px -2px 5px rgba(255,255,255,.6)!important; border-radius:12px!important; }
 /* ═══════════════ fin bloque CLAY v9 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v10 · norma Drive hundido / acciones alzadas
+   REVERSIBLE. Va sobre v9. Borra este bloque para revertir.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* — NORMA: todo botón «Abrir Drive» hundido — */
+button[onclick="driveAbrir()"]{
+  background:#eef4fa!important; border:1.5px solid var(--paper-edge)!important; color:var(--navy)!important;
+  box-shadow:inset 2px 2px 5px rgba(70,95,125,.2), inset -2px -2px 4px rgba(255,255,255,.7)!important;
+}
+/* — PDF/CSV de notas: alzados (norma «descargar alzado») — */
+.dl-row .btn{ box-shadow:0 5px 12px rgba(70,95,125,.2)!important; }
+/* — Acciones (descargar/CSV/enviar) alzadas — */
+button[onclick="pxGuardarYPDF()"],
+button[onclick^="ctCSV"],
+button[onclick="gxCSV()"],
+button[onclick="factEnviarCliente()"],
+button[onclick="factResumenPDF()"]{ box-shadow:0 5px 12px rgba(70,95,125,.22)!important; }
+/* — Iconos de acción (registrados/ficha profesor) alzados — */
+.reg-ico,.reg-pass,.reg-del,.reg-revoke,.reg-reauth,.sa-mover,.sa-mini{ box-shadow:0 3px 8px rgba(70,95,125,.22)!important; }
+.reg-ico:active,.reg-pass:active,.reg-del:active,.reg-revoke:active,.reg-reauth:active,.sa-mover:active,.sa-mini:active{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.3)!important; }
+/* — ca5: pastillas Avisos / Internos / Chat hundidas — */
+button[onclick="avToggle()"],button[onclick="aiToggle()"],#sc-inbox-card{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), inset -2px -2px 4px rgba(255,255,255,.6)!important; }
+/* ═══════════════ fin bloque CLAY v10 ═══════════════ */

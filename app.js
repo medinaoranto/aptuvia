@@ -1861,6 +1861,7 @@ function saSetMain(t){
 }
 async function openSuperadmin(okMsg,errMsg){
   window._teacherScreen='superadmin';
+  if(window._sopTrab===undefined){ window._sopTrab=false; sopTrabLoad().then(()=>{ if(window._teacherScreen==='superadmin') openSuperadmin(); }); }
   showView('teacher'); window.scrollTo(0,0);
   teacherView='superadmin';
   // Al recargar la página, volver a la pestaña donde estabas.
@@ -2545,12 +2546,31 @@ function docsBar(area){
   const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:4px 9px;font-size:.6rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap;flex:0 0 auto';
   const mon=!!window._mantOn;
   const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:4px 9px;font-size:.6rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+  const sopOn=!!window._sopTrab;
+  let sopPill='';
+  if(area==='soporte'){
+    const s='border:1.5px solid '+(sopOn?'#b4232a':'#a9b3c2')+';background:'+(sopOn?'#fdeaea':'#eef2f7')+';color:'+(sopOn?'#b4232a':'var(--ink-soft)')+';border-radius:999px;padding:4px 9px;font-size:.6rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+    sopPill='<button onclick="sopTrabToggle()" title="Avisa a Administración y Comercial de que estás trabajando (posibles cambios o deploys). Es distinto del modo mantenimiento." style="'+s+'">'+(sopOn?'🔴 Trabajando':'⚪ Avisar')+'</button>';
+  } else if(sopOn){
+    const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;border-radius:999px;padding:4px 9px;font-size:.6rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+    sopPill='<span title="Soporte está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="'+s+'">🔴 Soporte trabajando</span>';
+  }
   return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:space-between;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
     ${area==='soporte'?`<button id="sa-mant-pill" onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenim.':'Operativo'}</button>`:''}
+    ${sopPill}
     <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
     <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Traza.</button>
   </div>`;
+}
+async function sopTrabLoad(){
+  try{ const v=await call('/rest/v1/rpc/sop_trabajando',{method:'POST',body:{}}); window._sopTrab=(v===true||v==='true'||v==='si'); }catch(e){}
+}
+async function sopTrabToggle(){
+  const nuevo=!window._sopTrab;
+  try{ await call('/rest/v1/rpc/sop_trabajando',{method:'POST',body:{p_set:nuevo}}); window._sopTrab=nuevo; }
+  catch(e){ appAlert('No se pudo cambiar el aviso: '+(e.message||'')); return; }
+  openSuperadmin();
 }
 async function saMantToggle(){
   let on=false;
@@ -2860,7 +2880,7 @@ function aiPintarBarra(){
   bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${nuevos?'#eaf3fb':'#f4f4f6'};border:1.5px solid ${nuevos?'#5aa9d6':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
       <span>✉️</span>
       <span>Avisos internos</span>
-      ${nuevos?`<span style="background:#5aa9d6;color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:'<span style="color:var(--ink-soft);font-weight:600">sin nuevos</span>'}
+      ${nuevos?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:'<span style="color:var(--ink-soft);font-weight:600">sin nuevos</span>'}
       <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
     </button>`;
   if(abierta) bar.innerHTML+=aiPanel(area,vis);
@@ -2927,8 +2947,8 @@ async function aiBorrar(id){
 }
 function saShell(inner){
   const ico=`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>`;
-  const base=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#eaf6fd,#7fc3e8);color:var(--navy)`;
-  const on=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#5aa9d6,#1d4f78);color:#fff`;
+  const base=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#eaf6fd,#7fc3e8);color:var(--navy);box-shadow:0 4px 10px rgba(70,95,125,.25)`;
+  const on=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#5aa9d6,#1d4f78);color:#fff;box-shadow:0 6px 13px rgba(30,60,100,.4), inset 0 1px 2px rgba(255,255,255,.3)`;
   const st=(t)=>saMainTab===t?on:base;
   const enSoporte = (saMainTab==='sop' || saMainTab==='acadprof' || saMainTab==='ev' || saMainTab==='aa');
   if(enSoporte) setTimeout(scWireInbox,0);
@@ -2944,7 +2964,7 @@ function saShell(inner){
 }
 function scWireInbox(){
   const c=$('sc-inbox-card'); if(c) c.onclick=()=>scAdminInbox();
-  call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.textContent=String(n); } }).catch(()=>{});
+  call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.style.position='static'; el.style.background='var(--honey)'; el.style.color='#fff'; el.style.borderRadius='9px'; el.style.padding='0 7px'; el.style.fontSize='.72rem'; el.style.fontWeight='700'; el.textContent=String(n); } }).catch(()=>{});
 }
 function saRenderLista(okMsg,errMsg){
   saSelAcad=null;
@@ -2992,7 +3012,7 @@ function saRenderLista(okMsg,errMsg){
     </div>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
       <button class="btn btn-honey" id="sa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
-      <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia</button>
+      <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia · sin presupuesto</button>
     </div>
   </div>`;
   h+=`<button id="sa-acad-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">🏫 Academias<span style="font-weight:800;color:var(--ink-soft)">${saAcademias.length} ▾</span></button>`;
@@ -3335,7 +3355,7 @@ async function saVerComoProfesorAula(profId,acad){
 }
 async function saCrearAcademiaUI(){
   const n=await appPrompt('Nombre de la nueva academia:'); if(n===null) return;
-  try{ await call('/rest/v1/rpc/sa_crear_academia',{method:'POST',body:{p_nombre:n}}); await openSuperadmin('Academia creada.'); }
+  try{ await call('/rest/v1/rpc/sa_crear_academia',{method:'POST',body:{p_nombre:n}}); await avisarAdmin('🏫 Academia creada SIN presupuesto: "'+n.trim()+'". NO facturar por defecto (alta interna/cortesía). Si es cliente de pago, crea su presupuesto y factura desde ahí (0 € si es cortesía).'); await openSuperadmin('Academia creada.'); }
   catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function saRenombrarUI(id){
@@ -3398,7 +3418,7 @@ async function saCrearProfesorUI(academiaId, aaMode){
     if(presu){
       await avisarAdmin('👤 Profesor de alta: "'+quien+'" ('+cod+'), del presupuesto '+(presu.numero||'')+'. Comprueba si su cuota ya está incluida en esa factura antes de emitir nada nuevo.');
     }else{
-      await avisarAdmin('👤 Profesor de alta SIN presupuesto: "'+quien+'" ('+cod+'). Hay que facturar su cuota mensual.');
+      await avisarAdmin('👤 Profesor de alta SIN presupuesto: "'+quien+'" ('+cod+'). NO facturar por defecto (alta interna/cortesía). Si es cliente de pago, crea su presupuesto y factura desde ahí (0 € si es cortesía).');
     }
     if(aaMode){ await saAbrirAula(); } else { await saAbrirAcademia(academiaId); }
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
@@ -7262,16 +7282,16 @@ async function openPublicar(okMsg){
       const titulo = (u&&u.titulo) ? tituloMateria(u) : (UF_TITULOS[uid]||'');
       const est=unitEstado(uid);
       any=true;
-      // Cabecera del aula + selector de SITUACIÓN (encima)
-      h.push(`<div class="pub-unit">${escHtml(codigo)}${titulo?' · '+escHtml(titulo):''}</div>`);
-      h.push(`<div class="est-seg" style="margin:2px 0 10px">${['activo','terminado','proximamente'].map(s=>`<button class="est-b ${s}${est===s?' on':''}" data-uid="${uid}" data-est="${s}">${estLabel(s)}</button>`).join('')}</div>`);
-      // Debajo: VISIBILIDAD de exámenes y materiales de este aula
+      // Título de la unidad = desplegable naranja (colapsado por defecto)
       const exs=(examsByUnit[uid]||[]).slice().sort(_cmpEx);
       const mats=(temarioByUnit[uid]||[]);
+      const bodyId='unit-body-'+uid;
+      h.push(`<button class="btn btn-honey unit-toggle" data-target="${bodyId}" style="width:100%;justify-content:space-between;margin:6px 0 8px"><span style="text-align:left">${escHtml(codigo)}${titulo?' · '+escHtml(titulo):''}</span><span style="font-weight:800">${exs.length?exs.length+' ':''}▾</span></button>`);
+      h.push(`<div id="${bodyId}" class="hidden">`);
+      h.push(`<div class="est-seg" style="margin:2px 0 10px">${['activo','terminado','proximamente'].map(s=>`<button class="est-b ${s}${est===s?' on':''}" data-uid="${uid}" data-est="${s}">${estLabel(s)}</button>`).join('')}</div>`);
       if(!exs.length && !mats.length){
         h.push(`<p class="sa-empty" style="font-size:.78rem;margin:0 0 6px;color:var(--ink-soft)">Aún no hay exámenes ni materiales en esta ${esAula?'materia':'unidad'}.</p>`);
-        return;
-      }
+      } else {
       if(exs.length){
         h.push(`<div class="pub-bulk"><button class="pub-allbtn" data-all="${uid}" data-val="1">Activar todas</button><button class="pub-allbtn ghost" data-all="${uid}" data-val="0">Quitar todas</button></div>`);
         const grupos={}, ordenT=[];
@@ -7309,6 +7329,8 @@ async function openPublicar(okMsg){
           <span class="pub-info"><b>🎯 Preguntas falladas</b><span>Repaso de fallos del alumno</span></span>
           <button class="switch${vFA?' on':''}" data-extra="${uid}" data-campo="fa" data-on="${vFA?1:0}" aria-label="${vFA?'Visible':'Oculto'}"><span class="knob"></span></button>
         </div>`);
+      }
+      h.push(`</div>`);
     });
   });
   if(!any) h.push(`<div class="center-msg" style="padding:18px">No hay ${esAula?'materias':'unidades'} todavía.</div>`);
@@ -7319,6 +7341,7 @@ async function openPublicar(okMsg){
   $('teacher').querySelectorAll('[data-extra]').forEach(b=> b.onclick=()=>toggleExtra(b));
   $('teacher').querySelectorAll('[data-all]').forEach(b=> b.onclick=()=>togglePublicadoTodos(b.dataset.all, b.dataset.val==='1'));
   $('teacher').querySelectorAll('.pub-tema-toggle').forEach(b=> b.onclick=()=>{ const l=$(b.dataset.target); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=b.querySelector('span:last-child'); if(cap){ const n=cap.textContent.replace(/[^0-9]/g,''); cap.textContent=n+(abre?' ▴':' ▾'); } } });
+  $('teacher').querySelectorAll('.unit-toggle').forEach(b=> b.onclick=()=>{ const l=$(b.dataset.target); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=b.querySelector('span:last-child'); if(cap){ const n=cap.textContent.replace(/[^0-9]/g,''); cap.textContent=(n?n+' ':'')+(abre?'▴':'▾'); } } });
 }
 async function toggleTemarioVisible(btn){
   const id=btn.dataset.tem, nuevo=btn.dataset.on==='0';
@@ -9574,13 +9597,12 @@ function regBody(rows,errMsg,okMsg){
     const act = r.con_actividad ? `<span class="reg-tag act">Con actividad</span>` : `<span class="reg-tag none">Sin actividad</span>`;
     const nombre = r.nombre && r.nombre!==r.email ? escHtml(r.nombre) : '';
     h+=`<div class="reg-row">
-      <div class="reg-top">
-        <div class="reg-info">
-          ${nombre?`<b>${nombre}</b>`:''}
-          <span class="reg-mail">${escHtml(r.email)}</span>
-          <span class="reg-badges">${badge}${act}</span>
-        </div>
-        <div class="reg-actions">
+      <div class="reg-info">
+        ${nombre?`<b>${nombre}</b>`:''}
+        <span class="reg-mail">${escHtml(r.email)}</span>
+        <div class="reg-badges" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">
+          ${badge}${act}
+          <span style="flex:1;min-width:8px"></span>
           <button class="reg-ico" title="Nueva contraseña" aria-label="Nueva contraseña" data-pass="${r.id}" data-email="${escHtml(r.email)}">🔑</button>
           ${r.autorizado
             ? `<button class="reg-ico danger" title="Revocar acceso" aria-label="Revocar acceso" data-revoke="${escHtml(r.email)}">🚫</button>`
