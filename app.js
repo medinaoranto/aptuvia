@@ -12200,9 +12200,10 @@ const DEMO_EXAMENES = [
   {id:'demo-ex2', unidad:'demo-u1', numero:'2', titulo:'Archivos, carpetas y seguridad',    tema:'Tema 2', nivel:'medio', orden:2, cuenta_final:false, tipo:'test', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof', material_url:null, material_modo:null},
   {id:'demo-ex3', unidad:'demo-u2', numero:'1', titulo:'Hojas de cálculo · examen final',   tema:'Tema 1', nivel:'medio', orden:1, cuenta_final:true,  tipo:'test', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof', material_url:null, material_modo:null},
   {id:'demo-red', unidad:'demo-u2', numero:'2', titulo:'Informe escrito (redacción)',       tema:'Tema 2', nivel:'medio', orden:2, cuenta_final:false, tipo:'redaccion', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof', material_url:null, material_modo:null},
-  {id:'demo-h1',  unidad:'aula-demo-hist', numero:'1', titulo:'De la República a la Guerra Civil', tema:'Tema 1', nivel:'medio', orden:1, cuenta_final:false, tipo:'test', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof-aa1', material_url:null, material_modo:null},
-  {id:'demo-h2',  unidad:'aula-demo-hist', numero:'2', titulo:'La Transición',                     tema:'Tema 2', nivel:'medio', orden:2, cuenta_final:true,  tipo:'test', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof-aa1', material_url:null, material_modo:null},
-  {id:'demo-b1',  unidad:'aula-demo-bio',  numero:'1', titulo:'La célula · trabajo escrito',       tema:'Tema 1', nivel:'medio', orden:1, cuenta_final:false, tipo:'redaccion', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof-aa1', material_url:null, material_modo:null}
+  {id:'demo-h1',  unidad:'aula-demo-hist', numero:'1', titulo:'De la República a la Guerra Civil', tema:'La Segunda República', tema_id:'dth2', nivel:'medio', orden:1, cuenta_final:false, tipo:'test', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof-aa1', material_url:null, material_modo:null},
+  {id:'demo-h2',  unidad:'aula-demo-hist', numero:'2', titulo:'La Guerra Civil · repaso',           tema:'La Guerra Civil española', tema_id:'dth3', nivel:'medio', orden:2, cuenta_final:true,  tipo:'test', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof-aa1', material_url:null, material_modo:null},
+  {id:'demo-h3',  unidad:'aula-demo-hist', numero:'3', titulo:'El Regeneracionismo (redacción)',    tema:'La crisis de 1898 y el Regeneracionismo', tema_id:'dth1', nivel:'medio', orden:3, cuenta_final:false, tipo:'redaccion', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof-aa1', material_url:null, material_modo:null},
+  {id:'demo-b1',  unidad:'aula-demo-bio',  numero:'1', titulo:'La célula · trabajo escrito',       tema:'La membrana y el transporte celular', tema_id:'dtb1', nivel:'medio', orden:1, cuenta_final:false, tipo:'redaccion', academia_id:DEMO_ACADEMIA, profesor_id:'demo-prof-aa1', material_url:null, material_modo:null}
 ];
 
 function _dFecha(d){ const x=new Date(); x.setDate(x.getDate()-d); return x.toISOString(); }
@@ -12212,7 +12213,9 @@ function _dFecha(d){ const x=new Date(); x.setDate(x.getDate()-d); return x.toIS
 const DEMO_EX_META = {
   'demo-ex1':{unidad:'demo-u1', titulo:'El puesto de trabajo y el teclado', total:5, final:false},
   'demo-ex2':{unidad:'demo-u1', titulo:'Archivos, carpetas y seguridad',    total:4, final:false},
-  'demo-ex3':{unidad:'demo-u2', titulo:'Hojas de cálculo · examen final',   total:5, final:true}
+  'demo-ex3':{unidad:'demo-u2', titulo:'Hojas de cálculo · examen final',   total:5, final:true},
+  'demo-h1':{unidad:'aula-demo-hist', titulo:'De la República a la Guerra Civil', total:4, final:false},
+  'demo-h2':{unidad:'aula-demo-hist', titulo:'La Guerra Civil · repaso',           total:3, final:true}
 };
 // sc = aciertos en [ex1·intento1, ex1·intento2, ex2, ex3final·intento1, ex3final·intento2]
 const DEMO_CLASE = [
@@ -12233,7 +12236,8 @@ function _demoAttempts(al){
   return [
     {ex:'demo-ex1', c:s[0], dia:12}, {ex:'demo-ex1', c:s[1], dia:9},
     {ex:'demo-ex2', c:s[2], dia:7},
-    {ex:'demo-ex3', c:s[3], dia:4}, {ex:'demo-ex3', c:s[4], dia:2}
+    {ex:'demo-ex3', c:s[3], dia:4}, {ex:'demo-ex3', c:s[4], dia:2},
+    {ex:'demo-h1', c:Math.min(s[1],4), dia:6}, {ex:'demo-h2', c:Math.min(s[2],3), dia:3}
   ];
 }
 // resultados_alumnado: una fila por intento (shape que consume el profesor).
@@ -12305,18 +12309,18 @@ function demoRegistrados(){
 }
 // Entregas de redacción (Correcciones): algunas corregidas, algunas pendientes.
 const DEMO_ENTREGAS_LIST = [
-  {id:'de1', a:'lucia', n:'Lucía Fernández (demo)', estado:'corregido', nota:7.5, dia:5},
-  {id:'de2', a:'carla', n:'Carla Molina (demo)',    estado:'corregido', nota:9.0, dia:5},
-  {id:'de3', a:'diego', n:'Diego Herrero (demo)',   estado:'pendiente', nota:null, dia:2},
-  {id:'de4', a:'hugo',  n:'Hugo Ramírez (demo)',    estado:'pendiente', nota:null, dia:1}
+  {id:'de1', a:'lucia', n:'Lucía Fernández (demo)', estado:'corregido', nota:7.5, dia:5, ex:'demo-red', ext:'Informe escrito (redacción)', enun:'Redacta un informe breve…', txt:'Organizaría los archivos por departamento y año, con una carpeta por proyecto y una copia de seguridad semanal en un disco aparte.'},
+  {id:'de2', a:'carla', n:'Carla Molina (demo)',    estado:'corregido', nota:9.0, dia:5, ex:'demo-red', ext:'Informe escrito (redacción)', enun:'Redacta un informe breve…', txt:'Propondría una estructura por áreas con control de versiones y copia diaria automática en la nube.'},
+  {id:'de3', a:'diego', n:'Diego Herrero (demo)',   estado:'pendiente', nota:null, dia:2, ex:'demo-h3', ext:'El Regeneracionismo (redacción)', enun:'Explica las causas del Regeneracionismo tras 1898…', txt:'La pérdida de las colonias en 1898 provocó una crisis moral y política que impulsó propuestas de reforma y modernización del país.'},
+  {id:'de4', a:'hugo',  n:'Hugo Ramírez (demo)',    estado:'pendiente', nota:null, dia:1, ex:'demo-h3', ext:'El Regeneracionismo (redacción)', enun:'Explica las causas del Regeneracionismo tras 1898…', txt:'El Desastre del 98 dejó a España sin imperio y abrió el debate regeneracionista sobre educación y agua.'}
 ];
 function demoEntregasList(){
   return DEMO_ENTREGAS_LIST.map(x=>({
-    id:x.id, examen_id:'demo-red', examen:'Informe escrito (redacción)',
+    id:x.id, examen_id:x.ex||'demo-red', examen:x.ext||'Informe escrito (redacción)',
     user_id:'demo-'+x.a, alumno:x.a+'@demo.local', nombre:x.n, estado:x.estado, nota:x.nota,
     comentario: x.estado==='corregido' ? 'Buen planteamiento. [[Concreta cada cuánto se hace la copia]]' : '',
     creado_en:_dFecha(x.dia),
-    respuestas:[{enunciado:'Redacta un informe breve…', texto:'Organizaría los archivos por departamento y año, con una carpeta por proyecto y una copia de seguridad semanal en un disco aparte.'}]
+    respuestas:[{enunciado:x.enun||'Redacta un informe breve…', texto:x.txt||''}]
   }));
 }
 
