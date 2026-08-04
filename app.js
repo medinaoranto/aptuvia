@@ -1562,7 +1562,6 @@ function renderHome(){
     html=`<div class="cert">
         <div class="cert-top">
           <h1>${escHtml(materia)}</h1>
-          <div class="cert-code"><span style="color:#2e3163">A</span>ula <span style="color:#2e3163">A</span>bierta</div>
         </div>
         <div class="sub">Materias propias / Exámenes libres</div>
       </div>`;
@@ -1588,7 +1587,7 @@ function renderHome(){
         </span>
       </button>
     </div>`;
-  html+=manualPill('docManualAlumno()','Manual del alumnado', '<button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">🔔<span id="alum-bell-badge"></span></button>'+calBtnHtml('alum')+'<button onclick="caAlumChat()" title="Chat con tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
+  html+=manualPill('docManualAlumno()','Manual', '<button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">🔔<span id="alum-bell-badge"></span></button>'+calBtnHtml('alum')+'<button onclick="caAlumChat()" title="Chat con tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
   $('home').innerHTML=html;
   if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
   if(!window._demoMode){ call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
