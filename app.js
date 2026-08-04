@@ -1160,7 +1160,7 @@ async function renderTemarioProfesor(unidad){
       <label style="font-size:.75rem;color:var(--ink-soft)">Unidad de destino</label>
       <select id="tem-unidad" style="width:100%;padding:9px 10px;border:2px solid #E67E0E;border-radius:10px;margin:4px 0 8px;font-size:.9rem;background:#fff">${opts}</select>
       <p style="font-size:.72rem;color:var(--ink-soft);line-height:1.55;margin:0 2px 14px">Elige la ${aa?'materia':'unidad'} de destino, pon un título, adjunta el archivo (PDF, imagen, Word o Excel) y pulsa «Subir material». Nace oculto: actívalo en «Exámenes y estados» cuando quieras que el alumno lo vea.</p>
-      <div style="border:1.5px solid var(--honey);background:var(--paper);border-radius:14px;padding:14px;margin-bottom:16px">
+      <div style="border:1px solid var(--paper-edge);background:var(--paper);border-radius:14px;padding:14px;margin-bottom:16px">
         <label style="font-size:.75rem;color:var(--ink-soft)">Título</label>
         <input id="tem-tit" placeholder="Ej.: Apuntes tema 1" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 8px;box-sizing:border-box">
         <label style="font-size:.75rem;color:var(--ink-soft)">Nota (opcional)</label>
