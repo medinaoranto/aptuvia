@@ -1434,11 +1434,17 @@ button[onclick="factResumenPDF()"]{ box-shadow:0 5px 12px rgba(70,95,125,.22)!im
 /* — Chips de curso (1º/2º/3º/4º ESO) hundidas — */
 .aa-chips button[data-amu]{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), inset -2px -2px 4px rgba(255,255,255,.6)!important; }
 /* — Cards de materia (ca1) tipo card limpia con sombra + papelera dentro — */
+.mod{ border-left:1px solid var(--line)!important; border-radius:16px!important; box-shadow:0 7px 16px rgba(70,95,125,.2)!important; }
+.mod.navy{ border-left-color:var(--line)!important; }
+.mod.soon{ border-left-color:var(--line)!important; }
 .mat-wrap{ margin-bottom:16px!important; }
-.mat-wrap .mod{ margin:0!important; border-left:1px solid var(--line)!important; box-shadow:0 7px 16px rgba(70,95,125,.2)!important; }
+.mat-wrap .mod{ margin:0!important; }
 .mat-del{ top:14px!important; right:14px!important; }
 /* — Crear examen (0) disabled: mismo naranja, solo más claro — */
 .btn-primary:disabled,.btn-honey:disabled{ filter:none!important; opacity:.62!important; }
+/* — ca2: fuera el recuadro amarillo de las medias; ns-card hundidas — */
+.nota-sticky,body.tema-aula-abierta .nota-sticky{ background:#e8f0f7!important; }
+.ns-card{ box-shadow:inset 2px 2px 6px rgba(70,95,125,.2), inset -2px -2px 5px rgba(255,255,255,.6)!important; }
 .reg-ico:active,.reg-pass:active,.reg-del:active,.reg-revoke:active,.reg-reauth:active,.sa-mover:active,.sa-mini:active{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.3)!important; }
 /* — ca5: pastillas Avisos / Internos / Chat hundidas — */
 button[onclick="avToggle()"],button[onclick="aiToggle()"],#sc-inbox-card{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), inset -2px -2px 4px rgba(255,255,255,.6)!important; }

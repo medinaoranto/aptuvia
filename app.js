@@ -3025,7 +3025,6 @@ function saRenderLista(okMsg,errMsg){
     </div>`;
   });
   h+=`</div>`;
-  h+=docsBar('soporte');
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
