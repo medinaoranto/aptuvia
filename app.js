@@ -7294,20 +7294,12 @@ async function openPublicar(okMsg){
       } else {
       if(exs.length){
         h.push(`<div class="pub-bulk"><button class="pub-allbtn" data-all="${uid}" data-val="1">Activar todas</button><button class="pub-allbtn ghost" data-all="${uid}" data-val="0">Quitar todas</button></div>`);
-        const grupos={}, ordenT=[];
-        exs.forEach(e=>{ const k=(e.tema||'Sin tema'); if(!grupos[k]){ grupos[k]=[]; ordenT.push(k); } grupos[k].push(e); });
-        ordenT.forEach((k,gi)=>{
-          const tid='pub-tema-'+uid+'-'+gi;
-          h.push(`<button class="btn btn-ghost pub-tema-toggle" data-target="${tid}" style="width:100%;justify-content:space-between;margin:6px 0 4px"><span style="font-weight:700;color:var(--navy)">📄 ${escHtml(k)}</span><span style="font-weight:800;color:var(--ink-soft)">${grupos[k].length} ▾</span></button>`);
-          h.push(`<div id="${tid}" class="hidden">`);
-          grupos[k].forEach(e=>{
-            const on=!!e.publicado;
-            h.push(`<div class="pub-row">
-                <span class="pub-info"><b>${escHtml(e.titulo)}</b><span>${escHtml(e.nivel||'')}</span></span>
-                <button class="switch${on?' on':''}" data-pub="${e.id}" data-on="${on?1:0}" aria-label="${on?'Visible':'Oculto'}"><span class="knob"></span></button>
-              </div>`);
-          });
-          h.push(`</div>`);
+        exs.forEach(e=>{
+          const on=!!e.publicado;
+          h.push(`<div class="pub-row">
+              <span class="pub-info"><b>${escHtml(e.titulo)}</b><span>${escHtml(e.tema||e.nivel||'')}</span></span>
+              <button class="switch${on?' on':''}" data-pub="${e.id}" data-on="${on?1:0}" aria-label="${on?'Visible':'Oculto'}"><span class="knob"></span></button>
+            </div>`);
         });
       }
       if(mats.length){
