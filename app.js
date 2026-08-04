@@ -2877,7 +2877,7 @@ function aiPintarBarra(){
   const vis=aiVisibles(area);
   const nuevos=(aiLista||[]).filter(a=> a.para_area===area && !a.leido).length;
   const abierta=window._aiAbierta;
-  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${nuevos?'#eaf3fb':'#f4f4f6'};border:1.5px solid ${nuevos?'#5aa9d6':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
+  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
       <span>✉️</span>
       <span>Avisos internos</span>
       ${nuevos?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:'<span style="color:var(--ink-soft);font-weight:600">sin nuevos</span>'}
@@ -2959,7 +2959,7 @@ function saShell(inner){
     </div>
     ${window._avRaiz?`<div id="av-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
     ${window._avRaiz?`<div id="ai-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
-    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;margin:0 0 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem"><span>💬 Chat con profesorado</span><span id="sc-inbox-badge"></span></button>`:''}
+    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:11px;padding:9px 12px;margin:0 0 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem"><span>💬 Chat con profesorado</span><span id="sc-inbox-badge"></span></button>`:''}
     ${inner}`;
 }
 function scWireInbox(){
