@@ -2664,7 +2664,7 @@ function avPintarBarra(){
   const vis=avVisibles(area);
   const urgentes=vis.some(a=>a.urgente===true);
   const abierta=window._avAbierta;
-  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${vis.length?'var(--honey-tint)':'#f4f4f6'};border:1.5px solid ${vis.length?'var(--honey)':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
+  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--honey-tint);border:1.5px solid ${vis.length?'var(--honey)':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
       <span style="position:relative">🔔${urgentes?'<span style="position:absolute;top:-3px;right:-5px;width:9px;height:9px;background:#e11d1d;border-radius:50%;border:1.5px solid #fff"></span>':''}</span>
       <span>Avisos</span>
       ${vis.length?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${vis.length}</span>`:'<span style="color:var(--ink-soft);font-weight:600">al día</span>'}
