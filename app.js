@@ -2208,7 +2208,7 @@ function docManualProfe(){
 // Pastilla discreta para el manual, con el mismo aire que la barra de documentos.
 function manualPill(fn, texto, extra){
   const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:4px 11px;font-size:.66rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;white-space:nowrap;flex:0 0 auto';
-  return `<div class="docs-bar" style="display:flex;justify-content:flex-start;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+  return `<div class="docs-bar" style="display:flex;justify-content:center;gap:6px;align-items:center;flex-wrap:wrap;margin:16px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
     ${extra||''}
     <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual'}</button>
   </div>`;
@@ -2554,7 +2554,7 @@ function docsBar(area){
     const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;border-radius:999px;padding:4px 9px;font-size:.6rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
     sopPill='<span title="Soporte está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="'+s+'">🔴 Soporte</span>';
   }
-  return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:space-between;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
+  return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:center;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
     ${area==='soporte'?`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`:''}
     ${sopPill}
     <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>

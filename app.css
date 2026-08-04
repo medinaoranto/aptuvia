@@ -1453,3 +1453,22 @@ button[onclick="factResumenPDF()"]{ box-shadow:0 5px 12px rgba(70,95,125,.22)!im
 /* — ca5: pastillas Avisos / Internos / Chat hundidas — */
 button[onclick="avToggle()"],button[onclick="aiToggle()"],#sc-inbox-card{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), inset -2px -2px 4px rgba(255,255,255,.6)!important; }
 /* ═══════════════ fin bloque CLAY v10 ═══════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CLAY v11 · respuestas blancas, días/instalar hundidos, chips wrap
+   REVERSIBLE. Va sobre v10. Borra este bloque para revertir.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ca4 — opciones de examen (AA y EV): crema → blanco (como «Siguiente») */
+.opt{ background:#fff!important; }
+
+/* ca3 — cuadros de día del calendario hundidos */
+button[onclick^="calSel"]{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), inset -2px -2px 4px rgba(255,255,255,.6)!important; }
+
+/* ca5 — botón «Instalar la app» como los Drive: celeste hundido */
+#pwaInstall{ background:#eef4fa!important; border:1.5px solid var(--paper-edge)!important; color:var(--navy)!important; box-shadow:inset 2px 2px 5px rgba(70,95,125,.2), inset -2px -2px 4px rgba(255,255,255,.7)!important; }
+
+/* ca7 — chips de materia del alumno: envolver en varias líneas en vez de salirse */
+.aa-chips{ flex-wrap:wrap!important; overflow-x:visible!important; }
+.cert-top{ flex-wrap:wrap!important; }
+/* ═══════════════ fin bloque CLAY v11 ═══════════════ */
