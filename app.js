@@ -2550,13 +2550,13 @@ function docsBar(area){
   let sopPill='';
   if(area==='soporte'){
     const s='border:1.5px solid '+(sopOn?'#b4232a':'#a9b3c2')+';background:'+(sopOn?'#fdeaea':'#eef2f7')+';color:'+(sopOn?'#b4232a':'var(--ink-soft)')+';border-radius:999px;padding:4px 9px;font-size:.6rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
-    sopPill='<button onclick="sopTrabToggle()" title="Avisa a Administración y Comercial de que estás trabajando (posibles cambios o deploys). Es distinto del modo mantenimiento." style="'+s+'">'+(sopOn?'🔴 Trabajando':'⚪ Avisar')+'</button>';
+    sopPill='<button onclick="sopTrabToggle()" title="'+(sopOn?'Estás en modo TRABAJANDO: Administración y Comercial lo ven. Pulsa para apagar.':'Avisar a Administración y Comercial de que estás trabajando (posibles cambios/deploys). Distinto del modo mantenimiento.')+'" style="'+s+'">'+(sopOn?'🔴':'⚪')+'</button>';
   } else if(sopOn){
     const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;border-radius:999px;padding:4px 9px;font-size:.6rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
     sopPill='<span title="Soporte está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="'+s+'">🔴 Soporte trabajando</span>';
   }
   return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:space-between;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
-    ${area==='soporte'?`<button id="sa-mant-pill" onclick="saMantToggle()" title="Modo mantenimiento" style="${mest}">🛠️ ${mon?'Mantenim.':'Operativo'}</button>`:''}
+    ${area==='soporte'?`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`:''}
     ${sopPill}
     <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
