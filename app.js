@@ -3118,8 +3118,8 @@ function saDetalle(msg){
       </div>
       ${esAA?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn btn-honey" id="sa-aa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
-        <button class="btn btn-ghost" id="sa-nuevo-prof" style="flex:1;margin:0;min-width:130px">Crear usuario</button>
-      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor</button>${a._grupo_id?`<button class="btn btn-ghost" id="sa-add-acad-grupo" style="width:100%;margin-top:8px">👑 Grupo #${a._grupo_id} · ➕ Añadir academia al grupo</button>`:''}`}
+        <button class="btn btn-ghost" id="sa-nuevo-prof" style="flex:1;margin:0;min-width:130px">Crear usuario · sin presupuesto</button>
+      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor · sin presupuesto</button>${a._grupo_id?`<button class="btn btn-ghost" id="sa-add-acad-grupo" style="width:100%;margin-top:8px">👑 Grupo #${a._grupo_id} · ➕ Añadir academia al grupo</button>`:''}`}
     </div>
     ${esAA?'':saPremiumCard(a)}
     ${esAA
@@ -3140,7 +3140,7 @@ function saDetalle(msg){
   if(g('sa-ren')) g('sa-ren').onclick=()=>saRenombrarUI(a.academia_id);
   if(g('sa-borr')) g('sa-borr').onclick=()=>saBorrarAcademiaUI(a.academia_id,a.nombre);
   if(g('sa-acad-rev')) g('sa-acad-rev').onclick=()=>saRevocarAcademiaUI(a.academia_id, a.activa!==false);
-  if(g('sa-nuevo-prof')) g('sa-nuevo-prof').onclick=()=> esAA ? saCrearProfesorUI(1,true) : saCrearProfesorUI(a.academia_id);
+  if(g('sa-nuevo-prof')) g('sa-nuevo-prof').onclick=()=> esAA ? saCrearProfesorUI(1,true,true) : saCrearProfesorUI(a.academia_id,false,true);
   if(g('sa-add-acad-grupo')) g('sa-add-acad-grupo').onclick=()=>saAddAcademiaGrupo(a._grupo_id);
   $('teacher').querySelectorAll('[data-saprof]').forEach(b=> b.onclick=()=>saToggleProf(b.dataset.saprof));
   $('teacher').querySelectorAll('[data-saver]').forEach(b=> b.onclick=()=>saVerComoProfesor(b.dataset.saver,b.dataset.nombre));
@@ -3393,8 +3393,8 @@ async function saElegirPresupuesto(academiaId){
   if(isNaN(i)||i<1||i>cand.length){ appAlert('Número no válido.'); return false; }
   return cand[i-1];
 }
-async function saCrearProfesorUI(academiaId, aaMode){
-  const conPresu=await appConfirm('¿Este profesor sale de un presupuesto aceptado?\n\nAceptar = elegir el presupuesto\nCancelar = darlo de alta sin presupuesto');
+async function saCrearProfesorUI(academiaId, aaMode, sinPresu){
+  const conPresu = sinPresu ? false : await appConfirm('¿Este profesor sale de un presupuesto aceptado?\n\nAceptar = elegir el presupuesto\nCancelar = darlo de alta sin presupuesto');
   let presu=null;
   if(conPresu){
     presu=await saElegirPresupuesto(aaMode?null:academiaId);
@@ -12407,6 +12407,30 @@ function demoResponder(path, opts){
   }
   if(p.indexOf('/rest/v1/rpc/listar_registrados')===0)
     return demoRegistrados();
+  if(p.indexOf('/rest/v1/rpc/aa_temas_listar')===0){
+    const u=body.p_unidad||'';
+    const T={
+      'aula-demo-hist':[
+        {id:'dth1', unidad_id:u, titulo:'La crisis de 1898 y el Regeneracionismo', orden:1, apartados:[], profesor_id:'demo-prof-aa1', creado_en:_dFecha(30)},
+        {id:'dth2', unidad_id:u, titulo:'La Segunda República', orden:2, apartados:[], profesor_id:'demo-prof-aa1', creado_en:_dFecha(20)},
+        {id:'dth3', unidad_id:u, titulo:'La Guerra Civil española', orden:3, apartados:[], profesor_id:'demo-prof-aa1', creado_en:_dFecha(10)}
+      ],
+      'aula-demo-bio':[
+        {id:'dtb1', unidad_id:u, titulo:'La membrana y el transporte celular', orden:1, apartados:[], profesor_id:'demo-prof-aa1', creado_en:_dFecha(15)},
+        {id:'dtb2', unidad_id:u, titulo:'El núcleo y el material genético', orden:2, apartados:[], profesor_id:'demo-prof-aa1', creado_en:_dFecha(8)}
+      ]
+    };
+    return (T[u]||[]).map(x=>({...x}));
+  }
+  if(p.indexOf('/rest/v1/rpc/aa_asignaciones')===0){
+    return [
+      {user_id:'demo-lucia', unidad_id:'aula-demo-hist'},
+      {user_id:'demo-carla', unidad_id:'aula-demo-hist'},
+      {user_id:'demo-diego', unidad_id:'aula-demo-hist'},
+      {user_id:'demo-nerea', unidad_id:'aula-demo-bio'},
+      {user_id:'demo-hugo',  unidad_id:'aula-demo-bio'}
+    ];
+  }
   if(p.indexOf('/rest/v1/rpc/listar_invitaciones')===0) return [];
 
   // --- Premium demo: grupo, centro y facturación ---
