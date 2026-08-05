@@ -1472,3 +1472,52 @@ button[onclick^="calSel"]{ box-shadow:inset 2px 2px 5px rgba(70,95,125,.18), ins
 .aa-chips{ flex-wrap:wrap!important; overflow-x:visible!important; }
 .cert-top{ flex-wrap:wrap!important; }
 /* ═══════════════ fin bloque CLAY v11 ═══════════════ */
+
+/* ═══════════════ LOTE vp (agosto) — solo PC salvo textareas ═══════════════ */
+
+/* Ca1 · pastilla Salir: más pequeña, naranja en alzado con sombra (sidebar = solo PC) */
+@media(min-width:860px){
+  #sidebar .sb-salir{
+    padding:7px 18px!important; font-size:.8rem!important; border-radius:11px!important;
+    background:linear-gradient(135deg,var(--honey-2),var(--honey))!important; color:#fff!important;
+    border:1.5px solid var(--honey)!important;
+    box-shadow:0 5px 12px rgba(224,126,14,.42), inset 0 1px 2px rgba(255,255,255,.4)!important;
+  }
+  #sidebar .sb-salir:hover{ filter:brightness(1.05)!important; background:linear-gradient(135deg,var(--honey-2),var(--honey))!important; color:#fff!important; }
+  #sidebar .sb-salir:active{ box-shadow:inset 0 3px 7px rgba(120,60,0,.4)!important; transform:translateY(1px)!important; }
+}
+
+/* Ca2 · Avisos + Avisos internos en la misma línea (PC) */
+.av-row>#av-bar{ margin-bottom:8px; }
+@media(min-width:860px){
+  .av-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
+  .av-row>#av-bar,.av-row>#ai-bar{ min-width:0; margin-bottom:0; }
+}
+
+/* Ca8 · Clientes de Aula Abierta a 3 columnas (PC) */
+@media(min-width:860px){
+  .sa-grid-3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:start; }
+  .sa-grid-3>*{ margin-bottom:0!important; }
+}
+
+/* Ca9 · Nuevo presupuesto + Archivados en la misma línea (PC) */
+@media(min-width:860px){
+  .px-actions{ flex-wrap:nowrap!important; }
+  .px-actions .btn{ width:auto!important; }
+}
+
+/* Ca10 · Cajas de texto más altas por defecto (toda la app) */
+textarea{ min-height:84px; }
+#rs-txt{ min-height:340px; }
+#nq-enun,#nq-expl,#bq-enun,#bq-expl,.red-q-in{ min-height:120px; }
+
+/* Ca11 · Calendario: cápsula con la tarea dentro de cada día (PC); puntos en móvil */
+.cal-caps{ display:none; }
+@media(min-width:860px){
+  .cal-day{ aspect-ratio:auto!important; min-height:104px; justify-content:flex-start!important; align-items:stretch!important; padding:5px 5px 4px!important; }
+  .cal-day .cal-dnum{ align-self:flex-start; }
+  .cal-day .cal-dots{ display:none!important; }
+  .cal-caps{ display:flex; flex-direction:column; gap:2px; width:100%; margin-top:3px; }
+  .cal-cap{ font-size:.6rem; line-height:1.25; color:var(--navy); background:#f4f8fc; border-radius:4px; padding:1px 4px 1px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
+  .cal-cap-more{ color:var(--ink-soft); background:none; border-left:0!important; padding-left:2px; }
+}

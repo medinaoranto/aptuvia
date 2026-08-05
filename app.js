@@ -2944,8 +2944,13 @@ async function aiBorrar(id){
     aiPintarBarra();
   }catch(e){ appAlert('No se pudo borrar: '+(e.message||'')); }
 }
-function saShell(inner){
-  const ico=`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>`;
+function scInboxCardHtml(tile){
+  // tile=true => mismo tamaño/estilo que la pastilla "Academias y profesores".
+  if(tile) return `<button id="sc-inbox-card" class="fact-menu" style="margin:0"><b>💬 Chat con profesorado</b><span id="sc-inbox-badge"></span></button>`;
+  return `<button id="sc-inbox-card" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;margin:0 0 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem"><span>💬 Chat con profesorado</span><span id="sc-inbox-badge"></span></button>`;
+}
+function saShell(inner,opts){
+  opts=opts||{};
   const base=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#eaf6fd,#7fc3e8);color:var(--navy);box-shadow:0 4px 10px rgba(70,95,125,.25)`;
   const on=`font-size:.66rem;padding:9px 3px;border:1.5px solid var(--honey);background:linear-gradient(to right,#5aa9d6,#1d4f78);color:#fff;box-shadow:0 6px 13px rgba(30,60,100,.4), inset 0 1px 2px rgba(255,255,255,.3)`;
   const st=(t)=>saMainTab===t?on:base;
@@ -2956,9 +2961,8 @@ function saShell(inner){
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${st('rs')}" onclick="saSetMain('rs')">Comercial</button>
     </div>
-    ${window._avRaiz?`<div id="av-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
-    ${window._avRaiz?`<div id="ai-bar" style="margin:0 0 ${enSoporte?'8px':'12px'}"></div>`:''}
-    ${enSoporte?`<button id="sc-inbox-card" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;margin:0 0 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem"><span>💬 Chat con profesorado</span><span id="sc-inbox-badge"></span></button>`:''}
+    ${window._avRaiz?`<div class="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'}"><div id="av-bar"></div><div id="ai-bar"></div></div>`:''}
+    ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
     ${inner}`;
 }
 function scWireInbox(){
@@ -2988,9 +2992,9 @@ function saRenderLista(okMsg,errMsg){
     return;
   }
   if(saMainTab==='sop'){
-    h+=`<div class="sa-cards-grid"><button class="fact-menu" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores</b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button></div>`;
+    h+=`<div class="sa-cards-grid">${scInboxCardHtml(true)}<button class="fact-menu" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores</b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button></div>`;
     h+=docsBar('soporte');
-    $('teacher').innerHTML=saShell(h);
+    $('teacher').innerHTML=saShell(h,{noChat:true});
     return;
   }
   if(saMainTab==='acadprof'){
@@ -3124,7 +3128,7 @@ function saDetalle(msg){
     ${esAA?'':saPremiumCard(a)}
     ${esAA
       ? `<button id="sa-aa-users-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">👥 Usuarios<span style="font-weight:800;color:var(--ink-soft)">${profes.length}${uOpen?' ▴':' ▾'}</span></button>
-         <div id="sa-aa-users-list" class="${uOpen?'':'hidden'}">${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}</div>`
+         <div id="sa-aa-users-list" class="sa-cards-grid ${uOpen?'':'hidden'}">${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}</div>`
       : (profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>')}`;
   $('teacher').innerHTML=saShell(h);
   const g=(id)=>$(id);
@@ -4043,9 +4047,9 @@ function saRenderFacturacionLista(){
     let h='';
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
+    h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('aa')"><b>Facturar Aula Abierta</b><span>Emitir factura a los clientes de Aula Abierta</span></button>`;
-    h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('gastos')"><b>Gastos y balance</b><span>Facturas de proveedores, gastos previstos y evolución del negocio</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('conta')"><b>🧾 Contabilidad</b><span>Libros, IVA (303), IRPF (130) y resúmenes anuales (390, 347)</span></button>`;
     h+=`</div>`;
@@ -4077,7 +4081,7 @@ function saRenderFacturacionLista(){
   if(sub==='aa'){
     let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>
       <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 12px">🎨 Aula Abierta · clientes</h2>
-      <div id="fact-aa-lista"><p class="sa-empty" style="font-size:.82rem">Cargando…</p></div>`;
+      <div id="fact-aa-lista" class="sa-grid-3"><p class="sa-empty" style="font-size:.82rem">Cargando…</p></div>`;
     $('teacher').innerHTML=saShell(h);
     saCargarClientesAA();
     return;
@@ -4159,7 +4163,7 @@ function pxPintar(){
     <p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">${verArch?'Presupuestos retirados del escritorio. Se conservan enteros: puedes verlos, descargarlos y devolverlos.':'El presupuesto aceptado y firmado por el cliente <b>es el contrato</b>. Sin él, ante un impago no hay nada que reclamar.'}</p>`;
 
   const nArch=pxLista.filter(p=>p.archivado).length;
-  h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+  h+=`<div class="px-actions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     ${verArch?'':`<button class="btn btn-honey" onclick="pxNuevo()" style="flex:1;margin:0;min-width:150px">+ Nuevo presupuesto</button>`}
     <button class="btn btn-ghost" onclick="pxVerArchivados(${verArch?'false':'true'})" style="flex:${verArch?'1':'0 0 auto'};margin:0">${verArch?'← Volver a los activos':'🗄 Archivados'+(nArch?(' ('+nArch+')'):'')}</button>
   </div>`;
@@ -4189,6 +4193,7 @@ function pxPintar(){
   }
   if(!lista.length) return void($('teacher').innerHTML=saShell(h+`<p class="sa-empty">Ningún presupuesto en este estado.</p>`));
 
+  h+=`<div class="sa-cards-grid">`;
   lista.forEach(p=>{
     const est=pxEstadoReal(p), e=PX_ESTADOS[est]||PX_ESTADOS.borrador;
     const cli=(p.cliente&&p.cliente.razon_social)||'—';
@@ -4215,6 +4220,7 @@ function pxPintar(){
       </div>
     </div>`;
   });
+  h+=`</div>`;
   $('teacher').innerHTML=saShell(h);
 }
 
@@ -4312,7 +4318,6 @@ async function pxAbrir(id){
 }
 
 function pxLineHtml(tipo,i,l){
-  const tieneCl = !!(l.clausula && String(l.clausula).trim());
   const inc = !!l.incClausula;
   return `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
     <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center">
@@ -4321,10 +4326,10 @@ function pxLineHtml(tipo,i,l){
       <input data-pl="${tipo}-${i}-precio" type="number" step="0.01" value="${l.precio||0}" style="width:60px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:right" oninput="pxRecalc()">
       <input data-pl="${tipo}-${i}-cant" type="number" step="1" value="${l.cant||1}" style="width:46px;font-size:.82rem;padding:6px;border:1px solid var(--line);border-radius:8px;text-align:center" oninput="pxRecalc()">
     </div>
-    ${tieneCl?`<div style="margin-top:6px">
-      <button type="button" onclick="pxToggleClausula('${tipo}',${i})" style="font-size:.68rem;padding:3px 10px;border:1px dashed ${inc?'var(--honey)':'var(--line)'};border-radius:14px;background:${inc?'var(--honey-tint)':'#fff'};color:var(--navy);cursor:pointer;font-family:inherit;font-weight:${inc?'700':'400'}">${inc?'✓ Cláusula incluida':'+ Cláusula particular'}</button>
-      ${inc?`<div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px;line-height:1.45;font-style:italic;padding-left:2px">${escHtml(l.clausula)}</div>`:''}
-    </div>`:''}
+    <div style="margin-top:6px">
+      <button type="button" onclick="pxToggleClausula('${tipo}',${i})" style="font-size:.68rem;padding:3px 10px;border:1px dashed ${inc?'var(--honey)':'var(--line)'};border-radius:14px;background:${inc?'var(--honey-tint)':'#fff'};color:var(--navy);cursor:pointer;font-family:inherit;font-weight:${inc?'700':'400'}">${inc?'✓ Condición incluida':'+ Condición de esta partida'}</button>
+      ${inc?`<textarea data-pl="${tipo}-${i}-clausula" rows="2" placeholder="Condición de esta partida (sale en el PDF)" style="width:100%;margin-top:6px;font-size:.72rem;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-family:inherit;line-height:1.45;resize:vertical;box-sizing:border-box">${escHtml(l.clausula||'')}</textarea>`:''}
+    </div>
   </div>`;
 }
 
@@ -4425,9 +4430,11 @@ function pxLeerDOM(){
       const n=document.querySelector(`[data-pl="${t}-${i}-nombre"]`);
       const pr=document.querySelector(`[data-pl="${t}-${i}-precio"]`);
       const c=document.querySelector(`[data-pl="${t}-${i}-cant"]`);
+      const cl=document.querySelector(`[data-pl="${t}-${i}-clausula"]`);
       if(n) l.nombre=n.value;
       if(pr) l.precio=parseFloat(pr.value)||0;
       if(c) l.cant=parseFloat(c.value)||0;
+      if(cl) l.clausula=cl.value;
     });
   });
   document.querySelectorAll('[data-px]').forEach(e=>{
@@ -5378,6 +5385,7 @@ function gxTabPrev(){
 function gxTabProvs(){
   let h=`<button class="btn btn-honey" onclick="gxProvNuevo()" style="margin-bottom:12px">+ Nuevo proveedor</button>`;
   if(!gxProvs.length) return h+`<p class="sa-empty">Sin proveedores todavía.</p>`;
+  h+=`<div class="sa-cards-grid">`;
   gxProvs.forEach(p=>{
     const n=gxGastos.filter(g=>String(g.proveedor_id)===String(p.id));
     const tot=n.reduce((t,g)=>t+Number(g.importe||0),0);
@@ -5388,6 +5396,7 @@ function gxTabProvs(){
         <button class="gx-mini del" onclick="gxProvBorrar('${p.id}')">🗑</button>
       </div></div>`;
   });
+  h+=`</div>`;
   return h;
 }
 
@@ -6877,7 +6886,8 @@ function calRender(){
     const iso=fechaISOLocal(new Date(y,m,d)), es=byDate[iso]||[];
     const selc=iso===sel, esHoy=iso===hoy;
     const dots=es.slice(0,4).map((e,i)=>'<span style="width:5px;height:5px;border-radius:50%;background:'+CAL_COLORS[i%CAL_COLORS.length]+';opacity:'+(e.hecho?'.35':'1')+'"></span>').join('');
-    h.push('<button onclick="calSel(\''+iso+'\')" style="aspect-ratio:1;border:1.5px solid '+(selc?'var(--honey)':(esHoy?'var(--navy)':'var(--line)'))+';border-radius:10px;background:'+(selc?'var(--honey-tint)':'#fff')+';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;padding:0"><span style="font-size:.82rem;font-weight:700;color:var(--navy)">'+d+'</span>'+(es.length?'<div style="display:flex;gap:2px;margin-top:2px;justify-content:center">'+dots+'</div>':'')+'</button>');
+    const caps=es.slice(0,3).map((e,ci)=>'<span class="cal-cap" style="border-left:3px solid '+CAL_COLORS[ci%CAL_COLORS.length]+';'+(e.hecho?'opacity:.5;text-decoration:line-through;':'')+'">'+escHtml(e.titulo)+'</span>').join('')+(es.length>3?'<span class="cal-cap cal-cap-more">+'+(es.length-3)+' más</span>':'');
+    h.push('<button onclick="calSel(\''+iso+'\')" class="cal-day" style="aspect-ratio:1;border:1.5px solid '+(selc?'var(--honey)':(esHoy?'var(--navy)':'var(--line)'))+';border-radius:10px;background:'+(selc?'var(--honey-tint)':'#fff')+';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font:inherit;padding:0;overflow:hidden"><span class="cal-dnum" style="font-size:.82rem;font-weight:700;color:var(--navy)">'+d+'</span>'+(es.length?'<div class="cal-dots" style="display:flex;gap:2px;margin-top:2px;justify-content:center">'+dots+'</div><div class="cal-caps">'+caps+'</div>':'')+'</button>');
   }
   h.push('</div>');
   h.push('<div class="t-card" style="margin-top:14px"><b style="font-size:.85rem;color:var(--navy);text-transform:capitalize">'+calFechaLarga(sel)+'</b>');
