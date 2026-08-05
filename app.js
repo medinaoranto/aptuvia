@@ -6527,6 +6527,8 @@ function pintarTeacher(){
         <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Chats</span><span class="ts">Con soporte y con tus alumnos</span><span id="t-soporte-badge"></span></button>
       <button class="t-tile" onclick="openPassword()">
         <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
+      <button class="t-tile" onclick="openReportes()">
+        <span class="ic" style="background:var(--honey-tint)">⚠️</span><span class="tt">Reportes</span><span class="ts">Preguntas que reporta el alumnado</span><span id="t-reportes-badge"></span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
@@ -6542,6 +6544,7 @@ function pintarTeacher(){
     call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0),
     call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0)
   ]).then(function(r){ const n=(+r[0]||0)+(+r[1]||0); const el=$('t-soporte-badge'); if(el && n>0){ el.className='tile-badge'; el.textContent=String(n); } }); }
+  if(!window._demoMode){ call('/rest/v1/rpc/reportes_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('t-reportes-badge'); if(el && +n>0){ el.className='tile-badge'; el.textContent=String(n); } }).catch(()=>{}); }
   if(!window._demoMode){ Promise.all([
     call('/rest/v1/rpc/prof_avisos_listar',{method:'POST',body:{}}).catch(()=>[]),
     call('/rest/v1/rpc/cal_prof_listar',{method:'POST',body:{p_desde:fechaISOLocal(new Date()),p_hasta:fechaISOLocal(new Date())}}).catch(()=>[])
@@ -6564,6 +6567,34 @@ async function renombrarMateria(unitId){
     u.titulo=guardado;
     openUnit(unitId);
   }catch(err){ appAlert('No se pudo cambiar el nombre: '+(err.message||'')); }
+}
+async function openReportes(okMsg){
+  window._teacherScreen='reportes'; showView('teacher'); window.scrollTo(0,0);
+  let list=[];
+  if(!window._demoMode){ try{ list=await call('/rest/v1/rpc/reportes_prof_listar',{method:'POST',body:{}})||[]; }catch(e){} }
+  const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">⚠️ Reportes de preguntas</h1>');
+  if(okMsg) h.push('<div class="t-note ok">'+escHtml(okMsg)+'</div>');
+  h.push('<div class="t-card" style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px"><b>Cómo proceder:</b> si la pregunta es de un examen tuyo, corrígela en «Crear y gestionar exámenes» → editar el examen. Si es una pregunta del <b>banco general</b> (viene ya montada en el certificado), avísale a soporte por el chat indicando el examen y el número de pregunta.</div>');
+  if(!list.length){ h.push('<p class="sa-empty">No hay reportes pendientes.</p>'); }
+  else list.forEach(r=>{
+    const f=new Date(r.creado_en); const fecha=f.toLocaleDateString('es-ES')+' '+f.toTimeString().slice(0,5);
+    h.push('<div class="t-card"><b style="color:var(--navy)">Pregunta '+(r.pregunta_num||'?')+' · '+escHtml(r.examen_titulo||r.examen_id)+'</b><div style="font-size:.78rem;color:var(--ink-soft);margin:2px 0 6px">Reportada por '+escHtml(r.alumno_nombre||'alumno')+' · '+fecha+'</div>'+(r.motivo?'<div style="font-size:.85rem;margin-bottom:8px">«'+escHtml(r.motivo)+'»</div>':'')+'<button class="btn btn-ghost" onclick="resolverReporte(\''+r.id+'\')">✓ Marcar resuelto</button></div>');
+  });
+  $('teacher').innerHTML=h.join('');
+}
+async function resolverReporte(id){
+  try{ await call('/rest/v1/rpc/reportes_prof_resolver',{method:'POST',body:{p_id:id}}); openReportes('Reporte marcado como resuelto.'); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+async function reportarPreguntaUI(examen, num, pregId){
+  if(window._demoMode){ appAlert('Demo: aquí se enviaría el reporte al profesor.'); return; }
+  const motivo=await appPrompt('¿Qué falla en esta pregunta? (errónea, mal redactada, respuesta incorrecta…)','');
+  if(motivo===null) return;
+  try{
+    await call('/rest/v1/rpc/reportar_pregunta',{method:'POST',body:{p_examen:examen,p_num:num,p_pregunta_id:(pregId&&pregId!=='null'?pregId:null),p_motivo:motivo}});
+    appAlert('✅ Gracias. El profesor recibirá tu reporte de la pregunta '+num+'.');
+  }catch(e){ appAlert('No se pudo enviar el reporte: '+(e.message||'')); }
 }
 async function editarMateriaUI(unitId){
   const u=unidadesById[unitId]; if(!u) return;
@@ -6817,7 +6848,7 @@ async function calCargar(){
   try{
     if(window._demoMode) rows=calDemo();
     else if(window._cal.mode==='prof') rows=await call('/rest/v1/rpc/cal_prof_listar',{method:'POST',body:{p_desde:desde,p_hasta:hasta}})||[];
-    else if(window._cal.mode==='alum') rows=await call('/rest/v1/rpc/cal_alum_listar',{method:'POST',body:{p_desde:desde,p_hasta:hasta}})||[];
+    else if(window._cal.mode==='alum'){ const prof=await call('/rest/v1/rpc/cal_alum_listar',{method:'POST',body:{p_desde:desde,p_hasta:hasta}})||[]; let mias=[]; try{ mias=await call('/rest/v1/rpc/cal_alum_mias',{method:'POST',body:{p_desde:desde,p_hasta:hasta}})||[]; }catch(e){} rows=prof.map(e=>({...e,_mia:false})).concat(mias.map(e=>({...e,_mia:true}))); }
     else rows=await call('/rest/v1/rpc/cal_adm_listar',{method:'POST',body:{p_area:window._cal.area,p_desde:desde,p_hasta:hasta}})||[];
   }catch(e){ rows=[]; }
   window._cal.entries=rows; calRender();
@@ -6828,6 +6859,7 @@ function calAdmSetArea(a){ window._cal.area=a; calCargar(); }
 function calRender(){
   const mode=window._cal.mode, ref=window._cal.ref, entries=window._cal.entries, sel=window._cal.sel;
   const editable=(mode!=='alum') && !window._demoMode;
+  const puedeAnadir=!window._demoMode;
   const back = mode==='alum'?'renderHome()':(mode==='adm'?'openSuperadmin()':'pintarTeacher()');
   const byDate={}; (entries||[]).forEach(e=>{ (byDate[e.fecha]=byDate[e.fecha]||[]).push(e); });
   const y=ref.getFullYear(), m=ref.getMonth();
@@ -6852,15 +6884,17 @@ function calRender(){
   const del=byDate[sel]||[];
   if(!del.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);margin:8px 0 0">Sin anotaciones.</p>');
   else del.forEach(e=>{
-    h.push('<div style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)"><div style="flex:1"><div style="font-size:.9rem;color:var(--navy);'+(e.hecho?'text-decoration:line-through;opacity:.55':'')+'">'+escHtml(e.titulo)+'</div>'+(e.nota?'<div style="font-size:.76rem;color:var(--ink-soft);'+(e.hecho?'text-decoration:line-through':'')+'">'+escHtml(e.nota)+'</div>':'')+'</div>'+(editable?'<button onclick="calHecho(\''+e.id+'\','+(e.hecho?'false':'true')+')" style="background:none;border:none;cursor:pointer;font-size:1.05rem">'+(e.hecho?'☑️':'⬜')+'</button><button onclick="calBorrar(\''+e.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem">🗑</button>':'')+'</div>');
+    h.push('<div style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)"><div style="flex:1"><div style="font-size:.9rem;color:var(--navy);'+(e.hecho?'text-decoration:line-through;opacity:.55':'')+'">'+(e._mia?'🙋 ':'')+escHtml(e.titulo)+'</div>'+(e.nota?'<div style="font-size:.76rem;color:var(--ink-soft);'+(e.hecho?'text-decoration:line-through':'')+'">'+escHtml(e.nota)+'</div>':'')+'</div>'+(editable?'<button onclick="calHecho(\''+e.id+'\','+(e.hecho?'false':'true')+')" style="background:none;border:none;cursor:pointer;font-size:1.05rem">'+(e.hecho?'☑️':'⬜')+'</button><button onclick="calBorrar(\''+e.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem">🗑</button>':(e._mia?'<button onclick="calBorrar(\''+e.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem">🗑</button>':''))+'</div>');
   });
-  if(editable){
+  if(editable || (mode==='alum' && puedeAnadir)){
     let selAula='';
-    if(window._activeCertId==='__aula_abierta'){
+    if(editable && window._activeCertId==='__aula_abierta'){
       const mats=(typeof aaMisMaterias==='function'?aaMisMaterias():[])||[];
       if(mats.length) selAula='<select id="cal-unidad" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem"><option value="">📅 Todas mis aulas</option>'+mats.map(u=>'<option value="'+escAttr(u.id)+'">'+escHtml(tituloMateria(u)||u.codigo||u.id)+'</option>').join('')+'</select>';
     }
-    h.push('<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><input id="cal-tit" type="text" placeholder="Título (ej.: Examen Tema 3)" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem"><input id="cal-nota" type="text" placeholder="Nota (opcional)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem">'+selAula+'<button class="btn btn-honey" id="cal-add" style="margin-top:8px">Añadir al '+calFechaCorta(sel)+'</button></div>');
+    const ph = mode==='alum' ? 'Mi tarea (ej.: estudiar Tema 3)' : 'Título (ej.: Examen Tema 3)';
+    if(mode==='alum') h.push('<p style="font-size:.72rem;color:var(--ink-soft);margin:12px 2px 2px">🙋 Tus notas son privadas: solo las ves tú.</p>');
+    h.push('<div style="margin-top:'+(mode==='alum'?'2px':'12px')+';border-top:1px solid var(--line);padding-top:10px"><input id="cal-tit" type="text" placeholder="'+ph+'" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem"><input id="cal-nota" type="text" placeholder="Nota (opcional)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem">'+selAula+'<button class="btn btn-honey" id="cal-add" style="margin-top:8px">Añadir al '+calFechaCorta(sel)+'</button></div>');
   }
   h.push('</div>');
   if(window._demoMode) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Calendario de demostración.</p>');
@@ -6873,6 +6907,7 @@ async function calAdd(){
   const b=$('cal-add'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
   try{
     if(window._cal.mode==='adm') await call('/rest/v1/rpc/cal_adm_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_area:window._cal.area}});
+    else if(window._cal.mode==='alum') await call('/rest/v1/rpc/cal_alum_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null}});
     else await call('/rest/v1/rpc/cal_prof_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_unidad:($('cal-unidad')&&$('cal-unidad').value)||null}});
     await calCargar();
   }catch(e){ if(b){ b.disabled=false; b.textContent='Añadir'; } appAlert('No se pudo: '+(e.message||'')); }
@@ -6883,7 +6918,7 @@ async function calHecho(id, v){
 }
 async function calBorrar(id){
   if(!await appConfirm('¿Borrar esta anotación?')) return;
-  try{ await call('/rest/v1/rpc/'+(window._cal.mode==='adm'?'cal_adm_borrar':'cal_prof_borrar'),{method:'POST',body:{p_id:id}}); await calCargar(); }
+  try{ const fn = window._cal.mode==='adm'?'cal_adm_borrar':(window._cal.mode==='alum'?'cal_alum_borrar':'cal_prof_borrar'); await call('/rest/v1/rpc/'+fn,{method:'POST',body:{p_id:id}}); await calCargar(); }
   catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 // ===== fin calendario =====
@@ -7078,14 +7113,15 @@ async function avAlBorrar(id){
 }
 async function openAvAlumBell(){
   showView('home'); window.scrollTo(0,0);
-  if(window._demoMode){ avAlBellRender([{id:'d',texto:'¡Buenos días! Hoy toca repasar el Tema 3.',personal:false,creado_en:new Date().toISOString()}],true); return; }
+  if(window._demoMode){ avAlBellRender([{id:'d',texto:'¡Buenos días! Hoy toca repasar el Tema 3.',personal:false,creado_en:new Date().toISOString()}],true,[]); return; }
   $('home').innerHTML='<button class="backbtn" onclick="renderHome()">← Volver</button><div class="loader"><span class="spin"></span></div>';
-  let lista=[];
+  let lista=[], mis=[];
   try{ lista=await call('/rest/v1/rpc/av_al_alum_listar',{method:'POST',body:{}})||[]; }catch(e){}
+  try{ mis=await call('/rest/v1/rpc/alum_avisos_listar',{method:'POST',body:{}})||[]; }catch(e){}
   try{ await call('/rest/v1/rpc/av_al_alum_marcar',{method:'POST',body:{}}); }catch(e){}
-  avAlBellRender(lista,false);
+  avAlBellRender(lista,false,mis);
 }
-function avAlBellRender(lista, demo){
+function avAlBellRender(lista, demo, mis){
   const h=['<button class="backbtn" onclick="renderHome()">← Volver</button>'];
   h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 12px">🔔 Avisos de tu profesor</h1>');
   if(!(lista||[]).length) h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:14px 0">No tienes avisos.</p>');
@@ -7093,9 +7129,48 @@ function avAlBellRender(lista, demo){
     let f=''; try{ f=new Date(m.creado_en).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'}); }catch(e){}
     h.push('<div class="t-card" style="padding:11px 13px"><div style="font-size:.92rem;color:var(--navy)">'+escHtml(m.texto)+'</div><div style="font-size:.7rem;color:var(--ink-soft);margin-top:3px">'+(m.personal?'Para ti':'Para la clase')+' · '+f+'</div></div>');
   });
+  h.push('<h2 style="font-size:.95rem;font-weight:800;color:var(--navy);margin:20px 0 4px">🙋 Mis recordatorios</h2>');
+  h.push('<p style="font-size:.76rem;color:var(--ink-soft);margin-bottom:8px">Privados: solo los ves tú.</p>');
+  if(!demo){
+    h.push('<div class="t-card"><textarea id="alum-av-txt" rows="2" placeholder="Ej.: Repasar Tema 3 esta tarde" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem;font-family:inherit;resize:vertical"></textarea><button class="btn btn-honey" id="alum-av-add" style="margin-top:8px">Añadir recordatorio</button></div>');
+    (mis||[]).forEach(a=>{
+      h.push('<div class="t-card" style="padding:11px 13px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-size:.9rem;color:var(--navy);flex:1">'+escHtml(a.texto)+'</div><button onclick="alumAvisoBorrar(\''+a.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.95rem">🗑</button></div>');
+    });
+  } else {
+    h.push('<p style="font-size:.8rem;color:var(--ink-soft)">En la app real puedes anotar aquí tus propios recordatorios.</p>');
+  }
   $('home').innerHTML=h.join('');
+  const ab=$('alum-av-add'); if(ab) ab.onclick=alumAvisoAdd;
+}
+async function alumAvisoAdd(){
+  const t=$('alum-av-txt'); const txt=(t&&t.value||'').trim(); if(!txt){ appAlert('Escribe el recordatorio.'); return; }
+  const b=$('alum-av-add'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{ await call('/rest/v1/rpc/alum_aviso_crear',{method:'POST',body:{p_texto:txt}}); await openAvAlumBell(); }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Añadir recordatorio'; } appAlert('No se pudo: '+(e.message||'')); }
+}
+async function alumAvisoBorrar(id){
+  if(!await appConfirm('¿Quitar este recordatorio?')) return;
+  try{ await call('/rest/v1/rpc/alum_aviso_borrar',{method:'POST',body:{p_id:id}}); await openAvAlumBell(); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 // ===== fin campanitas del alumno =====
+async function subirAdjuntoChat(file){
+  if(!file) return null;
+  const okType=(file.type==='application/pdf')||/^image\//.test(file.type||'')||/\.(pdf|png|jpe?g|webp|gif)$/i.test(file.name||'');
+  if(!okType) throw new Error('Solo PDF o imagen.');
+  if(file.size>10*1024*1024) throw new Error('Máximo 10 MB.');
+  const safe=(file.name||'archivo').replace(/[^a-zA-Z0-9._-]/g,'_').slice(-40);
+  const path=_authUid()+'/'+Date.now()+'_'+safe;
+  const up=await fetch(SUPABASE_URL+'/storage/v1/object/chat-adjuntos/'+encodeURI(path),{ method:'POST', headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+token, 'Content-Type':file.type||'application/octet-stream' }, body:file });
+  if(!up.ok){ const t=await up.text().catch(()=>''); throw new Error('Subida: '+(t||up.status)); }
+  return SUPABASE_URL+'/storage/v1/object/public/chat-adjuntos/'+encodeURI(path);
+}
+function scAdjuntoHtml(url, nombre){
+  if(!url) return '';
+  const esImg=/\.(png|jpe?g|webp|gif)$/i.test(nombre||url);
+  if(esImg) return '<a href="'+escAttr(url)+'" target="_blank" rel="noopener" style="display:block;margin-top:6px"><img src="'+escAttr(url)+'" alt="adjunto" style="max-width:100%;border-radius:8px;border:1px solid var(--line)"></a>';
+  return '<a href="'+escAttr(url)+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:.82rem;color:var(--honey-deep);font-weight:700">📎 '+escHtml(nombre||'Ver adjunto')+'</a>';
+}
 function scBurbuja(m, yoSoy){
   yoSoy = yoSoy || 'profesor';
   const mine = m.de===yoSoy;
@@ -7107,6 +7182,7 @@ function scBurbuja(m, yoSoy){
   return `<div style="max-width:82%;${est};border-radius:12px;padding:8px 11px;margin:4px 0">
     <div style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:2px">${quien} · ${fecha}</div>
     <div style="font-size:.88rem;line-height:1.5;color:var(--navy);white-space:pre-wrap">${escHtml(m.texto||'')}</div>
+    ${m.adjunto_url?scAdjuntoHtml(m.adjunto_url,m.adjunto_nombre):''}
   </div>`;
 }
 function scScrollBottom(){ const c=$('sc-hilo'); if(c) c.scrollTop=c.scrollHeight; }
@@ -7128,6 +7204,7 @@ function scRenderProfe(allMsgs, est, verArch){
     if(!demo) h.push('<button class="btn btn-honey" id="sc-desarch" style="margin-top:4px">↩ Desarchivar y volver al chat</button>');
   }else{
     h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+    if(!demo) h.push('<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label class="btn btn-ghost" style="margin:0;cursor:pointer;flex:0 0 auto">📎 Adjuntar<input type="file" id="sc-file" accept="application/pdf,image/*" style="display:none"></label><span id="sc-file-name" style="font-size:.78rem;color:var(--ink-soft)"></span></div>');
     h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar mensaje</button>');
     if(!demo){
       h.push('<div style="display:flex;gap:8px;margin-top:8px">');
@@ -7141,6 +7218,7 @@ function scRenderProfe(allMsgs, est, verArch){
   if(verArch){ const d=$('sc-desarch'); if(d) d.onclick=async()=>{ try{ await chatDesarchivar('sop',_authUid()); openChatSoporte(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } }; }
   else{
     const b=$('sc-send'); if(b) b.onclick=scProfEnviar;
+    const fi=$('sc-file'); if(fi) fi.onchange=()=>{ const n=$('sc-file-name'); if(n) n.textContent=(fi.files&&fi.files[0])?('📎 '+fi.files[0].name):''; };
     const a=$('sc-arch'); if(a) a.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await chatArchivar('sop',_authUid()); openChatSoporte(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } };
     const bo=$('sc-borr'); if(bo) bo.onclick=async()=>{ if(!await appConfirm('¿Borrar esta conversación de tu vista? El soporte conserva su copia.')) return; try{ await chatBorrar('sop',_authUid()); openChatSoporte(); }catch(e){ appAlert('No se pudo: '+(e.message||'')); } };
     const v=$('sc-verarch'); if(v) v.onclick=()=>openChatSoporte(true);
@@ -7181,10 +7259,13 @@ async function openChatSoporte(verArch){
 }
 async function scProfEnviar(){
   const t=$('sc-txt'); const txt=(t&&t.value||'').trim();
-  if(!txt){ return; }
+  const fi=$('sc-file'); const file=fi&&fi.files&&fi.files[0];
+  if(!txt && !file){ return; }
   const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
   try{
-    await call('/rest/v1/rpc/sc_prof_enviar',{method:'POST',body:{p_texto:txt}});
+    let url=null, nombre=null;
+    if(file){ url=await subirAdjuntoChat(file); nombre=file.name; }
+    await call('/rest/v1/rpc/sc_prof_enviar',{method:'POST',body:{p_texto:txt,p_adjunto_url:url,p_adjunto_nombre:nombre}});
     await openChatSoporte();
   }catch(e){ if(b){ b.disabled=false; b.textContent='Enviar mensaje'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
@@ -7232,6 +7313,7 @@ async function scAdminHilo(pid, nombre, verArch){
   else shown.forEach(m=>h.push(scBurbuja(m,'soporte')));
   h.push('</div>');
   h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu respuesta…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+  if(!verArch) h.push('<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label class="btn btn-ghost" style="margin:0;cursor:pointer;flex:0 0 auto">📎 Adjuntar<input type="file" id="sc-file" accept="application/pdf,image/*" style="display:none"></label><span id="sc-file-name" style="font-size:.78rem;color:var(--ink-soft)"></span></div>');
   h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Responder</button>');
   if(verArch){
     h.push('<button class="btn btn-honey" id="sc-desarch" style="margin-top:8px">↩ Desarchivar</button>');
@@ -7244,6 +7326,7 @@ async function scAdminHilo(pid, nombre, verArch){
   }
   $('teacher').innerHTML=h.join('');
   const b=$('sc-send'); if(b) b.onclick=()=>scSopResponder(pid, nombre, verArch);
+  const fi=$('sc-file'); if(fi) fi.onchange=()=>{ const n=$('sc-file-name'); if(n) n.textContent=(fi.files&&fi.files[0])?('📎 '+fi.files[0].name):''; };
   const bd=$('sc-del'); if(bd) bd.onclick=()=>scSopBorrar(pid, nombre);
   const ba=$('sc-arch'); if(ba) ba.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación en tu bandeja? Podrás verla en Archivados.')) return; try{ await chatArchivar('sop',pid); scAdminInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
   const bde=$('sc-desarch'); if(bde) bde.onclick=async()=>{ try{ await chatDesarchivar('sop',pid); scAdminInbox(); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
@@ -7256,9 +7339,15 @@ async function scSopBorrar(pid, nombre){
   catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function scSopResponder(pid, nombre){
-  const t=$('sc-txt'); const txt=(t&&t.value||'').trim(); if(!txt) return;
+  const t=$('sc-txt'); const txt=(t&&t.value||'').trim();
+  const fi=$('sc-file'); const file=fi&&fi.files&&fi.files[0];
+  if(!txt && !file) return;
   const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
-  try{ await call('/rest/v1/rpc/sc_sop_responder',{method:'POST',body:{p_profesor:pid,p_texto:txt}}); await scAdminHilo(pid,nombre); }
+  try{
+    let url=null, nombre2=null;
+    if(file){ url=await subirAdjuntoChat(file); nombre2=file.name; }
+    await call('/rest/v1/rpc/sc_sop_responder',{method:'POST',body:{p_profesor:pid,p_texto:txt,p_adjunto_url:url,p_adjunto_nombre:nombre2}}); await scAdminHilo(pid,nombre);
+  }
   catch(e){ if(b){ b.disabled=false; b.textContent='Responder'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
 
@@ -11537,7 +11626,8 @@ function renderResult(r){
     }
   }
   (r.detalle||[]).forEach((q,i)=>{
-    html+=`<div class="qcard"><div class="qnum">Pregunta ${i+1}</div><div class="qtext">${q.enunciado}</div>`;
+    const repBtn = (!window._demoMode && current.exam && current.exam.id) ? `<button class="rep-btn" onclick="reportarPreguntaUI('${escAttr(current.exam.id)}',${i+1},${q.pregunta_id||'null'})" title="Reportar esta pregunta (errónea, mal redactada…)" style="float:right;background:#fff3e0;border:1px solid var(--honey);color:var(--honey-deep);border-radius:8px;padding:2px 7px;font-size:.62rem;cursor:pointer;font-family:inherit;font-weight:700">⚠️ Reportar</button>` : '';
+    html+=`<div class="qcard"><div class="qnum">Pregunta ${i+1}${repBtn}</div><div class="qtext">${q.enunciado}</div>`;
     const ordR=current.optOrder[q.pregunta_id]||(q.opciones||[]).map((_,k)=>k);
     ordR.forEach((oi,pos)=>{
       let cls='opt';
