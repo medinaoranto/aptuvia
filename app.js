@@ -1525,7 +1525,7 @@ function renderModulosCardsHtml(conBorrar){
     const esMateriaAA = conBorrar && String(m.id).indexOf('mod-aula-')===0 && m.unidades && m.unidades.length;
     const uidMat = esMateriaAA ? m.unidades[0] : '';
     const wrapIni = esMateriaAA ? '<div class="mat-wrap" style="position:relative">' : '';
-    const wrapFin = esMateriaAA ? `<button class="mat-del" data-delmat="${escAttr(uidMat)}" data-mattit="${escAttr(m.title)}" title="Borrar materia" style="position:absolute;top:10px;right:10px;z-index:3;background:#fdeaea;border:1.5px solid #f3c4c4;border-radius:10px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1">🗑</button></div>` : '';
+    const wrapFin = esMateriaAA ? `<button class="mat-edit" data-editmat="${escAttr(uidMat)}" title="Editar datos de la materia" style="position:absolute;top:14px;right:58px;z-index:3;background:#eef4fa;border:1.5px solid var(--paper-edge);border-radius:10px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1">✏️</button><button class="mat-del" data-delmat="${escAttr(uidMat)}" data-mattit="${escAttr(m.title)}" title="Borrar materia" style="position:absolute;top:10px;right:10px;z-index:3;background:#fdeaea;border:1.5px solid #f3c4c4;border-radius:10px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1">🗑</button></div>` : '';
     html+=wrapIni;
     if(m.locked){
       // Módulo en preparación — navegable: se puede entrar a ver sus UF
@@ -6565,6 +6565,23 @@ async function renombrarMateria(unitId){
     openUnit(unitId);
   }catch(err){ appAlert('No se pudo cambiar el nombre: '+(err.message||'')); }
 }
+async function editarMateriaUI(unitId){
+  const u=unidadesById[unitId]; if(!u) return;
+  const pm=partesMateria(u.titulo||'');
+  const nuevoNom=await appPrompt('Nombre de la materia:', pm.nombre||'');
+  if(nuevoNom===null) return;
+  const nom=nuevoNom.trim().slice(0,80);
+  if(!nom){ appAlert('El nombre no puede quedar vacío.'); return; }
+  const nuevaEt=await appPrompt('Etiqueta corta (distintivo, ej.: HISTORIA). Déjalo vacío para quitarla:', pm.etiqueta||'');
+  if(nuevaEt===null) return;
+  const et=nuevaEt.trim().slice(0,24);
+  const guardado = et ? (et+'|'+nom) : nom;
+  try{
+    await call('/rest/v1/rpc/aa_renombrar_materia',{method:'POST',body:impProf({p_unidad_id:unitId, p_titulo:guardado})});
+    u.titulo=guardado;
+    openModulosTeacher('Materia actualizada.');
+  }catch(err){ appAlert('No se pudo actualizar: '+(err.message||'')); }
+}
 async function editarNombreAula(){
   const actual=(window._aulaNombre||'').trim();
   const nuevo=await appPrompt('Texto de la cabecera (ej.: "Historia", "Mis asignaturas"). Déjalo vacío para volver a "Materias propias":', actual);
@@ -6615,6 +6632,7 @@ function openModulosTeacher(okMsg, errMsg){
   $('teacher').innerHTML=html;
   document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
   document.querySelectorAll('[data-delmat]').forEach(b=> b.onclick=(ev)=>{ ev.stopPropagation(); borrarMateriaUI(b.dataset.delmat, b.dataset.mattit); });
+  document.querySelectorAll('[data-editmat]').forEach(b=> b.onclick=(ev)=>{ ev.stopPropagation(); editarMateriaUI(b.dataset.editmat); });
   if(esAula){
     if(window._nuevaMateriaOpen){
       $('nm-crear').onclick=crearMateriaUI;
@@ -6836,7 +6854,14 @@ function calRender(){
   else del.forEach(e=>{
     h.push('<div style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)"><div style="flex:1"><div style="font-size:.9rem;color:var(--navy);'+(e.hecho?'text-decoration:line-through;opacity:.55':'')+'">'+escHtml(e.titulo)+'</div>'+(e.nota?'<div style="font-size:.76rem;color:var(--ink-soft);'+(e.hecho?'text-decoration:line-through':'')+'">'+escHtml(e.nota)+'</div>':'')+'</div>'+(editable?'<button onclick="calHecho(\''+e.id+'\','+(e.hecho?'false':'true')+')" style="background:none;border:none;cursor:pointer;font-size:1.05rem">'+(e.hecho?'☑️':'⬜')+'</button><button onclick="calBorrar(\''+e.id+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem">🗑</button>':'')+'</div>');
   });
-  if(editable) h.push('<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><input id="cal-tit" type="text" placeholder="Título (ej.: Examen Tema 3)" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem"><input id="cal-nota" type="text" placeholder="Nota (opcional)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem"><button class="btn btn-honey" id="cal-add" style="margin-top:8px">Añadir al '+calFechaCorta(sel)+'</button></div>');
+  if(editable){
+    let selAula='';
+    if(window._activeCertId==='__aula_abierta'){
+      const mats=(typeof aaMisMaterias==='function'?aaMisMaterias():[])||[];
+      if(mats.length) selAula='<select id="cal-unidad" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem"><option value="">📅 Todas mis aulas</option>'+mats.map(u=>'<option value="'+escAttr(u.id)+'">'+escHtml(tituloMateria(u)||u.codigo||u.id)+'</option>').join('')+'</select>';
+    }
+    h.push('<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><input id="cal-tit" type="text" placeholder="Título (ej.: Examen Tema 3)" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem"><input id="cal-nota" type="text" placeholder="Nota (opcional)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem">'+selAula+'<button class="btn btn-honey" id="cal-add" style="margin-top:8px">Añadir al '+calFechaCorta(sel)+'</button></div>');
+  }
   h.push('</div>');
   if(window._demoMode) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Calendario de demostración.</p>');
   $(calCont()).innerHTML=h.join('');
@@ -6848,7 +6873,7 @@ async function calAdd(){
   const b=$('cal-add'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
   try{
     if(window._cal.mode==='adm') await call('/rest/v1/rpc/cal_adm_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_area:window._cal.area}});
-    else await call('/rest/v1/rpc/cal_prof_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null}});
+    else await call('/rest/v1/rpc/cal_prof_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_unidad:($('cal-unidad')&&$('cal-unidad').value)||null}});
     await calCargar();
   }catch(e){ if(b){ b.disabled=false; b.textContent='Añadir'; } appAlert('No se pudo: '+(e.message||'')); }
 }
@@ -7009,16 +7034,20 @@ async function openAvAlumnado(okMsg){
   if(window._demoMode){ avAlRender([{id:'x',alumno_id:null,nombre:'Toda la clase',texto:'¡Buenos días! Hoy toca repasar el Tema 3.',activo:true,creado_en:new Date().toISOString()}],[{id:'a1',nombre:'Adriana'}],okMsg,true); return; }
   $('teacher').innerHTML='<button class="backbtn" onclick="caProfInbox()">← Volver</button><div class="loader"><span class="spin"></span></div>';
   let lista=[], alumnos=[];
-  try{ alumnos=await call('/rest/v1/rpc/av_al_alumnos',{method:'POST',body:{}})||[]; }catch(e){}
+  try{ alumnos=await call('/rest/v1/rpc/av_al_alumnos_aula',{method:'POST',body:{}})||[]; }catch(e){}
   try{ lista=await call('/rest/v1/rpc/av_al_prof_listar',{method:'POST',body:{}})||[]; }catch(e){}
   avAlRender(lista, alumnos, okMsg, false);
 }
 function avAlRender(lista, alumnos, okMsg, demo){
   const h=['<button class="backbtn" onclick="caProfInbox()">← Volver</button>'];
   h.push('<h1 style="font-size:1.2rem;font-weight:800;color:var(--navy);margin:6px 0 4px">🔔 Avisos al alumnado</h1>');
-  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Le aparecen al alumno en su campanita. A un alumno concreto o a toda la clase.</p>');
+  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Le aparecen al alumno en su campanita. A un alumno concreto o a toda un aula. Cada aula solo ve sus propios avisos.</p>');
   if(okMsg) h.push('<div class="t-note ok">'+escHtml(okMsg)+'</div>');
-  h.push('<div class="t-card"><label>Para</label><select id="avl-dest"'+(demo?' disabled':'')+'><option value="">Toda la clase</option>'+(alumnos||[]).map(a=>'<option value="'+escAttr(a.id)+'">'+escHtml(a.nombre||'Alumno')+'</option>').join('')+'</select>');
+  const porAula={}, ordenAulas=[];
+  (alumnos||[]).forEach(a=>{ const k=a.unidad_id||''; if(!porAula[k]){ porAula[k]={tit:(a.unidad_titulo||'Aula'), als:[]}; ordenAulas.push(k); } porAula[k].als.push(a); });
+  let opts='<option value="">📢 Toda la clase (todas mis aulas)</option>';
+  ordenAulas.forEach(k=>{ const g=porAula[k]; opts+='<optgroup label="'+escAttr(g.tit)+'">'; if(k) opts+='<option value="aula:'+escAttr(k)+'">📢 A toda el aula · '+escHtml(g.tit)+'</option>'; g.als.forEach(a=> opts+='<option value="'+escAttr(a.id)+'">'+escHtml(a.nombre||'Alumno')+'</option>'); opts+='</optgroup>'; });
+  h.push('<div class="t-card"><label>Para</label><select id="avl-dest"'+(demo?' disabled':'')+'>'+opts+'</select>');
   h.push('<label style="margin-top:8px">Mensaje</label><textarea id="avl-txt" rows="2" placeholder="Ej.: Examen del Tema 3 el jueves"'+(demo?' disabled':'')+'></textarea>');
   h.push('<button class="btn btn-honey" id="avl-add" style="margin-top:10px"'+(demo?' disabled':'')+'>Enviar aviso</button></div>');
   h.push('<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Enviados</h2>');
@@ -7035,8 +7064,11 @@ function avAlRender(lista, alumnos, okMsg, demo){
 async function avAlCrear(){
   const dest=$('avl-dest')?$('avl-dest').value:''; const txt=($('avl-txt')&&$('avl-txt').value||'').trim();
   if(!txt){ appAlert('Escribe el aviso.'); return; }
+  let p_alumno=null, p_unidad=null;
+  if(dest.indexOf('aula:')===0) p_unidad=dest.slice(5);
+  else if(dest) p_alumno=dest;
   const b=$('avl-add'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
-  try{ await call('/rest/v1/rpc/av_al_prof_crear',{method:'POST',body:{p_alumno:dest||null,p_texto:txt}}); await openAvAlumnado('✅ Aviso enviado.'); }
+  try{ await call('/rest/v1/rpc/av_al_prof_crear',{method:'POST',body:{p_alumno:p_alumno,p_texto:txt,p_unidad:p_unidad}}); await openAvAlumnado('✅ Aviso enviado.'); }
   catch(e){ if(b){ b.disabled=false; b.textContent='Enviar aviso'; } appAlert('No se pudo: '+(e.message||'')); }
 }
 async function avAlBorrar(id){
