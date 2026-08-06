@@ -4634,11 +4634,11 @@ function pxPintar(){
           <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
-      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center">
-        <button onclick="pxVer('${p.id}')" class="gx-mini">👁 Ver</button>
-        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="gx-mini">✏️ Editar</button>
-        <button onclick="pxEnviar('${p.id}')" class="gx-mini">✉️ Enviar</button>
-        <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="padding:3px 5px">
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:nowrap;align-items:center">
+        <button onclick="pxVer('${p.id}')" class="gx-mini" style="flex:0 0 auto">Ver</button>
+        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="gx-mini" style="flex:0 0 auto">Editar</button>
+        <button onclick="pxEnviar('${p.id}')" class="gx-mini" style="flex:0 0 auto">Enviar</button>
+        <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="flex:1 1 auto;min-width:0;padding:3px 5px">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
         </select>`}
       </div>
