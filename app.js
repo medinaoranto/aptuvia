@@ -2670,10 +2670,10 @@ function avPintarBarra(){
   const vis=avVisibles(area);
   const urgentes=vis.some(a=>a.urgente===true);
   const abierta=window._avAbierta;
-  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid ${vis.length?'var(--honey)':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem">
+  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:7px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid ${vis.length?'var(--honey)':'var(--line)'};border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem;white-space:nowrap;overflow:hidden">
       <span style="position:relative">🔔${urgentes?'<span style="position:absolute;top:-3px;right:-5px;width:9px;height:9px;background:#e11d1d;border-radius:50%;border:1.5px solid #fff"></span>':''}</span>
       <span>Avisos</span>
-      ${vis.length?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${vis.length}</span>`:'<span style="color:var(--ink-soft);font-weight:600">al día</span>'}
+      ${vis.length?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${vis.length}</span>`:''}
       <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
     </button>`;
   if(abierta) bar.innerHTML+=avPanel(area,vis);
@@ -2887,10 +2887,10 @@ function aiPintarBarra(){
   const vis=aiVisibles(area);
   const nuevos=(aiLista||[]).filter(a=> a.para_area===area && !a.leido).length;
   const abierta=window._aiAbierta;
-  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem">
+  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:7px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid var(--line);border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem;white-space:nowrap;overflow:hidden">
       <span>✉️</span>
       <span>Avisos internos</span>
-      ${nuevos?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:'<span style="color:var(--ink-soft);font-weight:600">sin nuevos</span>'}
+      ${nuevos?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:''}
       <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
     </button>`;
   if(abierta) bar.innerHTML+=aiPanel(area,vis);
@@ -2946,14 +2946,21 @@ async function avVerPresu(num){
     ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
   }catch(e){ appAlert('No se pudo abrir: '+(e.message||'')); }
 }
-// Ca9: nº de presupuestos aceptados pendientes de dar de alta (avisos "activar al cliente").
-function avAltasPendientes(){ return (avLista||[]).filter(a=>/activar al cliente/i.test(a.texto||'')).length; }
+// Ca9: nº de presupuestos aceptados aún sin dar de alta (academia/profesor sin enlazar).
 function avPintarAltaBadges(){
-  const n=avAltasPendientes();
+  const n=window._altasBadgeN||0;
   document.querySelectorAll('.alta-badge').forEach(el=>{
     if(n>0){ el.textContent=String(n); el.style.display='inline-flex'; }
     else{ el.style.display='none'; }
   });
+}
+async function refrescarAltasBadge(){
+  if(window._demoMode){ window._altasBadgeN=0; avPintarAltaBadges(); return; }
+  try{
+    const rows=await call('/rest/v1/presupuestos?select=estado,academia_id,profesor_id')||[];
+    window._altasBadgeN=rows.filter(p=>p.estado==='aceptado' && !p.academia_id && !p.profesor_id).length;
+  }catch(e){ window._altasBadgeN=window._altasBadgeN||0; }
+  avPintarAltaBadges();
 }
 async function aiEnviar(){
   const ta=$('ai-texto'); const txt=ta?ta.value.trim():'';
@@ -3028,9 +3035,15 @@ function saRenderLista(okMsg,errMsg){
     return;
   }
   if(saMainTab==='sop'){
-    h+=`<div class="sa-cards-grid">${scInboxCardHtml(true)}<button class="fact-menu" style="margin:0" onclick="openCalendario('adm')"><b>📅 Calendario</b><span>Tareas y recordatorios del equipo</span></button><button class="fact-menu" style="margin:0;grid-column:1/-1;position:relative" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button></div>`;
+    const barSop='width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden';
+    h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <button id="sc-inbox-card" style="${barSop}"><span>💬 Chat</span><span id="sc-inbox-badge"></span></button>
+      <button onclick="openCalendario('adm')" style="${barSop}"><span>📅 Calendario</span></button>
+    </div>`;
+    h+=`<button class="fact-menu" style="position:relative" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button>`;
     h+=docsBar('soporte');
     $('teacher').innerHTML=saShell(h,{noChat:true});
+    setTimeout(refrescarAltasBadge,0);
     return;
   }
   if(saMainTab==='acadprof'){
@@ -3041,6 +3054,7 @@ function saRenderLista(okMsg,errMsg){
     </div>`;
     h+=docsBar('soporte');
     $('teacher').innerHTML=saShell(h);
+    setTimeout(refrescarAltasBadge,0);
     return;
   }
   h+=`<button class="backbtn" onclick="saSetMain('acadprof')" style="margin-bottom:12px">← Academias y profesores</button>`;
@@ -4166,7 +4180,7 @@ async function arClientes(){
   window._arQ=window._arQ||'';
   arPintarClientes();
 }
-const AR_COLS=[['num','Nº'],['razon','Cliente'],['nif','NIF'],['poblacion','Población'],['email','Email'],['telefono','Teléfono'],['nPresu','Presu.'],['total','Total €'],['ultima','Último']];
+const AR_COLS=[['num','Nº'],['razon','Cliente'],['nif','NIF'],['poblacion','Población'],['email','Email'],['telefono','Teléfono']];
 function arSort(col){ const s=window._arSort; if(s.col===col) s.dir*=-1; else { s.col=col; s.dir=1; } arPintarClientes(); }
 function arFiltrada(){
   const q=(window._arQ||'').toLowerCase();
@@ -4176,42 +4190,52 @@ function arFiltrada(){
   return arr;
 }
 function arPintarClientes(){
-  const arr=arFiltrada(); const s=window._arSort;
-  const totalPresu=arr.reduce((t,f)=>t+f.total,0);
+  const arr=arFiltrada(); const s=window._arSort; window._arVista=arr;
   let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📇 Ficha de clientes</h2>`;
-  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Se crean solas desde tus presupuestos. Toca una columna para ordenar.</p>`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Se crean solas desde tus presupuestos. Toca una columna para ordenar; toca una fila para ver su ficha.</p>`;
   h+=`<input id="ar-q" placeholder="Buscar por nombre, NIF, email, población…" value="${escAttr(window._arQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px">`;
-  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem">${arr.length} cliente${arr.length===1?'':'s'}</span><b style="font-size:1rem">${gxEur(totalPresu)} presup.</b></div>`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;font-weight:700">${arr.length} cliente${arr.length===1?'':'s'}</div>`;
   h+=`<button onclick="arCSV()" style="width:100%;margin-bottom:10px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.85rem">↓ CSV (Excel)</button>`;
   if(!arr.length){ h+=`<p class="sa-empty">Aún no hay clientes. Se crean solos al hacer presupuestos.</p>`; $('teacher').innerHTML=saShell(h); const qi0=$('ar-q'); if(qi0) qi0.oninput=arQChange; return; }
   h+=`<div style="overflow-x:auto;border:1.5px solid var(--line);border-radius:12px"><table style="border-collapse:collapse;width:100%;font-size:.78rem;white-space:nowrap"><thead><tr style="background:var(--navy-tint)">`;
   AR_COLS.forEach(([k,lab])=>{ const act=s.col===k; h+=`<th onclick="arSort('${k}')" style="text-align:left;padding:9px 10px;cursor:pointer;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line);user-select:none">${lab}${act?(s.dir>0?' ▲':' ▼'):''}</th>`; });
   h+=`</tr></thead><tbody>`;
   arr.forEach((f,i)=>{
-    h+=`<tr style="background:${i%2?'#fff':'#fafbff'}">
+    h+=`<tr onclick="arVerCliente(${i})" style="background:${i%2?'#fff':'#fafbff'};cursor:pointer">
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${f.num}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy)">${escHtml(f.razon)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.nif||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.poblacion||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.email||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.telefono||'—')}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:center">${f.nPresu}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-weight:700">${gxEur(f.total)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${escHtml(f.ultima||'—')}</td>
     </tr>`;
   });
   h+=`</tbody></table></div>`;
   $('teacher').innerHTML=saShell(h);
   const qi=$('ar-q'); if(qi) qi.oninput=arQChange;
 }
+function arVerCliente(i){
+  const f=(window._arVista||[])[i]; if(!f) return;
+  const fila=(et,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--ink-soft);font-size:.78rem">${et}</span><b style="color:var(--navy);font-size:.82rem;text-align:right;overflow-wrap:anywhere">${escHtml(v||'—')}</b></div>`;
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,45,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:16px;max-width:480px;width:100%;padding:16px 18px;box-shadow:0 20px 50px rgba(0,0,0,.3)';
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="color:var(--navy);font-size:.95rem">📇 Cliente #${f.num}</b><button id="arv-x" style="background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer">✕</button></div>`
+    +fila('Razón social',f.razon)+fila('NIF',f.nif)+fila('Dirección',f.direccion)+fila('CP',f.cp)+fila('Población',f.poblacion)+fila('Provincia',f.provincia)+fila('Email',f.email)+fila('Teléfono',f.telefono)
+    +`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0">La ficha se rellena con los datos de sus presupuestos. Para editarla y guardar cambios necesito activar una tabla de clientes (te paso el SQL cuando quieras).</p>`;
+  ov.appendChild(box); document.body.appendChild(ov);
+  document.getElementById('arv-x').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+}
 function arQChange(){ const qi=$('ar-q'); if(!qi) return; window._arQ=qi.value; const pos=qi.selectionStart; arPintarClientes(); const el=$('ar-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } }
 function arCSV(){
   const arr=arFiltrada();
-  const cab=['Nº','Cliente','NIF','Dirección','CP','Población','Provincia','Email','Teléfono','Nº presupuestos','Total presupuestado','Último'];
+  const cab=['Nº','Cliente','NIF','Dirección','CP','Población','Provincia','Email','Teléfono'];
   const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
   let csv=cab.map(esc).join(';')+'\n';
-  arr.forEach(f=>{ csv+=[f.num,f.razon,f.nif,f.direccion,f.cp,f.poblacion,f.provincia,f.email,f.telefono,f.nPresu,String(f.total).replace('.',','),f.ultima].map(esc).join(';')+'\n'; });
+  arr.forEach(f=>{ csv+=[f.num,f.razon,f.nif,f.direccion,f.cp,f.poblacion,f.provincia,f.email,f.telefono].map(esc).join(';')+'\n'; });
   try{ const bl=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}); const u=URL.createObjectURL(bl); const a=document.createElement('a'); a.href=u; a.download='clientes.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500); }catch(e){ appAlert('No se pudo generar el CSV.'); }
 }
 const AR_TIPOS=['Contrato','Licencia de software','Encargado del tratamiento (art. 28)','Alta / cliente','Fiscal','Marca / PI','Otro'];
@@ -4423,17 +4447,19 @@ function pxPintar(){
         <button onclick="pxEnviar('${p.id}')" class="gx-mini">✉️ Enviar</button>
         <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="padding:3px 5px">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
-        </select>
-        ${est==='aceptado'?(p.facturado_en?`<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Facturado</span>`:`<span class="gx-mini" style="background:#eef4fb;color:#2563a8;cursor:default">→ Lo factura Administración</span>`):''}`}
+        </select>`}
       </div>
       ${verArch?'':`<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
         ${p.aceptacion_url
-          ? `<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Aceptación</span><button onclick="pxAcepVer('${p.id}')" class="gx-mini">👁 Ver</button><button onclick="pxAcepDrive('${p.id}')" class="gx-mini">☁️ Drive</button><button onclick="pxAcepBorrar('${p.id}')" class="gx-mini del">🗑</button>`
-          : `<label class="gx-mini" style="cursor:pointer;display:inline-flex;align-items:center">📎 Adjuntar aceptación del cliente<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label>`}
+          ? `<button onclick="pxAcepVer('${p.id}')" class="gx-mini">👁 Aceptación</button><button onclick="pxAcepDrive('${p.id}')" class="gx-mini">☁️ Drive</button><button onclick="pxAcepBorrar('${p.id}')" class="gx-mini del">🗑</button>`
+          : `<label class="gx-mini" style="cursor:pointer;display:inline-flex;align-items:center">📎 Adjuntar aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label><button onclick="driveAbrir()" class="gx-mini" title="Abrir Google Drive">☁️ Drive</button>`}
       </div>`}
-      <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;justify-content:flex-end">
-        <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="gx-mini" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
-        ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="gx-mini del">🗑</button>`}
+      <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
+        ${(!verArch && est==='aceptado')?(p.facturado_en?`<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Facturado</span>`:`<span class="gx-mini" style="background:#eef4fb;color:#2563a8;cursor:default">→ Factura Admin.</span>`):''}
+        <span style="margin-left:auto;display:flex;gap:5px">
+          <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="gx-mini" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
+          ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="gx-mini del">🗑</button>`}
+        </span>
       </div>
     </div>`;
   });
