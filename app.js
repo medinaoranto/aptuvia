@@ -4144,24 +4144,38 @@ function saRenderFacturacionLista(){
 function arRender(){
   let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🗄 Archivo central</h2>`;
-  h+=`<p style="font-size:.76rem;color:var(--ink-soft);margin:0 2px 12px">El expediente de la empresa: la ficha de todos los clientes que has presupuestado y el archivo de contratos y documentación.</p>`;
+  h+=`<p style="font-size:.76rem;color:var(--ink-soft);margin:0 2px 12px">El expediente de la empresa: clientes, proveedores, facturas y documentación.</p>`;
   h+=`<div class="sa-cards-grid">
-    <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Todos los clientes de tus presupuestos, con filtros y orden por columna</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arDocs()"><b>📄 Contratos y documentación</b><span>Licencias, encargado del tratamiento (art. 28), altas… el PDF y su registro</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Desde tus presupuestos · crear, editar y filtrar por origen</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arProveedores()"><b>🚚 Proveedores</b><span>Alta y baja de proveedores</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arFacturas('compras')"><b>🧾 Facturas de compras</b><span>Gastos de proveedores · automático</span></button>
+    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arDocs()"><b>📄 Contratos y documentación</b><span>Licencias, encargado del tratamiento (art. 28), altas… el PDF y su registro</span></button>
   </div>`;
   $('teacher').innerHTML=saShell(h);
 }
+function presuEsAA(p){
+  if(p.profesor_id) return true;
+  if(p.academia_id) return false;
+  const L=p.lineas||{}; const todas=[].concat(L.rec||[],L.uni||[]);
+  return todas.some(x=> x && ((typeof x.k==='string' && x.k.indexOf('aa_')===0) || /aula abierta/i.test((x.nombre)||'')));
+}
 async function arClientes(){
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
-  let lista=[];
-  try{ lista=await call('/rest/v1/presupuestos?select=numero,fecha,cliente,total,creado_en&order=creado_en.asc')||[]; }
+  let lista=[], overrides=[];
+  try{
+    lista=await call('/rest/v1/presupuestos?select=numero,fecha,cliente,total,creado_en,lineas,academia_id,profesor_id&order=creado_en.asc')||[];
+    overrides=await call('/rest/v1/clientes?select=*').catch(()=>[])||[];
+  }
   catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar los presupuestos: ${escHtml(e.message||'')}</div>`); return; }
+  const ovMap={}; (overrides||[]).forEach(o=>{ if(o.nif) ovMap[(o.nif||'').toUpperCase().trim()]=o; });
   const map=new Map();
   lista.forEach(p=>{
     const c=p.cliente||{};
-    const key=((c.nif||'').toUpperCase().trim())||((c.razon_social||'').toUpperCase().trim())||('P:'+p.numero);
+    const nifKey=(c.nif||'').toUpperCase().trim();
+    const key=nifKey||((c.razon_social||'').toUpperCase().trim())||('P:'+p.numero);
     let f=map.get(key);
-    if(!f){ f={num:0,razon:'',nif:'',poblacion:'',provincia:'',email:'',telefono:'',direccion:'',cp:'',nPresu:0,total:0,ultima:''}; map.set(key,f); }
+    if(!f){ f={num:0,nifKey:nifKey,razon:'',nif:'',poblacion:'',provincia:'',email:'',telefono:'',direccion:'',cp:'',notas:'',origen:'',aaN:0,aptN:0,tipo:''}; map.set(key,f); }
     if(!f.razon && c.razon_social) f.razon=c.razon_social;
     if(!f.nif && c.nif) f.nif=c.nif;
     if(!f.poblacion && c.poblacion) f.poblacion=c.poblacion;
@@ -4170,34 +4184,59 @@ async function arClientes(){
     if(!f.telefono && c.telefono) f.telefono=c.telefono;
     if(!f.direccion && c.direccion) f.direccion=c.direccion;
     if(!f.cp && c.cp) f.cp=c.cp;
-    f.nPresu++; f.total+=Number(p.total||0);
-    if((p.fecha||'')>f.ultima) f.ultima=p.fecha||'';
+    if(!f.origen && c.origen) f.origen=c.origen;
+    if(presuEsAA(p)) f.aaN++; else f.aptN++;
   });
   const arr=[...map.values()];
-  arr.forEach((f,i)=>{ f.num=i+1; if(!f.razon) f.razon='—'; });
+  arr.forEach((f,i)=>{
+    f.num=i+1; if(!f.razon) f.razon='—';
+    f.tipo=(f.aaN>0&&f.aptN===0)?'Aula Abierta':(f.aptN>0&&f.aaN===0)?'Aptuvia':(f.aaN>0?'Mixto':'Aptuvia');
+    const ov=f.nifKey && ovMap[f.nifKey];
+    if(ov){ f.editable=true; delete ovMap[f.nifKey];
+      if(ov.razon_social) f.razon=ov.razon_social;
+      ['direccion','cp','poblacion','provincia','email','telefono','notas','origen'].forEach(k=>{ if(ov[k]!=null && ov[k]!=='') f[k]=ov[k]; });
+    } else { f.editable=!!f.nifKey; }
+  });
+  // Clientes creados a mano (en la tabla 'clientes') que no vienen de ningún presupuesto
+  Object.values(ovMap).forEach(o=>{
+    arr.push({num:0,nifKey:(o.nif||'').toUpperCase().trim(),razon:o.razon_social||'—',nif:o.nif||'',poblacion:o.poblacion||'',provincia:o.provincia||'',email:o.email||'',telefono:o.telefono||'',direccion:o.direccion||'',cp:o.cp||'',notas:o.notas||'',origen:o.origen||'',aaN:0,aptN:0,tipo:'Manual',editable:true,manual:true});
+  });
+  arr.forEach((f,i)=>{ f.num=i+1; });
   window._arCli=arr;
   window._arSort=window._arSort||{col:'num',dir:1};
   window._arQ=window._arQ||'';
   arPintarClientes();
 }
-const AR_COLS=[['num','Nº'],['razon','Cliente'],['nif','NIF'],['poblacion','Población'],['email','Email'],['telefono','Teléfono']];
+const AR_ORIGENES=['Internet','Recomendación','Conocido','Redes sociales','Evento','Publicidad','Otro'];
+const AR_COLS=[['num','Nº'],['razon','Cliente'],['tipo','Tipo'],['nif','NIF'],['origen','Origen'],['poblacion','Población'],['email','Email'],['telefono','Teléfono']];
 function arSort(col){ const s=window._arSort; if(s.col===col) s.dir*=-1; else { s.col=col; s.dir=1; } arPintarClientes(); }
 function arFiltrada(){
   const q=(window._arQ||'').toLowerCase();
-  let arr=(window._arCli||[]).filter(f=> !q || (f.razon+' '+f.nif+' '+f.email+' '+f.poblacion+' '+f.telefono).toLowerCase().includes(q));
+  const fo=window._arOrigen||'';
+  let arr=(window._arCli||[]).filter(f=>{
+    if(fo && (f.origen||'')!==fo) return false;
+    return !q || (f.razon+' '+f.nif+' '+f.email+' '+f.poblacion+' '+f.telefono+' '+(f.origen||'')).toLowerCase().includes(q);
+  });
   const s=window._arSort;
   arr=arr.slice().sort((a,b)=>{ let x=a[s.col], y=b[s.col]; if(typeof x==='string'){ x=(x||'').toLowerCase(); y=(y||'').toLowerCase(); } return (x>y?1:x<y?-1:0)*s.dir; });
   return arr;
+}
+function arTipoChip(t){
+  const m={'Aula Abierta':['#fdf6e3','#B45905'],'Aptuvia':['#e9eaf6','#2e3163'],'Manual':['#eef2f7','#64748b'],'Mixto':['#fef0e0','#c2691a']};
+  const c=m[t]||m['Aptuvia'];
+  return `<span style="background:${c[0]};color:${c[1]};border-radius:8px;padding:1px 7px;font-size:.68rem;font-weight:800;white-space:nowrap">${escHtml(t||'—')}</span>`;
 }
 function arPintarClientes(){
   const arr=arFiltrada(); const s=window._arSort; window._arVista=arr;
   let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📇 Ficha de clientes</h2>`;
-  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Se crean solas desde tus presupuestos. Toca una columna para ordenar; toca una fila para ver su ficha.</p>`;
-  h+=`<input id="ar-q" placeholder="Buscar por nombre, NIF, email, población…" value="${escAttr(window._arQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px">`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Se crean solas desde tus presupuestos; también puedes crear uno a mano. Toca una fila para ver o editar su ficha.</p>`;
+  h+=`<button onclick="arNuevoCliente()" class="btn btn-honey" style="width:100%;margin-bottom:10px">➕ Nuevo cliente</button>`;
+  h+=`<input id="ar-q" placeholder="Buscar por nombre, NIF, email, población…" value="${escAttr(window._arQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px">`;
+  h+=`<select id="ar-origen" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px;background:#fff"><option value="">Todos los orígenes</option>${AR_ORIGENES.map(o=>`<option value="${escAttr(o)}"${window._arOrigen===o?' selected':''}>${escHtml(o)}</option>`).join('')}</select>`;
   h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;font-weight:700">${arr.length} cliente${arr.length===1?'':'s'}</div>`;
   h+=`<button onclick="arCSV()" style="width:100%;margin-bottom:10px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.85rem">↓ CSV (Excel)</button>`;
-  if(!arr.length){ h+=`<p class="sa-empty">Aún no hay clientes. Se crean solos al hacer presupuestos.</p>`; $('teacher').innerHTML=saShell(h); const qi0=$('ar-q'); if(qi0) qi0.oninput=arQChange; return; }
+  if(!arr.length){ h+=`<p class="sa-empty">No hay clientes con ese filtro.</p>`; $('teacher').innerHTML=saShell(h); arWireFiltros(); return; }
   h+=`<div style="overflow-x:auto;border:1.5px solid var(--line);border-radius:12px"><table style="border-collapse:collapse;width:100%;font-size:.78rem;white-space:nowrap"><thead><tr style="background:var(--navy-tint)">`;
   AR_COLS.forEach(([k,lab])=>{ const act=s.col===k; h+=`<th onclick="arSort('${k}')" style="text-align:left;padding:9px 10px;cursor:pointer;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line);user-select:none">${lab}${act?(s.dir>0?' ▲':' ▼'):''}</th>`; });
   h+=`</tr></thead><tbody>`;
@@ -4205,7 +4244,9 @@ function arPintarClientes(){
     h+=`<tr onclick="arVerCliente(${i})" style="background:${i%2?'#fff':'#fafbff'};cursor:pointer">
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${f.num}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy)">${escHtml(f.razon)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${arTipoChip(f.tipo)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.nif||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.origen||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.poblacion||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.email||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.telefono||'—')}</td>
@@ -4213,29 +4254,181 @@ function arPintarClientes(){
   });
   h+=`</tbody></table></div>`;
   $('teacher').innerHTML=saShell(h);
-  const qi=$('ar-q'); if(qi) qi.oninput=arQChange;
+  arWireFiltros();
 }
-function arVerCliente(i){
-  const f=(window._arVista||[])[i]; if(!f) return;
-  const fila=(et,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)"><span style="color:var(--ink-soft);font-size:.78rem">${et}</span><b style="color:var(--navy);font-size:.82rem;text-align:right;overflow-wrap:anywhere">${escHtml(v||'—')}</b></div>`;
+function arWireFiltros(){
+  const qi=$('ar-q'); if(qi) qi.oninput=arQChange;
+  const so=$('ar-origen'); if(so) so.onchange=function(){ window._arOrigen=so.value; arPintarClientes(); };
+}
+function arClienteModal(f, isNew){
+  const inp=(id,val)=>`<input id="${id}" value="${escAttr(val||'')}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:.85rem;margin:3px 0 8px">`;
+  const lab=t=>`<label style="font-size:.72rem;color:var(--ink-soft);font-weight:700">${t}</label>`;
+  const keyNif=(f.nif||'').trim();
+  const origenSel=`<select id="ac-origen" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:.85rem;margin:3px 0 8px;background:#fff"><option value="">— Sin especificar —</option>${AR_ORIGENES.map(o=>`<option value="${escAttr(o)}"${(f.origen===o)?' selected':''}>${escHtml(o)}</option>`).join('')}</select>`;
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,45,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px';
   const box=document.createElement('div');
   box.style.cssText='background:#fff;border-radius:16px;max-width:480px;width:100%;padding:16px 18px;box-shadow:0 20px 50px rgba(0,0,0,.3)';
-  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="color:var(--navy);font-size:.95rem">📇 Cliente #${f.num}</b><button id="arv-x" style="background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer">✕</button></div>`
-    +fila('Razón social',f.razon)+fila('NIF',f.nif)+fila('Dirección',f.direccion)+fila('CP',f.cp)+fila('Población',f.poblacion)+fila('Provincia',f.provincia)+fila('Email',f.email)+fila('Teléfono',f.telefono)
-    +`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0">La ficha se rellena con los datos de sus presupuestos. Para editarla y guardar cambios necesito activar una tabla de clientes (te paso el SQL cuando quieras).</p>`;
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="color:var(--navy);font-size:.95rem">${isNew?'➕ Nuevo cliente':'📇 Cliente #'+f.num}</b><button id="ac-x" style="background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer">✕</button></div>`
+    +lab('Razón social')+inp('ac-razon',f.razon==='—'?'':f.razon)
+    +lab('NIF'+(isNew?' (obligatorio · es la clave)':''))+(isNew?inp('ac-nif',f.nif):`<div style="font-weight:700;color:var(--navy);margin:3px 0 8px">${escHtml(keyNif||'— sin NIF (no editable)')}</div>`)
+    +lab('Dirección')+inp('ac-direccion',f.direccion)
+    +lab('CP')+inp('ac-cp',f.cp)
+    +lab('Población')+inp('ac-poblacion',f.poblacion)
+    +lab('Provincia')+inp('ac-provincia',f.provincia)
+    +lab('Email')+inp('ac-email',f.email)
+    +lab('Teléfono')+inp('ac-telefono',f.telefono)
+    +lab('Origen · cómo nos ha conocido')+origenSel
+    +lab('Notas')+inp('ac-notas',f.notas)
+    +`<div style="display:flex;gap:8px;margin-top:8px">`
+      +((isNew||keyNif)?`<button id="ac-save" class="btn btn-honey" style="flex:1">Guardar</button>`:'')
+      +((!isNew && keyNif)?`<button id="ac-del" class="btn btn-ghost" style="flex:0 0 auto;color:#b4232a;border-color:#f0c0c0">🗑 Borrar</button>`:'')
+    +`</div>`
+    +(!isNew&&!keyNif?`<p style="font-size:.7rem;color:var(--ink-soft);margin:10px 2px 0">Sin NIF no se puede guardar una ficha editable. Añádele el NIF desde un presupuesto.</p>`:'')
+    +(isNew?'':`<p style="font-size:.68rem;color:var(--ink-soft);margin:10px 2px 0">Lo que guardes manda sobre los datos del presupuesto (el presupuesto no se toca).</p>`);
   ov.appendChild(box); document.body.appendChild(ov);
-  document.getElementById('arv-x').onclick=()=>ov.remove();
+  document.getElementById('ac-x').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  const sv=document.getElementById('ac-save'); if(sv) sv.onclick=()=>arGuardarCliente(isNew, keyNif, ov);
+  const dl=document.getElementById('ac-del'); if(dl) dl.onclick=()=>arBorrarCliente(keyNif, ov);
+}
+function arVerCliente(i){ const f=(window._arVista||[])[i]; if(!f) return; arClienteModal(f,false); }
+function arNuevoCliente(){ arClienteModal({num:0,razon:'',nif:'',direccion:'',cp:'',poblacion:'',provincia:'',email:'',telefono:'',origen:'',notas:''}, true); }
+async function arGuardarCliente(isNew, keyNif, ov){
+  const g=id=>{ const e=document.getElementById(id); return e?e.value.trim():''; };
+  const nif=isNew?g('ac-nif'):keyNif;
+  if(!nif){ appAlert('El NIF es obligatorio (es la clave del cliente).'); return; }
+  const data={ razon_social:g('ac-razon')||null, direccion:g('ac-direccion')||null, cp:g('ac-cp')||null, poblacion:g('ac-poblacion')||null, provincia:g('ac-provincia')||null, email:g('ac-email')||null, telefono:g('ac-telefono')||null, origen:((document.getElementById('ac-origen')||{}).value)||null, notas:g('ac-notas')||null, actualizado_en:new Date().toISOString() };
+  try{
+    const ex=await call('/rest/v1/clientes?select=nif&nif=eq.'+encodeURIComponent(nif));
+    if(ex && ex.length){ await call('/rest/v1/clientes?nif=eq.'+encodeURIComponent(nif),{method:'PATCH',body:data}); }
+    else { await call('/rest/v1/clientes',{method:'POST',body:Object.assign({nif:nif},data)}); }
+    if(ov) ov.remove();
+    arClientes();
+  }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); }
+}
+async function arBorrarCliente(nif, ov){
+  if(!nif) return;
+  if(!await appConfirm('¿Borrar la ficha guardada de este cliente? Si viene de un presupuesto, seguirá apareciendo con los datos del presupuesto (sin tus cambios).')) return;
+  try{ await call('/rest/v1/clientes?nif=eq.'+encodeURIComponent(nif),{method:'DELETE'}); if(ov) ov.remove(); arClientes(); }
+  catch(e){ appAlert('No se pudo borrar: '+(e.message||'')); }
+}
+
+/* ── PROVEEDORES ── */
+async function arProveedores(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  let list=[];
+  try{ list=await call('/rest/v1/proveedores?select=*&order=nombre.asc')||[]; }
+  catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar los proveedores: ${escHtml(e.message||'')}</div>`); return; }
+  window._arProv=list;
+  const q=(window._arProvQ||'').toLowerCase();
+  const arr=list.filter(p=> !q || ((p.nombre||'')+' '+(p.nif||'')+' '+(p.email||'')+' '+(p.telefono||'')).toLowerCase().includes(q));
+  let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 6px">🚚 Proveedores</h2>`;
+  h+=`<button onclick="arNuevoProveedor()" class="btn btn-honey" style="width:100%;margin-bottom:10px">➕ Nuevo proveedor</button>`;
+  h+=`<input id="arp-q" placeholder="Buscar proveedor…" value="${escAttr(window._arProvQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px">`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:.9rem;font-weight:700">${arr.length} proveedor${arr.length===1?'':'es'}</div>`;
+  if(!arr.length){ h+=`<p class="sa-empty">No hay proveedores.</p>`; }
+  else arr.forEach(p=>{
+    h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
+      <div style="min-width:0"><b style="color:var(--navy);font-size:.9rem">${escHtml(p.nombre||'—')}</b>
+        <div style="font-size:.72rem;color:var(--ink-soft);margin-top:2px">${p.nif?('NIF '+escHtml(p.nif)):''}${(p.nif&&p.email)?' · ':''}${escHtml(p.email||'')}${p.telefono?(' · '+escHtml(p.telefono)):''}</div>
+        ${p.direccion?`<div style="font-size:.74rem;color:var(--ink-soft);margin-top:3px">${escHtml(p.direccion)}</div>`:''}
+        ${p.notas?`<div style="font-size:.74rem;color:var(--ink-soft);margin-top:3px">${escHtml(p.notas)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:5px;margin-top:9px;justify-content:flex-end">
+        <button onclick="arEditarProveedor('${p.id}')" class="gx-mini">✏️ Editar</button>
+        <button onclick="arProvBorrar('${p.id}')" class="gx-mini del">🗑</button>
+      </div>
+    </div>`;
+  });
+  $('teacher').innerHTML=saShell(h);
+  const qi=$('arp-q'); if(qi) qi.oninput=function(){ window._arProvQ=qi.value; const pos=qi.selectionStart; arProveedores(); const el=$('arp-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } };
+}
+function arProvModal(p, isNew){
+  const inp=(id,val)=>`<input id="${id}" value="${escAttr(val||'')}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:.85rem;margin:3px 0 8px">`;
+  const lab=t=>`<label style="font-size:.72rem;color:var(--ink-soft);font-weight:700">${t}</label>`;
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,45,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:16px;max-width:480px;width:100%;padding:16px 18px;box-shadow:0 20px 50px rgba(0,0,0,.3)';
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="color:var(--navy);font-size:.95rem">${isNew?'➕ Nuevo proveedor':'✏️ Editar proveedor'}</b><button id="ap-x" style="background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer">✕</button></div>`
+    +lab('Nombre *')+inp('ap-nombre',p.nombre)
+    +lab('NIF / CIF')+inp('ap-nif',p.nif)
+    +lab('Email')+inp('ap-email',p.email)
+    +lab('Teléfono')+inp('ap-telefono',p.telefono)
+    +lab('Dirección')+inp('ap-direccion',p.direccion)
+    +lab('Notas')+inp('ap-notas',p.notas)
+    +`<div style="display:flex;gap:8px;margin-top:8px"><button id="ap-save" class="btn btn-honey" style="flex:1">Guardar</button>${isNew?'':`<button id="ap-del" class="btn btn-ghost" style="flex:0 0 auto;color:#b4232a;border-color:#f0c0c0">🗑 Borrar</button>`}</div>`;
+  ov.appendChild(box); document.body.appendChild(ov);
+  document.getElementById('ap-x').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  document.getElementById('ap-save').onclick=()=>arProvGuardar(isNew, p.id, ov);
+  const dl=document.getElementById('ap-del'); if(dl) dl.onclick=()=>arProvBorrar(p.id, ov);
+}
+function arNuevoProveedor(){ arProvModal({nombre:'',nif:'',email:'',telefono:'',direccion:'',notas:''}, true); }
+function arEditarProveedor(id){ const p=(window._arProv||[]).find(x=>String(x.id)===String(id)); if(p) arProvModal(p,false); }
+async function arProvGuardar(isNew, id, ov){
+  const g=x=>{ const e=document.getElementById(x); return e?e.value.trim():''; };
+  const nombre=g('ap-nombre'); if(!nombre){ appAlert('El nombre del proveedor es obligatorio.'); return; }
+  const data={ nombre, nif:g('ap-nif')||null, email:g('ap-email')||null, telefono:g('ap-telefono')||null, direccion:g('ap-direccion')||null, notas:g('ap-notas')||null };
+  try{
+    if(isNew) await call('/rest/v1/proveedores',{method:'POST',body:data});
+    else await call('/rest/v1/proveedores?id=eq.'+id,{method:'PATCH',body:data});
+    if(ov) ov.remove(); arProveedores();
+  }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); }
+}
+async function arProvBorrar(id, ov){
+  if(!await appConfirm('¿Borrar este proveedor?')) return;
+  try{ await call('/rest/v1/proveedores?id=eq.'+id,{method:'DELETE'}); if(ov) ov.remove(); arProveedores(); }
+  catch(e){ appAlert('No se pudo borrar (quizá tiene gastos asociados): '+(e.message||'')); }
+}
+
+/* ── FACTURAS DE VENTAS / COMPRAS (automático, solo lectura) ── */
+async function arFacturas(modo){
+  const esV=modo==='ventas';
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  let list=[], provs=[];
+  try{
+    if(esV) list=await call('/rest/v1/facturas?select=numero,fecha,cliente,total,pagada&order=fecha.desc')||[];
+    else { list=await call('/rest/v1/gastos?select=numero,fecha,concepto,importe,pagada,proveedor_id&order=fecha.desc')||[]; provs=await call('/rest/v1/proveedores?select=id,nombre').catch(()=>[])||[]; }
+  }catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar: ${escHtml(e.message||'')}</div>`); return; }
+  const provMap={}; provs.forEach(p=>provMap[p.id]=p.nombre);
+  const total=list.reduce((t,x)=>t+Number((esV?x.total:x.importe)||0),0);
+  const pagadas=list.filter(x=>x.pagada).length;
+  let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🧾 Facturas de ${esV?'ventas':'compras'}</h2>`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Se actualiza solo desde ${esV?'Facturación (facturas emitidas)':'Gastos y balance'}. Solo lectura.</p>`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem">${list.length} factura${list.length===1?'':'s'} · ${pagadas} pagada${pagadas===1?'':'s'}</span><b style="font-size:1rem">${gxEur(total)}</b></div>`;
+  if(!list.length){ h+=`<p class="sa-empty">Aún no hay facturas de ${esV?'ventas':'compras'}.</p>`; $('teacher').innerHTML=saShell(h); return; }
+  h+=`<div style="overflow-x:auto;border:1.5px solid var(--line);border-radius:12px"><table style="border-collapse:collapse;width:100%;font-size:.78rem;white-space:nowrap"><thead><tr style="background:var(--navy-tint)">
+    <th style="text-align:left;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Nº</th>
+    <th style="text-align:left;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Fecha</th>
+    <th style="text-align:left;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">${esV?'Cliente':'Proveedor / concepto'}</th>
+    <th style="text-align:right;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Total</th>
+    <th style="text-align:center;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Estado</th>
+  </tr></thead><tbody>`;
+  list.forEach((x,i)=>{
+    const parte=esV?((x.cliente&&x.cliente.razon_social)||'—'):((provMap[x.proveedor_id]||x.concepto||'—'));
+    const imp=esV?x.total:x.importe;
+    h+=`<tr style="background:${i%2?'#fff':'#fafbff'}">
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(x.numero||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${escHtml(x.fecha||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--navy);font-weight:600">${escHtml(parte)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-weight:700">${gxEur(Number(imp||0))}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:center">${x.pagada?'<span style="color:#15803d;font-weight:700">✓</span>':'<span style="color:#b4232a">pdte.</span>'}</td>
+    </tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  $('teacher').innerHTML=saShell(h);
 }
 function arQChange(){ const qi=$('ar-q'); if(!qi) return; window._arQ=qi.value; const pos=qi.selectionStart; arPintarClientes(); const el=$('ar-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } }
 function arCSV(){
   const arr=arFiltrada();
-  const cab=['Nº','Cliente','NIF','Dirección','CP','Población','Provincia','Email','Teléfono'];
+  const cab=['Nº','Cliente','Tipo','NIF','Origen','Dirección','CP','Población','Provincia','Email','Teléfono'];
   const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
   let csv=cab.map(esc).join(';')+'\n';
-  arr.forEach(f=>{ csv+=[f.num,f.razon,f.nif,f.direccion,f.cp,f.poblacion,f.provincia,f.email,f.telefono].map(esc).join(';')+'\n'; });
+  arr.forEach(f=>{ csv+=[f.num,f.razon,f.tipo,f.nif,f.origen,f.direccion,f.cp,f.poblacion,f.provincia,f.email,f.telefono].map(esc).join(';')+'\n'; });
   try{ const bl=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}); const u=URL.createObjectURL(bl); const a=document.createElement('a'); a.href=u; a.download='clientes.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500); }catch(e){ appAlert('No se pudo generar el CSV.'); }
 }
 const AR_TIPOS=['Contrato','Licencia de software','Encargado del tratamiento (art. 28)','Alta / cliente','Fiscal','Marca / PI','Otro'];
@@ -4621,6 +4814,7 @@ function pxForm(){
         const [k,lab]=par.split(':');
         return `<input data-pc="${k}" placeholder="${lab}" value="${escAttr(c[k]||'')}" style="font-size:.85rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px">`;
       }).join('')}
+      <select data-pc="origen" style="font-size:.85rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff"><option value="">¿Cómo nos ha conocido? (origen)</option>${AR_ORIGENES.map(o=>`<option value="${escAttr(o)}"${(c.origen===o)?' selected':''}>${escHtml(o)}</option>`).join('')}</select>
       ${((saAcademias&&saAcademias.length)||pxAA.length)?`<select onchange="pxCargarCliente(this.value)" style="font-size:.82rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff">
         <option value="">— O copiar los datos de un cliente ya dado de alta —</option>
         ${(saAcademias&&saAcademias.length)?`<optgroup label="Aptuvia · academias">${saAcademias.map(a=>`<option value="ac:${a.academia_id}">${escHtml(a.nombre)}</option>`).join('')}</optgroup>`:''}
