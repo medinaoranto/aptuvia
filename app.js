@@ -4282,7 +4282,7 @@ function arClienteModal(f, isNew){
     +lab('Notas')+inp('ac-notas',f.notas)
     +`<div style="display:flex;gap:8px;margin-top:8px">`
       +((isNew||keyNif)?`<button id="ac-save" class="btn btn-honey" style="flex:1">Guardar</button>`:'')
-      +((!isNew && keyNif)?`<button id="ac-del" class="btn btn-ghost" style="flex:0 0 auto;color:#b4232a;border-color:#f0c0c0">🗑 Borrar</button>`:'')
+      +((!isNew && keyNif)?`<button id="ac-del" class="btn btn-ghost" style="flex:1;color:#b4232a;border-color:#f0c0c0">🗑 Borrar</button>`:'')
     +`</div>`
     +(!isNew&&!keyNif?`<p style="font-size:.7rem;color:var(--ink-soft);margin:10px 2px 0">Sin NIF no se puede guardar una ficha editable. Añádele el NIF desde un presupuesto.</p>`:'')
     +(isNew?'':`<p style="font-size:.68rem;color:var(--ink-soft);margin:10px 2px 0">Lo que guardes manda sobre los datos del presupuesto (el presupuesto no se toca).</p>`);
@@ -4359,7 +4359,7 @@ function arProvModal(p, isNew){
     +lab('Teléfono')+inp('ap-telefono',p.telefono)
     +lab('Dirección')+inp('ap-direccion',p.direccion)
     +lab('Notas')+inp('ap-notas',p.notas)
-    +`<div style="display:flex;gap:8px;margin-top:8px"><button id="ap-save" class="btn btn-honey" style="flex:1">Guardar</button>${isNew?'':`<button id="ap-del" class="btn btn-ghost" style="flex:0 0 auto;color:#b4232a;border-color:#f0c0c0">🗑 Borrar</button>`}</div>`;
+    +`<div style="display:flex;gap:8px;margin-top:8px"><button id="ap-save" class="btn btn-honey" style="flex:1">Guardar</button>${isNew?'':`<button id="ap-del" class="btn btn-ghost" style="flex:1;color:#b4232a;border-color:#f0c0c0">🗑 Borrar</button>`}</div>`;
   ov.appendChild(box); document.body.appendChild(ov);
   document.getElementById('ap-x').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
@@ -4386,7 +4386,7 @@ async function arProvBorrar(id, ov){
 
 /* ── FACTURAS DE VENTAS / COMPRAS (automático, solo lectura) ── */
 async function arFacturas(modo){
-  const esV=modo==='ventas';
+  const esV=modo==='ventas'; window._arFacModo=modo;
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let list=[], provs=[];
   try{
@@ -4394,13 +4394,26 @@ async function arFacturas(modo){
     else { list=await call('/rest/v1/gastos?select=numero,fecha,concepto,importe,pagada,proveedor_id&order=fecha.desc')||[]; provs=await call('/rest/v1/proveedores?select=id,nombre').catch(()=>[])||[]; }
   }catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar: ${escHtml(e.message||'')}</div>`); return; }
   const provMap={}; provs.forEach(p=>provMap[p.id]=p.nombre);
-  const total=list.reduce((t,x)=>t+Number((esV?x.total:x.importe)||0),0);
-  const pagadas=list.filter(x=>x.pagada).length;
+  window._arFac=list.map(x=>({ numero:x.numero||'', fecha:x.fecha||'', parte: esV?((x.cliente&&x.cliente.razon_social)||'—'):((provMap[x.proveedor_id]||x.concepto||'—')), imp:Number((esV?x.total:x.importe)||0), pagada:!!x.pagada }));
+  window._arFacQ=window._arFacQ||''; window._arFacEstado=window._arFacEstado||'';
+  arFacPintar();
+}
+function arFacPintar(){
+  const esV=window._arFacModo==='ventas';
+  const q=(window._arFacQ||'').toLowerCase(); const fe=window._arFacEstado||'';
+  let arr=(window._arFac||[]).filter(x=>{
+    if(fe==='pag' && !x.pagada) return false;
+    if(fe==='pdte' && x.pagada) return false;
+    return !q || (x.numero+' '+x.parte+' '+x.fecha).toLowerCase().includes(q);
+  });
+  const total=arr.reduce((t,x)=>t+x.imp,0); const pag=arr.filter(x=>x.pagada).length;
   let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🧾 Facturas de ${esV?'ventas':'compras'}</h2>`;
   h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Se actualiza solo desde ${esV?'Facturación (facturas emitidas)':'Gastos y balance'}. Solo lectura.</p>`;
-  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem">${list.length} factura${list.length===1?'':'s'} · ${pagadas} pagada${pagadas===1?'':'s'}</span><b style="font-size:1rem">${gxEur(total)}</b></div>`;
-  if(!list.length){ h+=`<p class="sa-empty">Aún no hay facturas de ${esV?'ventas':'compras'}.</p>`; $('teacher').innerHTML=saShell(h); return; }
+  h+=`<input id="af-q" placeholder="Buscar por nº, ${esV?'cliente':'proveedor/concepto'} o fecha…" value="${escAttr(window._arFacQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px">`;
+  h+=`<select id="af-estado" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px;background:#fff"><option value="">Todas</option><option value="pag"${fe==='pag'?' selected':''}>Pagadas</option><option value="pdte"${fe==='pdte'?' selected':''}>Pendientes</option></select>`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem">${arr.length} factura${arr.length===1?'':'s'} · ${pag} pagada${pag===1?'':'s'}</span><b style="font-size:1rem">${gxEur(total)}</b></div>`;
+  if(!arr.length){ h+=`<p class="sa-empty">No hay facturas con ese filtro.</p>`; $('teacher').innerHTML=saShell(h); arFacWire(); return; }
   h+=`<div style="overflow-x:auto;border:1.5px solid var(--line);border-radius:12px"><table style="border-collapse:collapse;width:100%;font-size:.78rem;white-space:nowrap"><thead><tr style="background:var(--navy-tint)">
     <th style="text-align:left;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Nº</th>
     <th style="text-align:left;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Fecha</th>
@@ -4408,19 +4421,22 @@ async function arFacturas(modo){
     <th style="text-align:right;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Total</th>
     <th style="text-align:center;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Estado</th>
   </tr></thead><tbody>`;
-  list.forEach((x,i)=>{
-    const parte=esV?((x.cliente&&x.cliente.razon_social)||'—'):((provMap[x.proveedor_id]||x.concepto||'—'));
-    const imp=esV?x.total:x.importe;
+  arr.forEach((x,i)=>{
     h+=`<tr style="background:${i%2?'#fff':'#fafbff'}">
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(x.numero||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${escHtml(x.fecha||'—')}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--navy);font-weight:600">${escHtml(parte)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-weight:700">${gxEur(Number(imp||0))}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--navy);font-weight:600">${escHtml(x.parte)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-weight:700">${gxEur(x.imp)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:center">${x.pagada?'<span style="color:#15803d;font-weight:700">✓</span>':'<span style="color:#b4232a">pdte.</span>'}</td>
     </tr>`;
   });
   h+=`</tbody></table></div>`;
   $('teacher').innerHTML=saShell(h);
+  arFacWire();
+}
+function arFacWire(){
+  const qi=$('af-q'); if(qi) qi.oninput=function(){ window._arFacQ=qi.value; const pos=qi.selectionStart; arFacPintar(); const el=$('af-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } };
+  const se=$('af-estado'); if(se) se.onchange=function(){ window._arFacEstado=se.value; arFacPintar(); };
 }
 function arQChange(){ const qi=$('ar-q'); if(!qi) return; window._arQ=qi.value; const pos=qi.selectionStart; arPintarClientes(); const el=$('ar-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } }
 function arCSV(){
@@ -4437,7 +4453,7 @@ async function arDocs(){
   let list=[];
   try{ list=await call('/rest/v1/documentos_empresa?select=*&order=creado_en.desc')||[]; }
   catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar los documentos: ${escHtml(e.message||'')}</div>`); return; }
-  window._arDocs=list;
+  window._arDocs=list; window._arDocQ=window._arDocQ||''; window._arDocTipo=window._arDocTipo||'';
   let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📄 Contratos y documentación</h2>`;
   h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">El PDF original de cada documento y su registro. Puedes verlo, descargarlo o subirlo a Drive.</p>`;
@@ -4452,9 +4468,25 @@ async function arDocs(){
     <input id="ad-file" type="file" accept="application/pdf" style="font-size:.8rem">
     <button class="btn btn-honey" id="ad-guardar" style="margin-top:14px">Guardar documento</button>
   </div>`;
-  h+=`<h3 style="font-size:.78rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Documentos guardados (${list.length})</h3>`;
-  if(!list.length){ h+=`<p class="sa-empty">Aún no hay documentos.</p>`; }
-  else list.forEach(d=>{
+  h+=`<h3 style="font-size:.78rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Documentos guardados</h3>`;
+  h+=`<input id="ad-q" placeholder="Buscar por título, tipo o notas…" value="${escAttr(window._arDocQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px">`;
+  h+=`<select id="ad-fil-tipo" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px;background:#fff"><option value="">Todos los tipos</option>${AR_TIPOS.map(t=>`<option value="${escAttr(t)}"${window._arDocTipo===t?' selected':''}>${escHtml(t)}</option>`).join('')}</select>`;
+  h+=`<div id="ad-lista"></div>`;
+  $('teacher').innerHTML=saShell(h);
+  const b=$('ad-guardar'); if(b) b.onclick=arDocGuardar;
+  const qi=$('ad-q'); if(qi) qi.oninput=function(){ window._arDocQ=qi.value; arDocsPintarLista(); };
+  const st=$('ad-fil-tipo'); if(st) st.onchange=function(){ window._arDocTipo=st.value; arDocsPintarLista(); };
+  arDocsPintarLista();
+}
+function arDocsPintarLista(){
+  const q=(window._arDocQ||'').toLowerCase(); const ft=window._arDocTipo||'';
+  const arr=(window._arDocs||[]).filter(d=>{
+    if(ft && (d.tipo||'')!==ft) return false;
+    return !q || ((d.titulo||'')+' '+(d.notas||'')+' '+(d.tipo||'')).toLowerCase().includes(q);
+  });
+  let h='';
+  if(!arr.length){ h=`<p class="sa-empty">No hay documentos con ese filtro.</p>`; }
+  else arr.forEach(d=>{
     const f=String(d.creado_en||'').slice(0,10);
     h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
@@ -4462,16 +4494,15 @@ async function arDocs(){
           <div style="font-size:.7rem;color:var(--ink-soft);margin-top:2px"><span style="background:var(--navy-tint);color:var(--navy);border-radius:8px;padding:1px 7px;font-weight:700">${escHtml(d.tipo||'Documento')}</span> · ${escHtml(f)}</div>
           ${d.notas?`<div style="font-size:.76rem;color:var(--ink-soft);margin-top:5px">${escHtml(d.notas)}</div>`:''}</div>
       </div>
-      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
-        ${d.archivo_url?`<button onclick="arDocVer('${escAttr(d.archivo_url)}')" class="gx-mini">👁 Ver</button>
-        <button onclick="arDocDescargar('${escAttr(d.archivo_url)}','${escAttr(d.archivo_nombre||'documento.pdf')}')" class="gx-mini">⬇️ Descargar</button>
-        <button onclick="arDocDrive('${escAttr(d.archivo_url)}','${escAttr(d.archivo_nombre||'documento.pdf')}')" class="gx-mini">☁️ Drive</button>`:'<span class="gx-mini" style="background:#fdeaea;color:#b4232a;cursor:default">sin PDF</span>'}
-        <button onclick="arDocBorrar('${d.id}','${escAttr(d.archivo_url||'')}')" class="gx-mini del" style="margin-left:auto">🗑</button>
+      <div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">
+        ${d.archivo_url?`<button onclick="arDocVer('${escAttr(d.archivo_url)}')" class="px-btn">👁 Ver</button>
+        <button onclick="arDocDescargar('${escAttr(d.archivo_url)}','${escAttr(d.archivo_nombre||'documento.pdf')}')" class="px-btn">⬇️ Descargar</button>
+        <button onclick="arDocDrive('${escAttr(d.archivo_url)}','${escAttr(d.archivo_nombre||'documento.pdf')}')" class="px-btn">☁️ Drive</button>`:'<span class="px-btn" style="cursor:default;color:#b4232a!important">sin PDF</span>'}
+        <button onclick="arDocBorrar('${d.id}','${escAttr(d.archivo_url||'')}')" class="px-btn del" style="margin-left:auto">🗑</button>
       </div>
     </div>`;
   });
-  $('teacher').innerHTML=saShell(h);
-  const b=$('ad-guardar'); if(b) b.onclick=arDocGuardar;
+  const c=$('ad-lista'); if(c) c.innerHTML=h;
 }
 async function arDocGuardar(){
   const tit=($('ad-tit')&&$('ad-tit').value||'').trim();
@@ -4634,24 +4665,24 @@ function pxPintar(){
           <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
-      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:nowrap;align-items:center">
-        <button onclick="pxVer('${p.id}')" class="gx-mini" style="flex:0 0 auto">Ver</button>
-        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="gx-mini" style="flex:0 0 auto">Editar</button>
-        <button onclick="pxEnviar('${p.id}')" class="gx-mini" style="flex:0 0 auto">Enviar</button>
-        <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="flex:1 1 auto;min-width:0;padding:3px 5px">
+      <div style="display:flex;gap:6px;margin-top:9px;flex-wrap:nowrap;align-items:center">
+        <button onclick="pxVer('${p.id}')" class="px-btn" style="flex:0 0 auto">Ver</button>
+        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="px-btn" style="flex:0 0 auto">Editar</button>
+        <button onclick="pxEnviar('${p.id}')" class="px-btn" style="flex:0 0 auto">Enviar</button>
+        <select onchange="pxSetEstado('${p.id}',this.value)" class="px-btn" style="flex:1 1 auto;min-width:0">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
         </select>`}
       </div>
-      ${verArch?'':`<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
+      ${verArch?'':`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:nowrap;align-items:center">
         ${p.aceptacion_url
-          ? `<button onclick="pxAcepVer('${p.id}')" class="gx-mini">👁 Aceptación</button><button onclick="pxAcepDrive('${p.id}')" class="gx-mini">☁️ Drive</button><button onclick="pxAcepBorrar('${p.id}')" class="gx-mini del">🗑</button>`
-          : `<label class="gx-mini" style="cursor:pointer;display:inline-flex;align-items:center">📎 Adjuntar aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label><button onclick="driveAbrir()" class="gx-mini" title="Abrir Google Drive">☁️ Drive</button>`}
+          ? `<button onclick="pxAcepVer('${p.id}')" class="px-btn" style="flex:1 1 auto;min-width:0">👁 Aceptación</button><button onclick="pxAcepDrive('${p.id}')" class="px-btn" style="flex:0 0 auto">☁️ Drive</button><button onclick="pxAcepBorrar('${p.id}')" class="px-btn del" style="flex:0 0 auto">🗑</button>`
+          : `<label class="px-btn" style="flex:1 1 auto;min-width:0;cursor:pointer">📎 Adjuntar aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label><button onclick="driveAbrir()" class="px-btn" style="flex:0 0 auto" title="Abrir Google Drive">☁️ Drive</button>`}
       </div>`}
-      <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
-        ${(!verArch && est==='aceptado')?(p.facturado_en?`<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Facturado</span>`:`<span class="gx-mini" style="background:#eef4fb;color:#2563a8;cursor:default">→ Factura Admin.</span>`):''}
-        <span style="margin-left:auto;display:flex;gap:5px">
-          <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="gx-mini" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
-          ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="gx-mini del">🗑</button>`}
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+        ${(!verArch && est==='aceptado')?(p.facturado_en?`<span class="px-btn" style="cursor:default;color:#15803d!important">✅ Facturado</span>`:`<span class="px-btn" style="cursor:default">→ Factura Admin.</span>`):''}
+        <span style="margin-left:auto;display:flex;gap:6px">
+          <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="px-btn" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
+          ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="px-btn del">🗑</button>`}
         </span>
       </div>
     </div>`;

@@ -983,6 +983,9 @@ select option{color:var(--navy);padding:8px;}
 .gx-tabla tbody tr:hover{background:#faf7f1;}
 .gx-tabla tfoot td{border-top:2px solid var(--navy);padding:10px;background:#f6f1e6;}
 .gx-mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 7px;cursor:pointer;font-size:.75rem;margin-left:3px;font-family:inherit;}
+.px-btn{ display:inline-flex; align-items:center; justify-content:center; gap:4px; background:var(--navy-tint)!important; border:1px solid rgba(46,49,99,.14)!important; color:var(--navy)!important; border-radius:10px!important; padding:6px 11px!important; font-size:.78rem!important; font-weight:600!important; cursor:pointer; font-family:inherit; box-shadow:inset 2px 2px 5px rgba(46,49,99,.20), inset -2px -2px 4px rgba(255,255,255,.85)!important; }
+.px-btn.del{ color:#b4232a!important; }
+.px-btn:active{ box-shadow:inset 3px 3px 7px rgba(46,49,99,.30)!important; transform:none!important; }
 .gx-mini.ok{background:#dcfce7;border-color:#15803d;}
 .gx-mini.del{background:#fdeaea;border-color:#f3c4c4;}
 .gx-cat{display:inline-block;background:#eef1f8;color:#2e3163;border-radius:6px;padding:2px 7px;font-size:.66rem;font-weight:700;white-space:nowrap;}
