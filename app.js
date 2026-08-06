@@ -1575,6 +1575,13 @@ function renderHome(){
         <div class="sub">${certNombre||''}</div>
       </div>`;
   }
+  html = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+      <div style="flex:1;min-width:0">${html}</div>
+      <div style="display:flex;align-items:center;gap:9px;flex-shrink:0;padding-top:2px">
+        <button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:none;cursor:pointer;font-size:1.5rem;position:relative;line-height:1;padding:2px 0">🔔<span id="alum-bell-badge" style="display:none;position:absolute;top:-3px;right:-6px;min-width:16px;height:16px;padding:0 3px;background:#e11d1d;color:#fff;border-radius:9px;font-size:.62rem;font-weight:800;line-height:16px;text-align:center;border:1.5px solid #fff"></span></button>
+        <button onclick="openCalendario('alum')" title="Calendario" style="background:none;border:none;cursor:pointer;font-size:1.5rem;line-height:1;padding:2px 0">📅</button>
+      </div>
+    </div>`;
   html+=renderModulosCardsHtml();
   if(isStaff()) html+=`<div class="dash-teacher-row">
       <button class="admin-card" id="dash-open-teacher" type="button" aria-label="Acceso Docente — entrar al Panel del Profesor">
@@ -1587,9 +1594,9 @@ function renderHome(){
         </span>
       </button>
     </div>`;
-  html+=manualPill('docManualAlumno()','Manual', '<button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">🔔<span id="alum-bell-badge"></span></button>'+calBtnHtml('alum')+'<button onclick="caAlumChat()" title="Chat con tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
+  html+=manualPill('docManualAlumno()','Manual', '<button onclick="caAlumChat()" title="Chat con tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
   $('home').innerHTML=html;
-  if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
+  if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.style.display='block'; bd.textContent=String(n); } }).catch(()=>{}); }
   if(!window._demoMode){ call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
   document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
   const teacherBtn=$('dash-open-teacher');
@@ -2557,7 +2564,7 @@ function docsBar(area){
   return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:center;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
     ${area==='soporte'?`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`:''}
     ${sopPill}
-    <button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est}">📅 Calendario</button>
+    ${area!=='soporte'?`<button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est};box-shadow:inset 2px 2px 5px rgba(70,95,125,.22), inset -1px -1px 3px rgba(255,255,255,.7)">📅 Calendario</button>`:''}
     ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
     <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
   </div>`;
@@ -2663,13 +2670,14 @@ function avPintarBarra(){
   const vis=avVisibles(area);
   const urgentes=vis.some(a=>a.urgente===true);
   const abierta=window._avAbierta;
-  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--honey-tint);border:1.5px solid ${vis.length?'var(--honey)':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
+  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid ${vis.length?'var(--honey)':'var(--line)'};border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem">
       <span style="position:relative">🔔${urgentes?'<span style="position:absolute;top:-3px;right:-5px;width:9px;height:9px;background:#e11d1d;border-radius:50%;border:1.5px solid #fff"></span>':''}</span>
       <span>Avisos</span>
       ${vis.length?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${vis.length}</span>`:'<span style="color:var(--ink-soft);font-weight:600">al día</span>'}
       <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
     </button>`;
   if(abierta) bar.innerHTML+=avPanel(area,vis);
+  avPintarAltaBadges();
 }
 function avPanel(area,vis){
   let h=`<div style="border:1.5px solid var(--line);border-top:0;border-radius:0 0 11px 11px;background:#fff;padding:10px 12px;margin-top:-3px">`;
@@ -2679,8 +2687,11 @@ function avPanel(area,vis){
   }else{
     vis.forEach(a=>{
       const et=area==='soporte'?`<span style="font-size:.6rem;font-weight:800;text-transform:uppercase;color:var(--ink-soft);letter-spacing:.5px;margin-right:5px">${a.area}</span>`:'';
+      const mNum=(a.texto||'').match(/P-\d{4}-\d{4}/);
+      const ojo=mNum?`<button onclick="avVerPresu('${mNum[0]}')" title="Ver el presupuesto" style="flex:0 0 auto;background:#eef4fb;border:1px solid #c7d2fe;border-radius:6px;width:22px;height:22px;line-height:1;font-size:.8rem;cursor:pointer;padding:0">👁</button>`:'';
       h+=`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)">
         <span style="flex:1;font-size:.78rem;color:${a.urgente?'#b4232a':'var(--ink)'}">${a.urgente?'⚠️ ':(a.icono||'•')+' '}${et}${escHtml(a.texto)}</span>
+        ${ojo}
         <button onclick="avArchivar('${escAttr(a.clave)}')" title="Cerrar" style="flex:0 0 auto;background:#fff;border:1px solid var(--line);border-radius:6px;width:20px;height:20px;line-height:1;font-size:.72rem;color:var(--ink-soft);cursor:pointer;padding:0">✕</button>
       </div>`;
     });
@@ -2768,7 +2779,7 @@ function avPanel(area,vis){
   h+=`<button onclick="avVerArchivados()" style="width:100%;margin-top:9px;background:none;border:0;color:var(--ink-soft);font-size:.72rem;cursor:pointer;font-family:inherit;text-decoration:underline">Ver archivados${nArch?' ('+nArch+')':''}</button>`;
   return h+`</div>`;
 }
-function avToggle(){ window._avAbierta=!window._avAbierta; avPintarBarra(); }
+function avToggle(){ window._avAbierta=!window._avAbierta; if(window._avAbierta) window._aiAbierta=false; avPintarBarra(); aiPintarBarra(); avRowSync(); }
 function avDefToggleSec(){ window._avDefAbierto=!window._avDefAbierto; avPintarBarra(); }
 async function avTipoToggle(tipo, off){
   try{
@@ -2876,7 +2887,7 @@ function aiPintarBarra(){
   const vis=aiVisibles(area);
   const nuevos=(aiLista||[]).filter(a=> a.para_area===area && !a.leido).length;
   const abierta=window._aiAbierta;
-  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem">
+  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:8px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid var(--line);border-radius:11px;padding:9px 12px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem">
       <span>✉️</span>
       <span>Avisos internos</span>
       ${nuevos?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:'<span style="color:var(--ink-soft);font-weight:600">sin nuevos</span>'}
@@ -2918,7 +2929,32 @@ function aiPanel(area,vis){
   }
   return h+`</div>`;
 }
-function aiToggle(){ window._aiAbierta=!window._aiAbierta; aiPintarBarra(); }
+function aiToggle(){ window._aiAbierta=!window._aiAbierta; if(window._aiAbierta) window._avAbierta=false; avPintarBarra(); aiPintarBarra(); avRowSync(); }
+function avRowSync(){ const r=document.getElementById('av-row'); if(r) r.classList.toggle('av-open', !!(window._avAbierta||window._aiAbierta)); }
+async function avVerPresu(num){
+  try{
+    const rows=await call('/rest/v1/presupuestos?select=*&numero=eq.'+encodeURIComponent(num));
+    const p=(rows||[])[0];
+    if(!p){ appAlert('No encuentro el presupuesto '+num+'.'); return; }
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,45,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px';
+    const box=document.createElement('div');
+    box.style.cssText='background:#fff;border-radius:16px;max-width:560px;width:100%;padding:16px 18px;box-shadow:0 20px 50px rgba(0,0,0,.3)';
+    box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="color:var(--navy)">👁 Presupuesto '+escHtml(num)+'</b><button id="avp-x" style="background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer">✕</button></div>'+presuFichaHTML(p)+'<p style="font-size:.72rem;color:var(--ink-soft);margin:12px 2px 0">Para dar de alta al cliente: Academias y profesores → Crear usuario.</p>';
+    ov.appendChild(box); document.body.appendChild(ov);
+    document.getElementById('avp-x').onclick=()=>ov.remove();
+    ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  }catch(e){ appAlert('No se pudo abrir: '+(e.message||'')); }
+}
+// Ca9: nº de presupuestos aceptados pendientes de dar de alta (avisos "activar al cliente").
+function avAltasPendientes(){ return (avLista||[]).filter(a=>/activar al cliente/i.test(a.texto||'')).length; }
+function avPintarAltaBadges(){
+  const n=avAltasPendientes();
+  document.querySelectorAll('.alta-badge').forEach(el=>{
+    if(n>0){ el.textContent=String(n); el.style.display='inline-flex'; }
+    else{ el.style.display='none'; }
+  });
+}
 async function aiEnviar(){
   const ta=$('ai-texto'); const txt=ta?ta.value.trim():'';
   if(!txt){ appAlert('Escribe el aviso antes de enviarlo.'); return; }
@@ -2961,7 +2997,7 @@ function saShell(inner,opts){
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${st('rs')}" onclick="saSetMain('rs')">Comercial</button>
     </div>
-    ${window._avRaiz?`<div class="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'}"><div id="av-bar"></div><div id="ai-bar"></div></div>`:''}
+    ${window._avRaiz?`<div class="av-row" id="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'}"><div id="av-bar"></div><div id="ai-bar"></div></div>`:''}
     ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
     ${inner}`;
 }
@@ -2992,7 +3028,7 @@ function saRenderLista(okMsg,errMsg){
     return;
   }
   if(saMainTab==='sop'){
-    h+=`<div class="sa-cards-grid">${scInboxCardHtml(true)}<button class="fact-menu" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores</b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button></div>`;
+    h+=`<div class="sa-cards-grid">${scInboxCardHtml(true)}<button class="fact-menu" style="margin:0" onclick="openCalendario('adm')"><b>📅 Calendario</b><span>Tareas y recordatorios del equipo</span></button><button class="fact-menu" style="margin:0;grid-column:1/-1;position:relative" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button></div>`;
     h+=docsBar('soporte');
     $('teacher').innerHTML=saShell(h,{noChat:true});
     return;
@@ -3000,8 +3036,8 @@ function saRenderLista(okMsg,errMsg){
   if(saMainTab==='acadprof'){
     h+=`<button class="backbtn" onclick="saSetMain('sop')" style="margin-bottom:12px">← Soporte</button>`;
     h+=`<div class="sa-cards-grid">
-      <button class="fact-menu" onclick="saSetMain('ev')"><b>📝 Crear usuario Aptuvia</b><span>Academias con certificados de profesionalidad</span></button>
-      <button class="fact-menu" onclick="saSetMain('aa')"><b>📝 Crear usuario Aula Abierta</b><span>Profesores independientes · formación libre</span></button>
+      <button class="fact-menu" onclick="saSetMain('ev')"><b>📝 Crear usuario Aptuvia <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Academias con certificados de profesionalidad</span></button>
+      <button class="fact-menu" onclick="saSetMain('aa')"><b>📝 Crear usuario Aula Abierta <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Profesores independientes · formación libre</span></button>
     </div>`;
     h+=docsBar('soporte');
     $('teacher').innerHTML=saShell(h);
@@ -4052,12 +4088,14 @@ function saRenderFacturacionLista(){
     h+=`<button class="fact-menu" onclick="saFactSub('aa')"><b>Facturar Aula Abierta</b><span>Emitir factura a los clientes de Aula Abierta</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('gastos')"><b>Gastos y balance</b><span>Facturas de proveedores, gastos previstos y evolución del negocio</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('conta')"><b>🧾 Contabilidad</b><span>Libros, IVA (303), IRPF (130) y resúmenes anuales (390, 347)</span></button>`;
+    h+=`<button class="fact-menu" onclick="saFactSub('archivo')" style="grid-column:1/-1"><b>🗄 Archivo central</b><span>Ficha de todos los clientes (desde presupuestos) y archivo de contratos y documentación de la empresa</span></button>`;
     h+=`</div>`;
     h+=docsBar('admin');
     $('teacher').innerHTML=saShell(h);
     return;
   }
   if(sub==='conta'){ ctRender(); return; }
+  if(sub==='archivo'){ arRender(); return; }
   if(sub==='presuacep'){ saRenderPresuAceptados(); return; }
   if(sub==='emitidas'){ saRenderFacturasEmitidas(); return; }
   if(sub==='gastos'){ gxRender(); return; }
@@ -4086,6 +4124,181 @@ function saRenderFacturacionLista(){
     saCargarClientesAA();
     return;
   }
+}
+
+/* ═══════════════ ARCHIVO CENTRAL (Ca7) ═══════════════ */
+function arRender(){
+  let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🗄 Archivo central</h2>`;
+  h+=`<p style="font-size:.76rem;color:var(--ink-soft);margin:0 2px 12px">El expediente de la empresa: la ficha de todos los clientes que has presupuestado y el archivo de contratos y documentación.</p>`;
+  h+=`<div class="sa-cards-grid">
+    <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Todos los clientes de tus presupuestos, con filtros y orden por columna</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arDocs()"><b>📄 Contratos y documentación</b><span>Licencias, encargado del tratamiento (art. 28), altas… el PDF y su registro</span></button>
+  </div>`;
+  $('teacher').innerHTML=saShell(h);
+}
+async function arClientes(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  let lista=[];
+  try{ lista=await call('/rest/v1/presupuestos?select=numero,fecha,cliente,total,creado_en&order=creado_en.asc')||[]; }
+  catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar los presupuestos: ${escHtml(e.message||'')}</div>`); return; }
+  const map=new Map();
+  lista.forEach(p=>{
+    const c=p.cliente||{};
+    const key=((c.nif||'').toUpperCase().trim())||((c.razon_social||'').toUpperCase().trim())||('P:'+p.numero);
+    let f=map.get(key);
+    if(!f){ f={num:0,razon:'',nif:'',poblacion:'',provincia:'',email:'',telefono:'',direccion:'',cp:'',nPresu:0,total:0,ultima:''}; map.set(key,f); }
+    if(!f.razon && c.razon_social) f.razon=c.razon_social;
+    if(!f.nif && c.nif) f.nif=c.nif;
+    if(!f.poblacion && c.poblacion) f.poblacion=c.poblacion;
+    if(!f.provincia && c.provincia) f.provincia=c.provincia;
+    if(!f.email && c.email) f.email=c.email;
+    if(!f.telefono && c.telefono) f.telefono=c.telefono;
+    if(!f.direccion && c.direccion) f.direccion=c.direccion;
+    if(!f.cp && c.cp) f.cp=c.cp;
+    f.nPresu++; f.total+=Number(p.total||0);
+    if((p.fecha||'')>f.ultima) f.ultima=p.fecha||'';
+  });
+  const arr=[...map.values()];
+  arr.forEach((f,i)=>{ f.num=i+1; if(!f.razon) f.razon='—'; });
+  window._arCli=arr;
+  window._arSort=window._arSort||{col:'num',dir:1};
+  window._arQ=window._arQ||'';
+  arPintarClientes();
+}
+const AR_COLS=[['num','Nº'],['razon','Cliente'],['nif','NIF'],['poblacion','Población'],['email','Email'],['telefono','Teléfono'],['nPresu','Presu.'],['total','Total €'],['ultima','Último']];
+function arSort(col){ const s=window._arSort; if(s.col===col) s.dir*=-1; else { s.col=col; s.dir=1; } arPintarClientes(); }
+function arFiltrada(){
+  const q=(window._arQ||'').toLowerCase();
+  let arr=(window._arCli||[]).filter(f=> !q || (f.razon+' '+f.nif+' '+f.email+' '+f.poblacion+' '+f.telefono).toLowerCase().includes(q));
+  const s=window._arSort;
+  arr=arr.slice().sort((a,b)=>{ let x=a[s.col], y=b[s.col]; if(typeof x==='string'){ x=(x||'').toLowerCase(); y=(y||'').toLowerCase(); } return (x>y?1:x<y?-1:0)*s.dir; });
+  return arr;
+}
+function arPintarClientes(){
+  const arr=arFiltrada(); const s=window._arSort;
+  const totalPresu=arr.reduce((t,f)=>t+f.total,0);
+  let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📇 Ficha de clientes</h2>`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Se crean solas desde tus presupuestos. Toca una columna para ordenar.</p>`;
+  h+=`<input id="ar-q" placeholder="Buscar por nombre, NIF, email, población…" value="${escAttr(window._arQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px">`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem">${arr.length} cliente${arr.length===1?'':'s'}</span><b style="font-size:1rem">${gxEur(totalPresu)} presup.</b></div>`;
+  h+=`<button onclick="arCSV()" style="width:100%;margin-bottom:10px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.85rem">↓ CSV (Excel)</button>`;
+  if(!arr.length){ h+=`<p class="sa-empty">Aún no hay clientes. Se crean solos al hacer presupuestos.</p>`; $('teacher').innerHTML=saShell(h); const qi0=$('ar-q'); if(qi0) qi0.oninput=arQChange; return; }
+  h+=`<div style="overflow-x:auto;border:1.5px solid var(--line);border-radius:12px"><table style="border-collapse:collapse;width:100%;font-size:.78rem;white-space:nowrap"><thead><tr style="background:var(--navy-tint)">`;
+  AR_COLS.forEach(([k,lab])=>{ const act=s.col===k; h+=`<th onclick="arSort('${k}')" style="text-align:left;padding:9px 10px;cursor:pointer;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line);user-select:none">${lab}${act?(s.dir>0?' ▲':' ▼'):''}</th>`; });
+  h+=`</tr></thead><tbody>`;
+  arr.forEach((f,i)=>{
+    h+=`<tr style="background:${i%2?'#fff':'#fafbff'}">
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${f.num}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy)">${escHtml(f.razon)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.nif||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.poblacion||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.email||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(f.telefono||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:center">${f.nPresu}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-weight:700">${gxEur(f.total)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${escHtml(f.ultima||'—')}</td>
+    </tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  $('teacher').innerHTML=saShell(h);
+  const qi=$('ar-q'); if(qi) qi.oninput=arQChange;
+}
+function arQChange(){ const qi=$('ar-q'); if(!qi) return; window._arQ=qi.value; const pos=qi.selectionStart; arPintarClientes(); const el=$('ar-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } }
+function arCSV(){
+  const arr=arFiltrada();
+  const cab=['Nº','Cliente','NIF','Dirección','CP','Población','Provincia','Email','Teléfono','Nº presupuestos','Total presupuestado','Último'];
+  const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  let csv=cab.map(esc).join(';')+'\n';
+  arr.forEach(f=>{ csv+=[f.num,f.razon,f.nif,f.direccion,f.cp,f.poblacion,f.provincia,f.email,f.telefono,f.nPresu,String(f.total).replace('.',','),f.ultima].map(esc).join(';')+'\n'; });
+  try{ const bl=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}); const u=URL.createObjectURL(bl); const a=document.createElement('a'); a.href=u; a.download='clientes.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500); }catch(e){ appAlert('No se pudo generar el CSV.'); }
+}
+const AR_TIPOS=['Contrato','Licencia de software','Encargado del tratamiento (art. 28)','Alta / cliente','Fiscal','Marca / PI','Otro'];
+async function arDocs(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  let list=[];
+  try{ list=await call('/rest/v1/documentos_empresa?select=*&order=creado_en.desc')||[]; }
+  catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar los documentos: ${escHtml(e.message||'')}</div>`); return; }
+  window._arDocs=list;
+  let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📄 Contratos y documentación</h2>`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 12px">El PDF original de cada documento y su registro. Puedes verlo, descargarlo o subirlo a Drive.</p>`;
+  h+=`<div class="t-card">
+    <label style="margin-top:6px">Título</label>
+    <input id="ad-tit" type="text" placeholder="Ej.: Contrato de licencia · Academia X">
+    <label>Tipo</label>
+    <select id="ad-tipo">${AR_TIPOS.map(t=>`<option value="${escAttr(t)}">${escHtml(t)}</option>`).join('')}</select>
+    <label>Notas (opcional)</label>
+    <textarea id="ad-notas" rows="2" placeholder="Referencia, fecha de firma, partes…" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:.85rem;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;resize:vertical"></textarea>
+    <label style="margin-top:10px">PDF del documento</label>
+    <input id="ad-file" type="file" accept="application/pdf" style="font-size:.8rem">
+    <button class="btn btn-honey" id="ad-guardar" style="margin-top:14px">Guardar documento</button>
+  </div>`;
+  h+=`<h3 style="font-size:.78rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 10px">Documentos guardados (${list.length})</h3>`;
+  if(!list.length){ h+=`<p class="sa-empty">Aún no hay documentos.</p>`; }
+  else list.forEach(d=>{
+    const f=String(d.creado_en||'').slice(0,10);
+    h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="min-width:0"><b style="font-size:.9rem;color:var(--navy)">${escHtml(d.titulo||'—')}</b>
+          <div style="font-size:.7rem;color:var(--ink-soft);margin-top:2px"><span style="background:var(--navy-tint);color:var(--navy);border-radius:8px;padding:1px 7px;font-weight:700">${escHtml(d.tipo||'Documento')}</span> · ${escHtml(f)}</div>
+          ${d.notas?`<div style="font-size:.76rem;color:var(--ink-soft);margin-top:5px">${escHtml(d.notas)}</div>`:''}</div>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
+        ${d.archivo_url?`<button onclick="arDocVer('${escAttr(d.archivo_url)}')" class="gx-mini">👁 Ver</button>
+        <button onclick="arDocDescargar('${escAttr(d.archivo_url)}','${escAttr(d.archivo_nombre||'documento.pdf')}')" class="gx-mini">⬇️ Descargar</button>
+        <button onclick="arDocDrive('${escAttr(d.archivo_url)}','${escAttr(d.archivo_nombre||'documento.pdf')}')" class="gx-mini">☁️ Drive</button>`:'<span class="gx-mini" style="background:#fdeaea;color:#b4232a;cursor:default">sin PDF</span>'}
+        <button onclick="arDocBorrar('${d.id}','${escAttr(d.archivo_url||'')}')" class="gx-mini del" style="margin-left:auto">🗑</button>
+      </div>
+    </div>`;
+  });
+  $('teacher').innerHTML=saShell(h);
+  const b=$('ad-guardar'); if(b) b.onclick=arDocGuardar;
+}
+async function arDocGuardar(){
+  const tit=($('ad-tit')&&$('ad-tit').value||'').trim();
+  const tipo=$('ad-tipo')&&$('ad-tipo').value||'Documento';
+  const notas=($('ad-notas')&&$('ad-notas').value||'').trim();
+  const file=$('ad-file')&&$('ad-file').files&&$('ad-file').files[0];
+  if(!tit){ appAlert('Ponle un título al documento.'); return; }
+  if(!file){ appAlert('Adjunta el PDF del documento.'); return; }
+  const b=$('ad-guardar'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{
+    const safe=(file.name||'documento.pdf').replace(/[^a-zA-Z0-9._-]/g,'_').slice(-60);
+    const path='docs/'+Date.now()+'_'+safe;
+    const up=await fetch(SUPABASE_URL+'/storage/v1/object/documentos-empresa/'+encodeURI(path),{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':file.type||'application/pdf'},body:file});
+    if(!up.ok){ let det=''; try{ const t=await up.text(); const j=JSON.parse(t); det=j.message||j.error||t; }catch(e){} throw new Error('Storage '+up.status+': '+(det||'sin detalle')); }
+    await call('/rest/v1/documentos_empresa',{method:'POST',body:{titulo:tit,tipo:tipo,notas:notas||null,archivo_url:path,archivo_nombre:file.name}});
+    arDocs();
+  }catch(e){ if(b){ b.disabled=false; b.textContent='Guardar documento'; } appAlert('No se pudo guardar: '+(e.message||'')); }
+}
+async function arDocSigned(path){
+  const r=await fetch(SUPABASE_URL+'/storage/v1/object/sign/documentos-empresa/'+encodeURI(path),{method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({expiresIn:3600})});
+  const d=await r.json(); if(!d||!d.signedURL) throw new Error('sin URL'); return SUPABASE_URL+'/storage/v1'+d.signedURL;
+}
+async function arDocVer(path){ try{ window.open(await arDocSigned(path),'_blank'); }catch(e){ appAlert('No se pudo abrir el PDF.'); } }
+async function arDocDescargar(path,nombre){ try{ const u=await arDocSigned(path); window.open(u+'&download='+encodeURIComponent(nombre||'documento.pdf'),'_blank'); }catch(e){ appAlert('No se pudo descargar.'); } }
+async function arDocDrive(path,nombre){
+  try{
+    const u=await arDocSigned(path);
+    try{
+      const resp=await fetch(u); const blob=await resp.blob();
+      const file=new File([blob], nombre||'documento.pdf', {type:blob.type||'application/pdf'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:nombre||'Documento'}); return; }
+    }catch(_){}
+    const a=document.createElement('a'); a.href=u+'&download='+encodeURIComponent(nombre||'documento.pdf'); a.click();
+    driveAbrir();
+    appAlert('Descargado. Se ha abierto Drive: súbelo ahí desde tus descargas.');
+  }catch(e){ appAlert('No se pudo compartir a Drive.'); }
+}
+async function arDocBorrar(id,path){
+  if(!await appConfirm('¿Borrar este documento y su PDF? No se puede deshacer.')) return;
+  try{
+    if(path){ try{ await fetch(SUPABASE_URL+'/storage/v1/object/documentos-empresa/'+encodeURI(path),{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token}}); }catch(_){} }
+    await call('/rest/v1/documentos_empresa?id=eq.'+id,{method:'DELETE'});
+    arDocs();
+  }catch(e){ appAlert('No se pudo borrar: '+(e.message||'')); }
 }
 
 /* ═══════════════ PRESUPUESTOS ═══════════════ */
@@ -4204,24 +4417,54 @@ function pxPintar(){
           <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
-      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center">
         <button onclick="pxVer('${p.id}')" class="gx-mini">👁 Ver</button>
-        <button onclick="pxPDF('${p.id}')" class="gx-mini">📄 PDF</button>
         ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="gx-mini">✏️ Editar</button>
         <button onclick="pxEnviar('${p.id}')" class="gx-mini">✉️ Enviar</button>
         <select onchange="pxSetEstado('${p.id}',this.value)" class="gx-mini" style="padding:3px 5px">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
         </select>
         ${est==='aceptado'?(p.facturado_en?`<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Facturado</span>`:`<span class="gx-mini" style="background:#eef4fb;color:#2563a8;cursor:default">→ Lo factura Administración</span>`):''}`}
-        <span style="margin-left:auto;display:flex;gap:5px">
-          <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="gx-mini" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
-          ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="gx-mini del">🗑</button>`}
-        </span>
+      </div>
+      ${verArch?'':`<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
+        ${p.aceptacion_url
+          ? `<span class="gx-mini" style="background:#dcfce7;color:#15803d;cursor:default">✅ Aceptación</span><button onclick="pxAcepVer('${p.id}')" class="gx-mini">👁 Ver</button><button onclick="pxAcepDrive('${p.id}')" class="gx-mini">☁️ Drive</button><button onclick="pxAcepBorrar('${p.id}')" class="gx-mini del">🗑</button>`
+          : `<label class="gx-mini" style="cursor:pointer;display:inline-flex;align-items:center">📎 Adjuntar aceptación del cliente<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label>`}
+      </div>`}
+      <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="gx-mini" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
+        ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="gx-mini del">🗑</button>`}
       </div>
     </div>`;
   });
   h+=`</div>`;
   $('teacher').innerHTML=saShell(h);
+}
+async function pxAcepSubir(id,input){
+  const file=input&&input.files&&input.files[0]; if(!file) return;
+  const p=pxLista.find(x=>String(x.id)===String(id));
+  try{
+    const safe=(file.name||'aceptacion.pdf').replace(/[^a-zA-Z0-9._-]/g,'_').slice(-60);
+    const path='aceptaciones/'+id+'_'+Date.now()+'_'+safe;
+    const up=await fetch(SUPABASE_URL+'/storage/v1/object/documentos-empresa/'+encodeURI(path),{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':file.type||'application/pdf'},body:file});
+    if(!up.ok){ let det=''; try{ const t=await up.text(); const j=JSON.parse(t); det=j.message||j.error||t; }catch(e){} throw new Error('Storage '+up.status+': '+(det||'sin detalle')); }
+    await call('/rest/v1/presupuestos?id=eq.'+id,{method:'PATCH',body:{aceptacion_url:path,aceptacion_nombre:file.name}});
+    if(p){ p.aceptacion_url=path; p.aceptacion_nombre=file.name; }
+    pxPintar();
+  }catch(e){ appAlert('No se pudo adjuntar: '+(e.message||'')); }
+}
+async function pxAcepVer(id){ const p=pxLista.find(x=>String(x.id)===String(id)); if(!p||!p.aceptacion_url) return; try{ window.open(await arDocSigned(p.aceptacion_url),'_blank'); }catch(e){ appAlert('No se pudo abrir.'); } }
+function pxAcepDrive(id){ const p=pxLista.find(x=>String(x.id)===String(id)); if(!p||!p.aceptacion_url) return; arDocDrive(p.aceptacion_url, p.aceptacion_nombre||'aceptacion.pdf'); }
+async function pxAcepBorrar(id){
+  const p=pxLista.find(x=>String(x.id)===String(id)); if(!p||!p.aceptacion_url) return;
+  if(!await appConfirm('¿Quitar el PDF de aceptación?')) return;
+  const path=p.aceptacion_url;
+  try{
+    try{ await fetch(SUPABASE_URL+'/storage/v1/object/documentos-empresa/'+encodeURI(path),{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token}}); }catch(_){}
+    await call('/rest/v1/presupuestos?id=eq.'+id,{method:'PATCH',body:{aceptacion_url:null,aceptacion_nombre:null}});
+    p.aceptacion_url=null; p.aceptacion_nombre=null;
+    pxPintar();
+  }catch(e){ appAlert('No se pudo quitar: '+(e.message||'')); }
 }
 
 // Ficha del presupuesto en pantalla, para consultarlo sin descargar el PDF.
@@ -6215,7 +6458,7 @@ function factMostrarPlantilla(){
       <input id="fm-sub" value="${escAttr(m.asunto)}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 10px;box-sizing:border-box">
       <label style="font-size:.75rem;color:var(--ink-soft)">Mensaje (editable)</label>
       <textarea id="fm-body" rows="10" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:3px 0 4px;box-sizing:border-box;font-family:inherit;font-size:.85rem;resize:vertical">${escHtml(m.cuerpo)}</textarea>
-      <p style="font-size:.72rem;color:var(--ink-soft);margin:4px 0 10px">Se abrirá Gmail con la cuenta de Aptuvia; comprueba que el remitente sea <b>contacto@aptuvia.es</b> y adjunta el PDF descargado antes de enviar.</p>
+      <p style="font-size:.72rem;color:var(--ink-soft);margin:4px 0 10px">Se abrirá tu app de correo con el mensaje ya redactado; comprueba que el remitente sea <b>contacto@aptuvia.es</b> y adjunta el PDF descargado antes de enviar.</p>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end">
       <button id="fm-cancel" style="padding:9px 16px;border-radius:10px;font-weight:700;border:1.5px solid var(--line);background:#fff;cursor:pointer">Cancelar</button>
@@ -6228,7 +6471,7 @@ function factMostrarPlantilla(){
     const sub=document.getElementById('fm-sub').value;
     const body=document.getElementById('fm-body').value;
     ov.remove();
-    if(!await appConfirm('¿Abrir Gmail (cuenta de Aptuvia) para enviar a '+to+'?')) return;
+    if(!await appConfirm('¿Abrir tu correo para enviar a '+to+'?')) return;
     // Marcar como enviada: si viene del panel, esa factura; si no, la última del editor.
     try{
       const m=window._factMail||{};
@@ -6241,8 +6484,8 @@ function factMostrarPlantilla(){
         if(ult && ult.id){ await call('/rest/v1/rpc/sa_factura_estado',{method:'POST',body:{p_id:ult.id,p_campo:'enviada',p_valor:true}}); ult.enviada=true; }
       }
     }catch(e){}
-    const link='https://mail.google.com/mail/?view=cm&fs=1&tf=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body)+'&authuser=aptuvia@gmail.com';
-    try{ window.open(link,'_blank','noopener'); }catch(_){ window.location.href=link; }
+    const link='mailto:'+to+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body);
+    try{ window.location.href=link; }catch(_){ window.open(link,'_blank'); }
   };
 }
 
@@ -6515,33 +6758,34 @@ function pintarTeacher(){
   }else{
     cabecera = `<span class="t-course"><span class="t-code-inline">${certCodigo}</span> · ${certNombre}</span>`;
   }
-  $('teacher').innerHTML=`${window._saImpersona?`<button class="backbtn" onclick="salirImpersona()" style="margin-bottom:10px;background:var(--honey-tint);border-color:var(--honey)">← Volver a la academia</button>`:''}<div class="t-welcome" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-      <div>${cabecera}</div>
-      <button id="prof-bell" onclick="openAvisosProfe()" title="Mis avisos" style="background:none;border:none;cursor:pointer;font-size:1.5rem;position:relative;line-height:1;flex-shrink:0;padding:2px 0">🔔<span id="prof-bell-dot" style="display:none;position:absolute;top:-3px;right:-5px;min-width:16px;height:16px;padding:0 3px;background:#e11d1d;color:#fff;border-radius:9px;font-size:.62rem;font-weight:800;line-height:16px;text-align:center;border:1.5px solid #fff"></span></button>
+  $('teacher').innerHTML=`${window._saImpersona?`<button class="backbtn" onclick="salirImpersona()" style="margin-bottom:10px;background:var(--honey-tint);border-color:var(--honey)">← Volver a la academia</button>`:''}<div class="t-welcome" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div class="t-course-pill">${cabecera}</div>
+      <div style="display:flex;align-items:center;gap:9px;flex-shrink:0">
+      <button onclick="openCalendario('prof')" title="Calendario" style="background:none;border:none;cursor:pointer;font-size:1.5rem;line-height:1;padding:2px 0">📅</button>
+      <button id="prof-bell" onclick="openAvisosProfe()" title="Mis avisos" style="background:none;border:none;cursor:pointer;font-size:1.5rem;position:relative;line-height:1;padding:2px 0">🔔<span id="prof-bell-dot" style="display:none;position:absolute;top:-3px;right:-5px;min-width:16px;height:16px;padding:0 3px;background:#e11d1d;color:#fff;border-radius:9px;font-size:.62rem;font-weight:800;line-height:16px;text-align:center;border:1.5px solid #fff"></span></button>
+      </div>
     </div>
     <div class="t-grid">
+      <button class="t-tile" onclick="openModulosTeacher()">
+        <span class="ic" style="background:var(--navy-tint)">📚</span><span class="tt">Módulos</span><span class="ts">Evolución de la clase</span></button>
       <button class="t-tile" onclick="openTemarioProfesor()">
         <span class="ic" style="background:var(--honey-tint)">📚</span><span class="tt">Temario</span><span class="ts">Apuntes para el alumno</span></button>
       <button class="t-tile" onclick="openExamMgmt()">
-        <span class="ic" style="background:var(--honey-tint)">⚙️</span><span class="tt">Crear y gestionar exámenes</span></button>
+        <span class="ic" style="background:var(--honey-tint)">⚙️</span><span class="tt">Crear y gestionar exámenes</span><span class="ts">Test, redacción y banco</span></button>
       <button class="t-tile" onclick="openPublicar()">
         <span class="ic" style="background:var(--honey-tint)">👁️</span><span class="tt">Exámenes y estados</span><span class="ts">Qué ve el alumno · situación</span></button>
-      <button class="t-tile" onclick="openModulosTeacher()">
-        <span class="ic" style="background:var(--navy-tint)">📚</span><span class="tt">Módulos</span><span class="ts">Evolución de la clase</span></button>
       <button class="t-tile" onclick="openCorrecciones()">
         <span class="ic" style="background:var(--honey-tint)">✍️</span><span class="tt">Correcciones</span><span class="ts">Redacciones por corregir</span>${pendientesCount>0?`<span class="tile-badge">${pendientesCount}</span>`:''}</button>
       <button class="t-tile" onclick="openAlumnos()">
         <span class="ic-row"><span class="ic" style="background:var(--navy-tint)">👥</span><span class="t-online-pill" id="t-sub-count"><span class="online-dot" style="background:#94a3b8;box-shadow:none;animation:none"></span>… en línea</span></span><span class="tt">Alumnos y notas</span><span class="ts">Registrados: ${nAl}</span></button>
       <button class="t-tile" id="t-soporte-tile" onclick="openSoporteProfe()">
-        <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Chats</span><span class="ts">Con soporte y con tus alumnos</span><span id="t-soporte-badge"></span></button>
+        <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Chat y reporte</span><span class="ts">Soporte, alumnos y reportes</span><span id="t-soporte-badge"></span></button>
       <button class="t-tile" onclick="openPassword()">
-        <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span></button>
-      <button class="t-tile" onclick="openReportes()">
-        <span class="ic" style="background:var(--honey-tint)">⚠️</span><span class="tt">Reportes</span><span class="ts">Preguntas que reporta el alumnado</span><span id="t-reportes-badge"></span></button>
+        <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span><span class="ts">Clave y descargar tu materia</span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
-    ${manualPill('docManualProfe()', null, calBtnHtml('prof')+'<button onclick="descargarMateriaZip()" title="Descarga tu materia completa: temario, exámenes y actividades" style="background:transparent;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">⬇️ Descargar mi materia</button>')}`;
+    ${manualPill('docManualProfe()')}`;
   // Badge de alumnos en línea — pastilla bajo "Matriculados" en la tarjeta Alumnos
   fetchOnlineCount().then(n=>{
     const el=$('t-sub-count'); if(!el) return;
@@ -6551,9 +6795,9 @@ function pintarTeacher(){
   const btnEd=$('edit-aula-nombre'); if(btnEd) btnEd.onclick=editarNombreAula;
   if(!window._demoMode){ Promise.all([
     call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0),
-    call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0)
-  ]).then(function(r){ const n=(+r[0]||0)+(+r[1]||0); const el=$('t-soporte-badge'); if(el && n>0){ el.className='tile-badge'; el.textContent=String(n); } }); }
-  if(!window._demoMode){ call('/rest/v1/rpc/reportes_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('t-reportes-badge'); if(el && +n>0){ el.className='tile-badge'; el.textContent=String(n); } }).catch(()=>{}); }
+    call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0),
+    call('/rest/v1/rpc/reportes_prof_no_leidos',{method:'POST',body:{}}).catch(()=>0)
+  ]).then(function(r){ const n=(+r[0]||0)+(+r[1]||0)+(+r[2]||0); const el=$('t-soporte-badge'); if(el && n>0){ el.className='tile-badge'; el.textContent=String(n); } }); }
   if(!window._demoMode){ Promise.all([
     call('/rest/v1/rpc/prof_avisos_listar',{method:'POST',body:{}}).catch(()=>[]),
     call('/rest/v1/rpc/cal_prof_listar',{method:'POST',body:{p_desde:fechaISOLocal(new Date()),p_hasta:fechaISOLocal(new Date())}}).catch(()=>[])
@@ -6581,7 +6825,7 @@ async function openReportes(okMsg){
   window._teacherScreen='reportes'; showView('teacher'); window.scrollTo(0,0);
   let list=[];
   if(!window._demoMode){ try{ list=await call('/rest/v1/rpc/reportes_prof_listar',{method:'POST',body:{}})||[]; }catch(e){} }
-  const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
+  const h=['<button class="backbtn" onclick="openSoporteProfe()">← Chat y reporte</button>'];
   h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">⚠️ Reportes de preguntas</h1>');
   if(okMsg) h.push('<div class="t-note ok">'+escHtml(okMsg)+'</div>');
   h.push('<div class="t-card" style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px"><b>Cómo proceder:</b> si la pregunta es de un examen tuyo, corrígela en «Crear y gestionar exámenes» → editar el examen. Si es una pregunta del <b>banco general</b> (viene ya montada en el certificado), avísale a soporte por el chat indicando el examen y el número de pregunta.</div>');
@@ -7238,14 +7482,16 @@ function scRenderProfe(allMsgs, est, verArch){
 function openSoporteProfe(){
   showView('teacher'); window.scrollTo(0,0);
   const h=['<button class="backbtn" onclick="pintarTeacher()">← Panel</button>'];
-  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 Chats</h1>');
-  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Elige con quién quieres hablar.</p>');
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 Chat y reporte</h1>');
+  h.push('<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Elige qué quieres abrir.</p>');
   h.push('<button onclick="openChatSoporte()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con soporte</b><span id="soporte-menu-badge"></span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas o incidencias con Aptuvia</div></button>');
   h.push('<button onclick="caProfInbox()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:.95rem;color:var(--navy)">🗨️ Chat con alumnos</b><span id="alum-menu-badge"></span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Mensajería con tu clase (opcional)</div></button>');
+  h.push('<button onclick="openReportes()" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:.95rem;color:var(--navy)">⚠️ Reportes de preguntas</b><span id="reportes-menu-badge"></span></div><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Preguntas que reporta el alumnado</div></button>');
   $('teacher').innerHTML=h.join('');
   if(!window._demoMode){
     call('/rest/v1/rpc/sc_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('soporte-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
     call('/rest/v1/rpc/ca_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('alum-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+    call('/rest/v1/rpc/reportes_prof_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('reportes-menu-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
   }
 }
 async function openChatSoporte(verArch){
@@ -7375,6 +7621,11 @@ function openPassword(okMsg, errMsg){
       <label>Repite la contraseña</label>
       <span class="pwwrap"><input id="pw-2" type="password" placeholder="Vuelve a escribirla" autocomplete="new-password"><button type="button" class="pweye" id="pw2Eye" aria-label="Mostrar contraseña">👁</button></span>
       <button class="btn btn-honey" id="pw-btn" style="margin-top:16px">Guardar contraseña</button>
+    </div>`);
+  h.push(`<div class="t-card" style="margin-top:14px">
+      <b style="font-size:.95rem;color:var(--navy)">⬇️ Descargar mi materia</b>
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:6px 0 12px">Tu trabajo es tuyo. El día que dejes la plataforma puedes llevarte toda tu documentación: descarga aquí un ZIP con tu temario, tus exámenes y tus actividades de redacción, guárdalo donde quieras y llévatelo. Sin ataduras.</p>
+      <button class="btn btn-ghost" onclick="descargarMateriaZip()" style="width:100%">⬇️ Descargar mi materia (ZIP)</button>
     </div>`);
   $('teacher').innerHTML=h.join('');
   $('pw-btn').onclick=cambiarPasswordUI;
@@ -7824,7 +8075,7 @@ function renderExamMgmt(okMsg,errMsg){
     h.push(renderRedSection());
     h.push('</div><div class="mgmt-right">');
     h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
-    h.push(listaProfHtml(units));
+    h.push(listaProfHtml(units,'redaccion'));
     h.push('</div></div>');
     $('teacher').innerHTML=h.join('');
     const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
@@ -7869,7 +8120,7 @@ D) Opción
     </div>`);
     h.push('</div><div class="mgmt-right">');
     h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
-    h.push(listaProfHtml(units));
+    h.push(listaProfHtml(units,'importar'));
     h.push('</div></div>');
     $('teacher').innerHTML=h.join('');
     const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
@@ -7915,7 +8166,7 @@ h.push(`<label>Tema</label><select id="ce-tema">${tOpts}</select><button class="
   if(builder.mode==='medida') h.push(renderBuilderSection(temas));
   h.push('</div><div class="mgmt-right">');
   h.push(`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:18px 2px 12px">Exámenes creados por el profesorado</h2>`);
-  h.push(listaProfHtml(units));
+  h.push(listaProfHtml(units,'test'));
   h.push('</div></div>');
   $('teacher').innerHTML=h.join('');
   const us=$('ce-unidad'); if(us) us.addEventListener('change',onUnidadChange);
@@ -8071,20 +8322,26 @@ async function pdfExamenPapel(examId){
   docVer(doc,'Aptuvia_examen_'+fmtStamp(fecha)+'.pdf');
 }
 
-function listaProfHtml(units){
+function listaProfHtml(units, kind){
   let any=false, list='';
   units.forEach(u=>{
     const prof=(examsByUnit[u]||[]).filter(e=>{
-      const esProf=String(e.id).startsWith('prof-')||String(e.id).startsWith('imp-');
+      const id=String(e.id);
+      const esProf=id.startsWith('prof-')||id.startsWith('imp-');
       if(!esProf) return false;
       // Solo los visibles para este profesor (academia + profesor propietario)
-      return examVisible(e);
+      if(!examVisible(e)) return false;
+      // Ca3/Ca4: cada modalidad muestra solo sus propios exámenes
+      if(kind==='redaccion') return e.tipo==='redaccion';
+      if(kind==='importar')  return id.startsWith('imp-');
+      if(kind==='test')      return e.tipo!=='redaccion' && id.startsWith('prof-');
+      return true;
     });
     if(!prof.length) return; any=true;
     list+=`<div class="t-name" style="margin-top:4px">${unidadesById[u]?unidadesById[u].codigo:u}</div>`;
     prof.forEach(e=>{ const badge=e.tipo==='redaccion'?'<span class="rbadge">Redacción</span> ':''; list+=`<div class="ce-row"><span class="ce-info"><b>${badge}${escHtml(e.titulo)}</b><span>${e.cuenta_final?'Nota final':'Práctica'}</span></span><button class="ce-del" data-pdf="${e.id}" aria-label="Descargar en PDF" title="Descargar para hacerlo en papel" style="background:#eef7ee;border-color:#bfe3cd;margin-right:6px">🖨</button><button class="ce-del" data-edit="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Editar" style="background:#eef2ff;border-color:#c7d2fe;margin-right:6px">✏️</button><button class="ce-del" data-del="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Borrar">🗑</button></div>`; });
   });
-  return any?list:`<div class="center-msg" style="padding:18px">Aún no has creado exámenes.</div>`;
+  return any?list:`<div class="center-msg" style="padding:18px">Aún no has creado exámenes de esta modalidad.</div>`;
 }
 
 // ---- Redacción: constructor de enunciados ----
