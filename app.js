@@ -4678,14 +4678,14 @@ function pxPintar(){
           <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
-      <div style="display:flex;gap:6px;margin-top:9px;flex-wrap:nowrap;align-items:center">
-        <button onclick="pxVer('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👁 Ver</button>
-        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✏️ Editar</button>
-        <button onclick="pxEnviar('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✉️ Enviar</button>
-        <select onchange="pxSetEstado('${p.id}',this.value)" class="px-btn" style="flex:0 0 auto">
+      <div style="display:flex;gap:6px;margin-top:9px;align-items:center">
+        <button onclick="pxVer('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">👁 Ver</button>
+        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">✏️ Editar</button>
+        <button onclick="pxEnviar('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">✉️ Enviar</button>`}
+      </div>
+      ${verArch?'':`<select onchange="pxSetEstado('${p.id}',this.value)" class="px-btn" style="width:100%;box-sizing:border-box;margin-top:6px">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
         </select>`}
-      </div>
       ${verArch?'':`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:nowrap;align-items:center">
         ${p.aceptacion_url
           ? `<button onclick="pxAcepVer('${p.id}')" class="px-btn" style="flex:1 1 auto;min-width:0">👁 Aceptación</button><button onclick="pxAcepDrive('${p.id}')" class="px-btn" style="flex:0 0 auto">☁️ Drive</button><button onclick="pxAcepBorrar('${p.id}')" class="px-btn del" style="flex:0 0 auto">🗑</button>`
@@ -7054,8 +7054,7 @@ function pintarTeacher(){
         <span class="ic" style="background:var(--navy-tint)">📖</span><span class="tt">Manual del usuario</span><span class="ts">Manual, temario y contraseña</span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
-    </div>
-    ${manualPill('docManualProfe()')}`;
+    </div>`;
   // Badge de alumnos en línea — pastilla bajo "Matriculados" en la tarjeta Alumnos
   fetchOnlineCount().then(n=>{
     const el=$('t-sub-count'); if(!el) return;
@@ -7877,30 +7876,38 @@ async function scSopResponder(pid, nombre){
   catch(e){ if(b){ b.disabled=false; b.textContent='Responder'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
 
-// ---- Cambiar contraseña ----
+// ---- Manual del usuario (manual · temario · contraseña) ----
 function openPassword(okMsg, errMsg, sub){
   showView('teacher'); window.scrollTo(0,0);
-  sub = sub || ((okMsg||errMsg)?'pass':'manual');
-  const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
-  h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">📖 Manual del usuario</h1>`);
-  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Tu manual de uso, la descarga de tu temario y el cambio de contraseña, todo en un sitio. Cuenta: <b>${escHtml(userEmail||'')}</b></p>`);
-  const tabBtn=(k,txt)=>`<button onclick="openPassword(null,null,'${k}')" class="px-btn" style="flex:1 1 0;min-width:0;${sub===k?'background:var(--honey-tint)!important;border-color:var(--honey)!important;box-shadow:none!important':''}">${txt}</button>`;
-  h.push(`<div style="display:flex;gap:6px;margin-bottom:14px">
-      ${tabBtn('manual','📖 Manual')}${tabBtn('temario','⬇️ Temario')}${tabBtn('pass','🔑 Contraseña')}
-    </div>`);
+  sub = sub || ((okMsg||errMsg)?'pass':'');
+  const h=[];
+  if(!sub){
+    h.push(`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`);
+    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📖 Manual del usuario</h1>`);
+    h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Tu manual de uso, la descarga de tu temario y el cambio de contraseña, todo en un sitio.</p>`);
+    const card=(k,tit,sub2)=>`<button onclick="openPassword(null,null,'${k}')" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">${tit}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub2}</div></button>`;
+    h.push(card('manual','📖 Manual del profesorado','Guía paso a paso de tu área'));
+    h.push(card('temario','⬇️ Descargar mi temario','Llévate tu materia en un ZIP'));
+    h.push(card('pass','🔑 Cambiar contraseña','Tu clave de acceso'));
+    $('teacher').innerHTML=h.join('');
+    return;
+  }
+  h.push(`<button class="backbtn" onclick="openPassword()">← Manual del usuario</button>`);
   if(sub==='manual'){
+    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">📖 Manual del profesorado</h1>`);
     h.push(`<div class="t-card">
-      <b style="font-size:.95rem;color:var(--navy)">📖 Manual del profesorado</b>
-      <p style="font-size:.82rem;color:var(--ink-soft);margin:6px 0 12px">Guía paso a paso de todo lo que puedes hacer en tu área: crear y gestionar exámenes, temario, correcciones, alumnos, chat y avisos. Ábrelo cuando tengas una duda.</p>
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:2px 0 12px">Guía paso a paso de todo lo que puedes hacer en tu área: crear y gestionar exámenes, temario, correcciones, alumnos, chat y avisos. Ábrelo cuando tengas una duda.</p>
       <button class="btn btn-ghost" onclick="docManualProfe()" style="width:100%">📖 Abrir el manual del profesorado</button>
     </div>`);
   }else if(sub==='temario'){
+    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">⬇️ Descargar mi temario</h1>`);
     h.push(`<div class="t-card">
-      <b style="font-size:.95rem;color:var(--navy)">⬇️ Descargar mi materia</b>
-      <p style="font-size:.82rem;color:var(--ink-soft);margin:6px 0 12px">Tu trabajo es tuyo. El día que dejes la plataforma puedes llevarte toda tu documentación: descarga aquí un ZIP con tu temario, tus exámenes y tus actividades de redacción, guárdalo donde quieras y llévatelo. Sin ataduras.</p>
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:2px 0 12px">Tu trabajo es tuyo. El día que dejes la plataforma puedes llevarte toda tu documentación: descarga aquí un ZIP con tu temario, tus exámenes y tus actividades de redacción, guárdalo donde quieras y llévatelo. Sin ataduras.</p>
       <button class="btn btn-ghost" onclick="descargarMateriaZip()" style="width:100%">⬇️ Descargar mi materia (ZIP)</button>
     </div>`);
   }else{
+    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">🔑 Cambiar contraseña</h1>`);
+    h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Cuenta: <b>${escHtml(userEmail||'')}</b></p>`);
     if(okMsg) h.push(`<div class="t-note ok">${escHtml(okMsg)}</div>`);
     if(errMsg) h.push(`<div class="t-note err">${escHtml(errMsg)}</div>`);
     h.push(`<div class="t-card">

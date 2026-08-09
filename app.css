@@ -1544,3 +1544,20 @@ input[type="file"]::-webkit-file-upload-button{
   box-shadow:inset 2px 2px 5px rgba(46,49,99,.20), inset -2px -2px 4px rgba(255,255,255,.85);
 }
 input[type="file"]:active::file-selector-button{ box-shadow:inset 3px 3px 7px rgba(46,49,99,.30); }
+
+/* Ca1: cabecera de materia (AA) en celeste Santorini, brillo y alzado, texto blanco */
+body.tema-aula-abierta .t-welcome .t-course-pill{
+  background:linear-gradient(135deg,#48cae4,#00B4D8)!important;
+  border-color:#0096c7!important;
+  box-shadow:0 7px 16px -6px rgba(0,150,199,.55), inset 0 1px 0 rgba(255,255,255,.45)!important;
+}
+body.tema-aula-abierta .t-welcome .t-course,
+body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
+
+/* Ca1: desplegables de "Exámenes y estados" (C3) en celeste Santorini */
+.btn-honey.unit-toggle{
+  background:linear-gradient(135deg,#48cae4,#00B4D8)!important;
+  border-color:#0096c7!important;
+  color:#fff!important;
+  box-shadow:0 6px 14px -6px rgba(0,150,199,.55), inset 0 1px 0 rgba(255,255,255,.35)!important;
+}
