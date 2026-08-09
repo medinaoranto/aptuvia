@@ -843,6 +843,18 @@ function appAlert(m){ return _modal({msg:m}); }
 function appConfirm(m){ return _modal({msg:m,cancel:true}); }
 // Abre Google Drive en otra pestaña para arrastrar allí el PDF recién descargado.
 function driveAbrir(){ try{ window.open('https://drive.google.com/drive/my-drive','_blank','noopener'); }catch(e){} }
+window._lastPdf=null;
+function pdfStash(doc,nombre){ try{ window._lastPdf={doc,nombre}; }catch(_){} }
+async function pdfShareLast(){
+  const L=window._lastPdf;
+  if(!L||!L.doc){ appAlert('Primero genera el PDF con el botón de arriba; después pulsa Drive para subirlo.'); return; }
+  try{
+    const blob=L.doc.output('blob');
+    const file=new File([blob], L.nombre||'documento.pdf', {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:L.nombre||'Documento'}); return; }
+  }catch(_){}
+  driveAbrir();
+}
 function appPrompt(m,def){ return _modal({msg:m,cancel:true,prompt:true,def:def}); }
 
 // Selector tappable genérico. opciones=[{label,sub,value}]. Devuelve value o null si se cancela.
@@ -1554,33 +1566,9 @@ function renderHome(){
   const esAula = window._activeCertId==='__aula_abierta';
   const modsAula = esAula ? getModulos() : null;
   const certNombre = window._certNombre || '';
-  let html;
-  if(esAula){
-    // Nombre de la materia a la izquierda; pastilla "Aula Abierta" a la derecha
-    // (con las dos A en azul), igual que en el panel docente.
-    const materia = (modsAula && modsAula.length===1) ? modsAula[0].title : 'Materias propias';
-    html=`<div class="cert">
-        <div class="cert-top">
-          <h1>${escHtml(materia)}</h1>
-        </div>
-        <div class="sub">Materias propias / Exámenes libres</div>
-      </div>`;
-  }else{
-    const certCodigo = window._certCodigo || 'ADGG0508';
-    html=`<div class="cert">
-        <div class="cert-top">
-          <h1>Certificado de Profesionalidad</h1>
-          <div class="cert-code">${certCodigo||'ADGG0508'}</div>
-        </div>
-        <div class="sub">${certNombre||''}</div>
-      </div>`;
-  }
-  html = `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-      <div style="flex:1;min-width:0">${html}</div>
-      <div style="display:flex;align-items:center;gap:9px;flex-shrink:0;padding-top:2px">
+  let html = `<div style="display:flex;align-items:center;justify-content:flex-end;gap:11px;margin:2px 0 10px">
         <button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:none;cursor:pointer;font-size:1.5rem;position:relative;line-height:1;padding:2px 0">🔔<span id="alum-bell-badge" style="display:none;position:absolute;top:-3px;right:-6px;min-width:16px;height:16px;padding:0 3px;background:#e11d1d;color:#fff;border-radius:9px;font-size:.62rem;font-weight:800;line-height:16px;text-align:center;border:1.5px solid #fff"></span></button>
         <button onclick="openCalendario('alum')" title="Calendario" style="background:none;border:none;cursor:pointer;font-size:1.5rem;line-height:1;padding:2px 0">📅</button>
-      </div>
     </div>`;
   html+=renderModulosCardsHtml();
   if(isStaff()) html+=`<div class="dash-teacher-row">
@@ -1594,7 +1582,13 @@ function renderHome(){
         </span>
       </button>
     </div>`;
-  html+=manualPill('docManualAlumno()','Manual', '<button onclick="caAlumChat()" title="Chat con tu profesor" style="background:none;border:1px solid var(--honey);border-radius:999px;padding:3px 10px;font-size:.68rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700">💬 Chat<span id="alum-chat-badge"></span></button>');
+  {
+    const sunk='display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:13px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:800;font-size:.92rem;box-shadow:inset 2px 2px 6px rgba(70,95,125,.18), inset -2px -2px 6px rgba(255,255,255,.8)';
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:16px">
+      <button onclick="caAlumChat()" style="${sunk}">💬 Chat<span id="alum-chat-badge"></span></button>
+      <button onclick="docManualAlumno()" style="${sunk}">📖 Manual</button>
+    </div>`;
+  }
   $('home').innerHTML=html;
   if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.style.display='block'; bd.textContent=String(n); } }).catch(()=>{}); }
   if(!window._demoMode){ call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
@@ -2889,7 +2883,7 @@ function aiPintarBarra(){
   const abierta=window._aiAbierta;
   bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:7px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid var(--line);border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem;white-space:nowrap;overflow:hidden">
       <span>✉️</span>
-      <span>Avisos internos</span>
+      <span style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis">Internos</span>
       ${nuevos?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:''}
       <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
     </button>`;
@@ -2948,17 +2942,22 @@ async function avVerPresu(num){
 }
 // Ca9: nº de presupuestos aceptados aún sin dar de alta (academia/profesor sin enlazar).
 function avPintarAltaBadges(){
-  const n=window._altasBadgeN||0;
-  document.querySelectorAll('.alta-badge').forEach(el=>{
+  const pinta=(sel,n)=>document.querySelectorAll(sel).forEach(el=>{
     if(n>0){ el.textContent=String(n); el.style.display='inline-flex'; }
     else{ el.style.display='none'; }
   });
+  pinta('.alta-badge', window._altasBadgeN||0);
+  pinta('.alta-badge-ev', window._altasBadgeEV||0);
+  pinta('.alta-badge-aa', window._altasBadgeAA||0);
 }
 async function refrescarAltasBadge(){
-  if(window._demoMode){ window._altasBadgeN=0; avPintarAltaBadges(); return; }
+  if(window._demoMode){ window._altasBadgeN=0; window._altasBadgeEV=0; window._altasBadgeAA=0; avPintarAltaBadges(); return; }
   try{
-    const rows=await call('/rest/v1/presupuestos?select=estado,academia_id,profesor_id')||[];
-    window._altasBadgeN=rows.filter(p=>p.estado==='aceptado' && !p.academia_id && !p.profesor_id).length;
+    const rows=await call('/rest/v1/presupuestos?select=estado,academia_id,profesor_id,lineas')||[];
+    const pend=rows.filter(p=>p.estado==='aceptado' && !p.academia_id && !p.profesor_id);
+    window._altasBadgeN=pend.length;
+    window._altasBadgeEV=pend.filter(presuTieneAcademia).length;
+    window._altasBadgeAA=pend.filter(presuEsAA).length;
   }catch(e){ window._altasBadgeN=window._altasBadgeN||0; }
   avPintarAltaBadges();
 }
@@ -2999,12 +2998,14 @@ function saShell(inner,opts){
   const st=(t)=>saMainTab===t?on:base;
   const enSoporte = (saMainTab==='sop' || saMainTab==='acadprof' || saMainTab==='ev' || saMainTab==='aa');
   if(enSoporte) setTimeout(scWireInbox,0);
-  return `<div class="t-toggle" style="margin:8px 0 ${enSoporte?'8px':'16px'};display:flex;gap:5px;flex-wrap:nowrap">
-      <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
-      <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
+  window._avAbierta=false; window._aiAbierta=false;
+  setTimeout(()=>{ try{avCargar();}catch(e){} try{aiCargar();}catch(e){} try{avPintarBarra();}catch(e){} try{aiPintarBarra();}catch(e){} },0);
+  return `<div class="t-toggle" style="margin:8px 0 8px;display:flex;gap:5px;flex-wrap:nowrap">
       <button style="${st('rs')}" onclick="saSetMain('rs')">Comercial</button>
+      <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
+      <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
     </div>
-    ${window._avRaiz?`<div class="av-row" id="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'}"><div id="av-bar"></div><div id="ai-bar"></div></div>`:''}
+    <div class="av-row" id="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'}"><div id="av-bar"></div><div id="ai-bar"></div></div>
     ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
     ${inner}`;
 }
@@ -3049,8 +3050,8 @@ function saRenderLista(okMsg,errMsg){
   if(saMainTab==='acadprof'){
     h+=`<button class="backbtn" onclick="saSetMain('sop')" style="margin-bottom:12px">← Soporte</button>`;
     h+=`<div class="sa-cards-grid">
-      <button class="fact-menu" onclick="saSetMain('ev')"><b>📝 Crear usuario Aptuvia <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Academias con certificados de profesionalidad</span></button>
-      <button class="fact-menu" onclick="saSetMain('aa')"><b>📝 Crear usuario Aula Abierta <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Profesores independientes · formación libre</span></button>
+      <button class="fact-menu" onclick="saSetMain('ev')"><b>📝 Crear usuario Aptuvia <span class="alta-badge-ev" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Academias con certificados de profesionalidad</span></button>
+      <button class="fact-menu" onclick="saSetMain('aa')"><b>📝 Crear usuario Aula Abierta <span class="alta-badge-aa" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Profesores independientes · formación libre</span></button>
     </div>`;
     h+=docsBar('soporte');
     $('teacher').innerHTML=saShell(h);
@@ -3080,7 +3081,7 @@ function saRenderLista(okMsg,errMsg){
   h+=`</div>`;
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
-  if($('sa-alta-presu')) $('sa-alta-presu').onclick=saAltaDesdePresu;
+  if($('sa-alta-presu')) $('sa-alta-presu').onclick=()=>saAltaDesdePresu('ev');
   const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); } };
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
   call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento').then(m=>{ const on=(m&&m[0]&&m[0].valor==='on'); window._mantOn=on; const p=$('sa-mant-pill'); if(p){ p.textContent='🛠️ '+(on?'Mantenimiento':'Operativo'); p.style.borderColor=on?'#b4232a':'#15803d'; p.style.background=on?'#fdeaea':'#dcfce7'; p.style.color=on?'#b4232a':'#15803d'; } }).catch(()=>{});
@@ -3190,7 +3191,7 @@ function saDetalle(msg){
   if(g('sa-prem-ver')) g('sa-prem-ver').onclick=()=>acVerComoAcademia(a.academia_id);
   $('teacher').querySelectorAll('[data-prempass]').forEach(b=> b.onclick=()=>saResetPassUI(b.dataset.prempass,b.dataset.email));
   $('teacher').querySelectorAll('[data-premdel]').forEach(b=> b.onclick=()=>saBorrarUsuarioUI(b.dataset.premdel,b.dataset.email));
-  if(g('sa-aa-alta-presu')) g('sa-aa-alta-presu').onclick=saAltaDesdePresu;
+  if(g('sa-aa-alta-presu')) g('sa-aa-alta-presu').onclick=()=>saAltaDesdePresu('aa');
   if(g('sa-ren')) g('sa-ren').onclick=()=>saRenombrarUI(a.academia_id);
   if(g('sa-borr')) g('sa-borr').onclick=()=>saBorrarAcademiaUI(a.academia_id,a.nombre);
   if(g('sa-acad-rev')) g('sa-acad-rev').onclick=()=>saRevocarAcademiaUI(a.academia_id, a.activa!==false);
@@ -3485,7 +3486,7 @@ function saDatosDesdeCliente(c){
     cp:c.cp||'', poblacion:c.poblacion||'', provincia:c.provincia||'',
     email:c.email||'', telefono:c.telefono||'' };
 }
-async function saAltaDesdePresu(){
+async function saAltaDesdePresu(modo){
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let lista=[];
   try{ lista=await call('/rest/v1/presupuestos?select=*&order=fecha.desc,creado_en.desc')||[]; }
@@ -3495,7 +3496,9 @@ async function saAltaDesdePresu(){
     return;
   }
   // Convertibles: aceptados y aún no dados de alta (sin academia ni profesor enlazado).
-  const conv=lista.filter(p=>pxEstadoReal(p)==='aceptado' && !p.academia_id && !p.profesor_id);
+  let conv=lista.filter(p=>pxEstadoReal(p)==='aceptado' && !p.academia_id && !p.profesor_id);
+  if(modo==='aa')      conv=conv.filter(presuEsAA);
+  else if(modo==='ev') conv=conv.filter(presuTieneAcademia);
   window._altaPresu=conv;
   let h=`<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:10px">← Soporte</button>
     <h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Alta desde presupuesto</h2>
@@ -3514,10 +3517,11 @@ async function saAltaDesdePresu(){
         <b style="font-size:.9rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap">
-        ${tier==='premium'
+        <button onclick="avVerPresu('${escAttr(p.numero||'')}')" class="gx-mini" title="Ver el presupuesto">👁 Ver</button>
+        ${presuTieneAcademia(p)?(tier==='premium'
           ? `<button onclick="saAltaGrupo('${p.id}')" class="gx-mini ok">👑 Crear grupo (cabeza)</button>`
-          : `<button onclick="saAltaAcademia('${p.id}')" class="gx-mini ok">🏫 Crear academia${tier==='multiaula'?' (multiaula)':''}</button>`}
-        <button onclick="saAltaAA('${p.id}')" class="gx-mini">🎨 Crear Aula Abierta</button>
+          : `<button onclick="saAltaAcademia('${p.id}')" class="gx-mini ok">🏫 Crear academia${tier==='multiaula'?' (multiaula)':''}</button>`):''}
+        ${presuEsAA(p)?`<button onclick="saAltaAA('${p.id}')" class="gx-mini${presuTieneAcademia(p)?'':' ok'}">🎨 Crear Aula Abierta</button>`:''}
       </div>
     </div>`;
   });
@@ -4160,6 +4164,15 @@ function presuEsAA(p){
   const L=p.lineas||{}; const todas=[].concat(L.rec||[],L.uni||[]);
   return todas.some(x=> x && ((typeof x.k==='string' && x.k.indexOf('aa_')===0) || /aula abierta/i.test((x.nombre)||'')));
 }
+// ¿El presupuesto tiene alguna línea de academia/Aptuvia (no-AA)? Un presupuesto
+// mixto (academia + AA) devuelve true tanto aquí como en presuEsAA.
+function presuTieneAcademia(p){
+  if(p.academia_id) return true;
+  const L=p.lineas||{}; const todas=[].concat(L.rec||[],L.uni||[]);
+  const hayLineas=todas.length>0;
+  const hayNoAA=todas.some(x=> x && !((typeof x.k==='string' && x.k.indexOf('aa_')===0) || /aula abierta/i.test((x.nombre)||'')));
+  return hayLineas ? hayNoAA : !presuEsAA(p);
+}
 async function arClientes(){
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let lista=[], overrides=[];
@@ -4666,10 +4679,10 @@ function pxPintar(){
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:6px;margin-top:9px;flex-wrap:nowrap;align-items:center">
-        <button onclick="pxVer('${p.id}')" class="px-btn" style="flex:0 0 auto">Ver</button>
-        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="px-btn" style="flex:0 0 auto">Editar</button>
-        <button onclick="pxEnviar('${p.id}')" class="px-btn" style="flex:0 0 auto">Enviar</button>
-        <select onchange="pxSetEstado('${p.id}',this.value)" class="px-btn" style="flex:1 1 auto;min-width:0">
+        <button onclick="pxVer('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👁 Ver</button>
+        ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✏️ Editar</button>
+        <button onclick="pxEnviar('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✉️ Enviar</button>
+        <select onchange="pxSetEstado('${p.id}',this.value)" class="px-btn" style="flex:0 0 auto">
           ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
         </select>`}
       </div>
@@ -4885,7 +4898,7 @@ function pxForm(){
 
   h+=`<button class="btn btn-primary" onclick="pxGuardar()" style="margin-top:14px">Guardar presupuesto</button>`;
   h+=`<button onclick="pxGuardarYPDF()" style="margin-top:10px;width:100%;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;font-size:.9rem">📄 Descargar PDF</button>`;
-  h+=`<button onclick="driveAbrir()" style="margin-top:8px;width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive para guardarlo</button>`;
+  h+=`<button onclick="pdfShareLast()" style="margin-top:10px;width:100%;box-sizing:border-box;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Subir a Drive (con el presupuesto)</button>`;
 
   $('teacher').innerHTML=saShell(h);
   pxRecalc();
@@ -5158,7 +5171,9 @@ function pxRenderPDF(p){
 
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
   doc.text('contacto@aptuvia.es · aptuvia.es', M, 288);
-  doc.save('Presupuesto_'+(p.numero||'')+'_'+String(c.razon_social||'').replace(/[^a-z0-9]/gi,'_')+'.pdf');
+  const _fnPresu='Presupuesto_'+(p.numero||'')+'_'+String(c.razon_social||'').replace(/[^a-z0-9]/gi,'_')+'.pdf';
+  pdfStash(doc,_fnPresu);
+  doc.save(_fnPresu);
 }
 
 function pxEnviar(id){
@@ -6473,7 +6488,7 @@ function saRenderFacturacion(){
   </div>`;
 
   h+=`<button class="btn btn-honey" onclick="factGenerarPDF()" style="margin-top:14px">📄 Generar factura PDF</button>`;
-  h+=`<button onclick="driveAbrir()" style="margin-top:8px;width:100%;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive para guardarla</button>`;
+  h+=`<button onclick="pdfShareLast()" style="margin-top:12px;width:100%;box-sizing:border-box;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Subir a Drive (con la factura)</button>`;
   h+=`<button onclick="factEnviarCliente()" style="margin-top:10px;width:100%;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;font-size:.9rem">✉️ Enviar factura al cliente</button>`;
 
   // Facturas guardadas
@@ -6628,7 +6643,9 @@ function factRenderPDF(data){
   doc.setTextColor(...NAVY); totLinea('TOTAL', total.toFixed(2)+' €', true);
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
   doc.text('contacto@aptuvia.es · aptuvia.es', M, 288);
-  doc.save('Factura_'+data.numero+'_'+((data.nombreCliente||'').replace(/[^a-z0-9]/gi,'_'))+'.pdf');
+  const _fnFact='Factura_'+data.numero+'_'+((data.nombreCliente||'').replace(/[^a-z0-9]/gi,'_'))+'.pdf';
+  pdfStash(doc,_fnFact);
+  doc.save(_fnFact);
   return {subtotal,desc,iva,total};
 }
 
@@ -6810,7 +6827,7 @@ function saPintarFacturasEmitidas(){
 
   // Botón PDF de la selección
   h+=`<button onclick="factResumenPDF()" style="width:100%;margin-bottom:14px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.88rem">📄 Descargar PDF de esta selección</button>`;
-  h+=`<button onclick="driveAbrir()" style="width:100%;margin-bottom:14px;margin-top:-6px;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Abrir Drive para guardarlo</button>`;
+  h+=`<button onclick="pdfShareLast()" style="width:100%;margin-bottom:14px;box-sizing:border-box;background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:700;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit;font-size:.82rem">📁 Subir a Drive (con el PDF)</button>`;
 
   if(!lista.length){ h+=`<p class="sa-empty">No hay facturas para este filtro.</p>`; $('teacher').innerHTML=saShell(h); saPintarFactReal(); return; }
 
@@ -6909,7 +6926,9 @@ function factResumenPDF(){
   doc.text(lista.length+' facturas', 120, y); doc.text('TOTAL: '+total.toFixed(2)+' €', 210-M, y, {align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...SOFT);
   doc.text('contacto@aptuvia.es · aptuvia.es', M, 288);
-  doc.save('Facturas_'+(mesSel==='todos'?'todas':mesSel)+'_'+filtro+(cliSel!=='todos'?'_'+cliSel.replace(/[^a-z0-9]/gi,'_'):'')+'.pdf');
+  const _fnRes='Facturas_'+(mesSel==='todos'?'todas':mesSel)+'_'+filtro+(cliSel!=='todos'?'_'+cliSel.replace(/[^a-z0-9]/gi,'_'):'')+'.pdf';
+  pdfStash(doc,_fnRes);
+  doc.save(_fnRes);
 }
 
 async function saToggleFactura(id,campo,valor){
@@ -7032,7 +7051,7 @@ function pintarTeacher(){
       <button class="t-tile" id="t-soporte-tile" onclick="openSoporteProfe()">
         <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Chat y reporte</span><span class="ts">Soporte, alumnos y reportes</span><span id="t-soporte-badge"></span></button>
       <button class="t-tile" onclick="openPassword()">
-        <span class="ic" style="background:var(--navy-tint)">🔑</span><span class="tt">Cambiar contraseña</span><span class="ts">Clave y descargar tu materia</span></button>
+        <span class="ic" style="background:var(--navy-tint)">📖</span><span class="tt">Manual del usuario</span><span class="ts">Manual, temario y contraseña</span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>
@@ -7859,38 +7878,52 @@ async function scSopResponder(pid, nombre){
 }
 
 // ---- Cambiar contraseña ----
-function openPassword(okMsg, errMsg){
+function openPassword(okMsg, errMsg, sub){
   showView('teacher'); window.scrollTo(0,0);
+  sub = sub || ((okMsg||errMsg)?'pass':'manual');
   const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
-  h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Cambiar contraseña</h1>`);
-  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Cuenta: <b>${escHtml(userEmail||'')}</b></p>`);
-  if(okMsg) h.push(`<div class="t-note ok">${escHtml(okMsg)}</div>`);
-  if(errMsg) h.push(`<div class="t-note err">${escHtml(errMsg)}</div>`);
-  h.push(`<div class="t-card">
-      <label style="margin-top:6px">Nueva contraseña</label>
+  h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">📖 Manual del usuario</h1>`);
+  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Tu manual de uso, la descarga de tu temario y el cambio de contraseña, todo en un sitio. Cuenta: <b>${escHtml(userEmail||'')}</b></p>`);
+  const tabBtn=(k,txt)=>`<button onclick="openPassword(null,null,'${k}')" class="px-btn" style="flex:1 1 0;min-width:0;${sub===k?'background:var(--honey-tint)!important;border-color:var(--honey)!important;box-shadow:none!important':''}">${txt}</button>`;
+  h.push(`<div style="display:flex;gap:6px;margin-bottom:14px">
+      ${tabBtn('manual','📖 Manual')}${tabBtn('temario','⬇️ Temario')}${tabBtn('pass','🔑 Contraseña')}
+    </div>`);
+  if(sub==='manual'){
+    h.push(`<div class="t-card">
+      <b style="font-size:.95rem;color:var(--navy)">📖 Manual del profesorado</b>
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:6px 0 12px">Guía paso a paso de todo lo que puedes hacer en tu área: crear y gestionar exámenes, temario, correcciones, alumnos, chat y avisos. Ábrelo cuando tengas una duda.</p>
+      <button class="btn btn-ghost" onclick="docManualProfe()" style="width:100%">📖 Abrir el manual del profesorado</button>
+    </div>`);
+  }else if(sub==='temario'){
+    h.push(`<div class="t-card">
+      <b style="font-size:.95rem;color:var(--navy)">⬇️ Descargar mi materia</b>
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:6px 0 12px">Tu trabajo es tuyo. El día que dejes la plataforma puedes llevarte toda tu documentación: descarga aquí un ZIP con tu temario, tus exámenes y tus actividades de redacción, guárdalo donde quieras y llévatelo. Sin ataduras.</p>
+      <button class="btn btn-ghost" onclick="descargarMateriaZip()" style="width:100%">⬇️ Descargar mi materia (ZIP)</button>
+    </div>`);
+  }else{
+    if(okMsg) h.push(`<div class="t-note ok">${escHtml(okMsg)}</div>`);
+    if(errMsg) h.push(`<div class="t-note err">${escHtml(errMsg)}</div>`);
+    h.push(`<div class="t-card">
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:2px 0 10px">Cambia aquí la contraseña con la que entras a la plataforma. Mínimo 6 caracteres.</p>
+      <label style="margin-top:2px">Nueva contraseña</label>
       <span class="pwwrap"><input id="pw-1" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><button type="button" class="pweye" id="pw1Eye" aria-label="Mostrar contraseña">👁</button></span>
       <label>Repite la contraseña</label>
       <span class="pwwrap"><input id="pw-2" type="password" placeholder="Vuelve a escribirla" autocomplete="new-password"><button type="button" class="pweye" id="pw2Eye" aria-label="Mostrar contraseña">👁</button></span>
       <button class="btn btn-honey" id="pw-btn" style="margin-top:16px">Guardar contraseña</button>
     </div>`);
-  h.push(`<div class="t-card" style="margin-top:14px">
-      <b style="font-size:.95rem;color:var(--navy)">⬇️ Descargar mi materia</b>
-      <p style="font-size:.82rem;color:var(--ink-soft);margin:6px 0 12px">Tu trabajo es tuyo. El día que dejes la plataforma puedes llevarte toda tu documentación: descarga aquí un ZIP con tu temario, tus exámenes y tus actividades de redacción, guárdalo donde quieras y llévatelo. Sin ataduras.</p>
-      <button class="btn btn-ghost" onclick="descargarMateriaZip()" style="width:100%">⬇️ Descargar mi materia (ZIP)</button>
-    </div>`);
+  }
   $('teacher').innerHTML=h.join('');
-  $('pw-btn').onclick=cambiarPasswordUI;
-  wireEye('pw1Eye','pw-1'); wireEye('pw2Eye','pw-2');
+  if(sub==='pass'){ $('pw-btn').onclick=cambiarPasswordUI; wireEye('pw1Eye','pw-1'); wireEye('pw2Eye','pw-2'); }
 }
 async function cambiarPasswordUI(){
   const a=$('pw-1').value, b=$('pw-2').value;
-  if(a.length<6){ openPassword(null,'La contraseña debe tener al menos 6 caracteres.'); return; }
-  if(a!==b){ openPassword(null,'Las dos contraseñas no coinciden.'); return; }
+  if(a.length<6){ openPassword(null,'La contraseña debe tener al menos 6 caracteres.','pass'); return; }
+  if(a!==b){ openPassword(null,'Las dos contraseñas no coinciden.','pass'); return; }
   const btn=$('pw-btn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
   try{
     await call('/auth/v1/user',{method:'PUT',body:{password:a}});
-    openPassword('✅ Contraseña actualizada. Úsala la próxima vez que entres.');
-  }catch(err){ openPassword(null,'No se pudo cambiar: '+(err.message||'')); }
+    openPassword('✅ Contraseña actualizada. Úsala la próxima vez que entres.',null,'pass');
+  }catch(err){ openPassword(null,'No se pudo cambiar: '+(err.message||''),'pass'); }
 }
 
 // ---- Publicar / ocultar exámenes para el alumno ----
@@ -12213,7 +12246,13 @@ function pdfSafe(s){ return String(s==null?'':s)
   .replace(/\u2026/g,'...')
   .replace(/\u00A0/g,' ')
   .replace(/[\u2713\u2714]/g,'OK').replace(/[\u2715\u2717\u2718]/g,'X')
-  .replace(/[^\x00-\xFF]/g,''); }
+  .replace(/[^\x00-\xFF]/g,'')
+  .replace(/\(\s*\)/g,'')
+  .replace(/«\s+/g,'«').replace(/\s+»/g,'»')
+  .replace(/\s+([:.,;!?])/g,'$1')
+  .replace(/[ \t]{2,}/g,' ')
+  .replace(/[ \t]+$/gm,'')
+  .trim(); }
 
 function bestPorExamen(email){
   const list=teacherRows.filter(r=>(r.alumno_email||r.alumno)===email);
