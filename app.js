@@ -116,6 +116,8 @@ async function loadPortal(){
 
 function _exNum(e){var m=String(e&&e.titulo||'').match(/\d+/);return m?parseInt(m[0],10):9999;}
 function _exImp(e){return /^(prof-imp-|aula-imp-)/.test(String(e&&e.id||''))?1:0;}
+function _exTipoOrd(e){return (e&&(e.tipo==='redaccion'||e.tipo==='abierta'))?1:0;}
+function _cmpExAlum(a,b){return _exTipoOrd(a)-_exTipoOrd(b) || _cmpEx(a,b);}
 function _cmpEx(a,b){return _exImp(a)-_exImp(b) || (a.orden||0)-(b.orden||0) || _exNum(a)-_exNum(b);}
 function closeCertSoon(e){
   if(!e || e.target===document.getElementById('cert-soon-overlay') || e.target.classList.contains('cert-soon-close')){
@@ -4337,26 +4339,36 @@ async function arProveedores(){
   const q=(window._arProvQ||'').toLowerCase();
   const arr=list.filter(p=> !q || ((p.nombre||'')+' '+(p.nif||'')+' '+(p.email||'')+' '+(p.telefono||'')).toLowerCase().includes(q));
   let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
-  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 6px">🚚 Proveedores</h2>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🚚 Proveedores</h2>`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Alta y baja de proveedores. Toca una fila para ver o editar su ficha.</p>`;
   h+=`<button onclick="arNuevoProveedor()" class="btn btn-honey" style="width:100%;margin-bottom:10px">➕ Nuevo proveedor</button>`;
-  h+=`<input id="arp-q" placeholder="Buscar proveedor…" value="${escAttr(window._arProvQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px">`;
-  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:.9rem;font-weight:700">${arr.length} proveedor${arr.length===1?'':'es'}</div>`;
-  if(!arr.length){ h+=`<p class="sa-empty">No hay proveedores.</p>`; }
-  else arr.forEach(p=>{
-    h+=`<div style="border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;background:#fff">
-      <div style="min-width:0"><b style="color:var(--navy);font-size:.9rem">${escHtml(p.nombre||'—')}</b>
-        <div style="font-size:.72rem;color:var(--ink-soft);margin-top:2px">${p.nif?('NIF '+escHtml(p.nif)):''}${(p.nif&&p.email)?' · ':''}${escHtml(p.email||'')}${p.telefono?(' · '+escHtml(p.telefono)):''}</div>
-        ${p.direccion?`<div style="font-size:.74rem;color:var(--ink-soft);margin-top:3px">${escHtml(p.direccion)}</div>`:''}
-        ${p.notas?`<div style="font-size:.74rem;color:var(--ink-soft);margin-top:3px">${escHtml(p.notas)}</div>`:''}
-      </div>
-      <div style="display:flex;gap:5px;margin-top:9px;justify-content:flex-end">
-        <button onclick="arEditarProveedor('${p.id}')" class="gx-mini">✏️ Editar</button>
-        <button onclick="arProvBorrar('${p.id}')" class="gx-mini del">🗑</button>
-      </div>
-    </div>`;
+  h+=`<input id="arp-q" placeholder="Buscar por nombre, NIF, email…" value="${escAttr(window._arProvQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px">`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;font-weight:700">${arr.length} proveedor${arr.length===1?'':'es'}</div>`;
+  h+=`<button onclick="arProvCSV()" style="width:100%;margin-bottom:10px;background:var(--honey-tint);border:1.5px solid var(--honey);color:var(--navy);font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit;font-size:.85rem">↓ CSV (Excel)</button>`;
+  if(!arr.length){ h+=`<p class="sa-empty">No hay proveedores con ese filtro.</p>`; $('teacher').innerHTML=saShell(h); const q0=$('arp-q'); if(q0) q0.oninput=arProvQChange; return; }
+  h+=`<div style="overflow-x:auto;border:1.5px solid var(--line);border-radius:12px"><table style="border-collapse:collapse;width:100%;font-size:.78rem;white-space:nowrap"><thead><tr style="background:var(--navy-tint)">`;
+  ['Proveedor','NIF','Email','Teléfono'].forEach(lab=>{ h+=`<th style="text-align:left;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">${lab}</th>`; });
+  h+=`</tr></thead><tbody>`;
+  arr.forEach((p,i)=>{
+    h+=`<tr onclick="arEditarProveedor('${p.id}')" style="background:${i%2?'#fff':'#fafbff'};cursor:pointer">
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy)">${escHtml(p.nombre||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(p.nif||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(p.email||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(p.telefono||'—')}</td>
+    </tr>`;
   });
+  h+=`</tbody></table></div>`;
   $('teacher').innerHTML=saShell(h);
-  const qi=$('arp-q'); if(qi) qi.oninput=function(){ window._arProvQ=qi.value; const pos=qi.selectionStart; arProveedores(); const el=$('arp-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } };
+  const qi=$('arp-q'); if(qi) qi.oninput=arProvQChange;
+}
+function arProvQChange(){ const qi=$('arp-q'); if(!qi) return; window._arProvQ=qi.value; const pos=qi.selectionStart; arProveedores(); const el=$('arp-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } }
+function arProvCSV(){
+  const list=(window._arProv||[]);
+  const esc=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+  const filas=[['Nombre','NIF','Email','Teléfono','Dirección','Notas']];
+  list.forEach(p=>filas.push([p.nombre,p.nif,p.email,p.telefono,p.direccion,p.notas]));
+  const csv='\ufeff'+filas.map(f=>f.map(esc).join(';')).join('\r\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='proveedores.csv'; a.click();
 }
 function arProvModal(p, isNew){
   const inp=(id,val)=>`<input id="${id}" value="${escAttr(val||'')}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:.85rem;margin:3px 0 8px">`;
@@ -4403,11 +4415,11 @@ async function arFacturas(modo){
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let list=[], provs=[];
   try{
-    if(esV) list=await call('/rest/v1/facturas?select=numero,fecha,cliente,total,pagada&order=fecha.desc')||[];
-    else { list=await call('/rest/v1/gastos?select=numero,fecha,concepto,importe,pagada,proveedor_id&order=fecha.desc')||[]; provs=await call('/rest/v1/proveedores?select=id,nombre').catch(()=>[])||[]; }
+    if(esV) list=await call('/rest/v1/facturas?select=id,numero,fecha,cliente,total,pagada&order=fecha.desc')||[];
+    else { list=await call('/rest/v1/gastos?select=id,numero,fecha,concepto,importe,pagada,proveedor_id,pdf_url&order=fecha.desc')||[]; provs=await call('/rest/v1/proveedores?select=id,nombre').catch(()=>[])||[]; }
   }catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar: ${escHtml(e.message||'')}</div>`); return; }
   const provMap={}; provs.forEach(p=>provMap[p.id]=p.nombre);
-  window._arFac=list.map(x=>({ numero:x.numero||'', fecha:x.fecha||'', parte: esV?((x.cliente&&x.cliente.razon_social)||'—'):((provMap[x.proveedor_id]||x.concepto||'—')), imp:Number((esV?x.total:x.importe)||0), pagada:!!x.pagada }));
+  window._arFac=list.map(x=>({ id:x.id, numero:x.numero||'', fecha:x.fecha||'', parte: esV?((x.cliente&&x.cliente.razon_social)||'—'):((provMap[x.proveedor_id]||x.concepto||'—')), imp:Number((esV?x.total:x.importe)||0), pagada:!!x.pagada, pdf_url:esV?null:(x.pdf_url||'') }));
   window._arFacQ=window._arFacQ||''; window._arFacEstado=window._arFacEstado||'';
   arFacPintar();
 }
@@ -4435,7 +4447,7 @@ function arFacPintar(){
     <th style="text-align:center;padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">Estado</th>
   </tr></thead><tbody>`;
   arr.forEach((x,i)=>{
-    h+=`<tr style="background:${i%2?'#fff':'#fafbff'}">
+    h+=`<tr onclick="arFacVer('${escAttr(x.id||'')}')" style="background:${i%2?'#fff':'#fafbff'};cursor:pointer">
       <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(x.numero||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${escHtml(x.fecha||'—')}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--navy);font-weight:600">${escHtml(x.parte)}</td>
@@ -4444,8 +4456,15 @@ function arFacPintar(){
     </tr>`;
   });
   h+=`</tbody></table></div>`;
+  h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:8px 2px 0">Toca una factura para ${esV?'ver su PDF':'ver el original subido'}.</p>`;
   $('teacher').innerHTML=saShell(h);
   arFacWire();
+}
+function arFacVer(id){
+  const x=(window._arFac||[]).find(r=>String(r.id)===String(id)); if(!x) return;
+  if(window._arFacModo==='ventas'){ factVerFactura(id); return; }
+  if(x.pdf_url){ gxVerPDF(x.pdf_url); }
+  else { appAlert('Este gasto no tiene PDF original subido.'); }
 }
 function arFacWire(){
   const qi=$('af-q'); if(qi) qi.oninput=function(){ window._arFacQ=qi.value; const pos=qi.selectionStart; arFacPintar(); const el=$('af-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } };
@@ -4683,20 +4702,19 @@ function pxPintar(){
         ${verArch?'':`<button onclick="pxAbrir('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">✏️ Editar</button>
         <button onclick="pxEnviar('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">✉️ Enviar</button>`}
       </div>
-      ${verArch?'':`<select onchange="pxSetEstado('${p.id}',this.value)" class="px-btn" style="width:100%;box-sizing:border-box;margin-top:6px">
-          ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
-        </select>`}
       ${verArch?'':`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:nowrap;align-items:center">
+        <select onchange="pxSetEstado('${p.id}',this.value)" class="px-btn" style="flex:1 1 0;min-width:0">
+          ${Object.entries(PX_ESTADOS).filter(([k])=>k!=='caducado').map(([k,v])=>`<option value="${k}"${p.estado===k?' selected':''}>${v.lab}</option>`).join('')}
+        </select>
         ${p.aceptacion_url
-          ? `<button onclick="pxAcepVer('${p.id}')" class="px-btn" style="flex:1 1 auto;min-width:0">👁 Aceptación</button><button onclick="pxAcepDrive('${p.id}')" class="px-btn" style="flex:0 0 auto">☁️ Drive</button><button onclick="pxAcepBorrar('${p.id}')" class="px-btn del" style="flex:0 0 auto">🗑</button>`
-          : `<label class="px-btn" style="flex:1 1 auto;min-width:0;cursor:pointer">📎 Adjuntar aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label><button onclick="driveAbrir()" class="px-btn" style="flex:0 0 auto" title="Abrir Google Drive">☁️ Drive</button>`}
+          ? `<button onclick="pxAcepVer('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">👁 Aceptación</button><button onclick="pxAcepBorrar('${p.id}')" class="px-btn del" style="flex:0 0 auto">🗑</button>`
+          : `<label class="px-btn" style="flex:1 1 0;min-width:0;cursor:pointer;text-align:center">📎 Adjuntar aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label>`}
       </div>`}
-      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
-        ${(!verArch && est==='aceptado')?(p.facturado_en?`<span class="px-btn" style="cursor:default;color:#15803d!important">✅ Facturado</span>`:`<span class="px-btn" style="cursor:default">→ Factura Admin.</span>`):''}
-        <span style="margin-left:auto;display:flex;gap:6px">
-          <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="px-btn" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
-          ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="px-btn del">🗑</button>`}
-        </span>
+      ${(!verArch && est==='aceptado')?`<div style="margin-top:6px">${p.facturado_en?`<span class="px-btn" style="cursor:default;color:#15803d!important">✅ Facturado</span>`:`<span class="px-btn" style="cursor:default">→ Factura Admin.</span>`}</div>`:''}
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:nowrap;align-items:center">
+        ${verArch?'':`<button onclick="${p.aceptacion_url?`pxAcepDrive('${p.id}')`:'driveAbrir()'}" class="px-btn" style="flex:1 1 0;min-width:0" title="Google Drive">☁️ Drive</button>`}
+        <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="px-btn" style="flex:1 1 0;min-width:0" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
+        ${verArch?'':`<button onclick="pxBorrar('${p.id}')" class="px-btn del" style="flex:0 0 auto">🗑</button>`}
       </div>
     </div>`;
   });
@@ -5222,13 +5240,13 @@ async function saRenderPresuAceptados(){
           <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')}${fact&&p.factura_numero?(' · '+escHtml(p.factura_numero)):''}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
-      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center">
-        <button onclick="saPresuVer('${p.id}')" class="gx-mini">👁 Ver</button>
-        <button onclick="saPresuPDF('${p.id}')" class="gx-mini">📄 PDF</button>
-        <button onclick="saPresuArchivar('${p.id}')" class="gx-mini" title="Quitar del escritorio sin borrarlo">🗄 Archivar</button>
+      <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:nowrap;align-items:center">
+        <button onclick="saPresuVer('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0">👁 Ver</button>
+        <button onclick="saPresuPDF('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0">📄 PDF</button>
+        <button onclick="saPresuArchivar('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0" title="Quitar del escritorio sin borrarlo">🗄 Archivar</button>
         ${fact
-          ? `<span class="gx-mini" style="background:#f1f1f4;color:#6e6e78;cursor:default">Facturado</span><button onclick="saPresuDesbloquear('${p.id}')" class="gx-mini del" style="margin-left:auto">↩ Desbloquear</button>`
-          : `<button onclick="saPresuFacturar('${p.id}')" class="gx-mini ok" style="margin-left:auto">→ Facturar</button>`}
+          ? `<button onclick="saPresuDesbloquear('${p.id}')" class="gx-mini del" style="flex:1 1 0;min-width:0">↩ Desbloquear</button>`
+          : `<button onclick="saPresuFacturar('${p.id}')" class="gx-mini ok" style="flex:1 1 0;min-width:0">→ Facturar</button>`}
       </div>
     </div>`;
   });
@@ -7097,13 +7115,30 @@ async function openReportes(okMsg){
   const h=['<button class="backbtn" onclick="openSoporteProfe()">← Chat y reporte</button>'];
   h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">⚠️ Reportes de preguntas</h1>');
   if(okMsg) h.push('<div class="t-note ok">'+escHtml(okMsg)+'</div>');
-  h.push('<div class="t-card" style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px"><b>Cómo proceder:</b> si la pregunta es de un examen tuyo, corrígela en «Crear y gestionar exámenes» → editar el examen. Si es una pregunta del <b>banco general</b> (viene ya montada en el certificado), avísale a soporte por el chat indicando el examen y el número de pregunta.</div>');
+  h.push('<div class="t-card" style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px"><b>Cómo proceder:</b> si la pregunta es de un examen tuyo, corrígela en «Crear y gestionar exámenes» → editar el examen. Si es una pregunta del <b>banco general</b> (viene ya montada en el certificado), pulsa «Reportar al banco» y se avisa a soporte automáticamente con el examen y el número de pregunta.</div>');
+  window._reportesList=list;
   if(!list.length){ h.push('<p class="sa-empty">No hay reportes pendientes.</p>'); }
   else list.forEach(r=>{
     const f=new Date(r.creado_en); const fecha=f.toLocaleDateString('es-ES')+' '+f.toTimeString().slice(0,5);
-    h.push('<div class="t-card"><b style="color:var(--navy)">Pregunta '+(r.pregunta_num||'?')+' · '+escHtml(r.examen_titulo||r.examen_id)+'</b><div style="font-size:.78rem;color:var(--ink-soft);margin:2px 0 6px">Reportada por '+escHtml(r.alumno_nombre||'alumno')+' · '+fecha+'</div>'+(r.motivo?'<div style="font-size:.85rem;margin-bottom:8px">«'+escHtml(r.motivo)+'»</div>':'')+'<button class="btn btn-ghost" onclick="resolverReporte(\''+r.id+'\')">✓ Marcar resuelto</button></div>');
+    h.push('<div class="t-card"><b style="color:var(--navy)">Pregunta '+(r.pregunta_num||'?')+' · '+escHtml(r.examen_titulo||r.examen_id)+'</b><div style="font-size:.78rem;color:var(--ink-soft);margin:2px 0 6px">Reportada por '+escHtml(r.alumno_nombre||'alumno')+' · '+fecha+'</div>'+(r.motivo?'<div style="font-size:.85rem;margin-bottom:8px">«'+escHtml(r.motivo)+'»</div>':'')+'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" style="flex:1 1 auto;margin:0" onclick="reportarABanco(\''+r.id+'\')">📨 Reportar al banco</button><button class="btn btn-ghost" style="flex:1 1 auto;margin:0" onclick="resolverReporte(\''+r.id+'\')">✓ Marcar resuelto</button></div></div>');
   });
   $('teacher').innerHTML=h.join('');
+}
+async function reportarABanco(id){
+  const r=(window._reportesList||[]).find(x=>String(x.id)===String(id));
+  if(!r){ appAlert('No se encontró el reporte.'); return; }
+  if(window._demoMode){ appAlert('Demo: aquí se enviaría el reporte al banco (soporte).'); return; }
+  if(!await appConfirm('Se enviará este reporte a soporte para que revise la pregunta del banco general. ¿Continuar?')) return;
+  const txt='🚩 Reporte de pregunta del BANCO GENERAL'
+    +'\nExamen: '+(r.examen_titulo||r.examen_id||'')+(r.examen_id?(' ('+r.examen_id+')'):'')
+    +'\nPregunta nº '+(r.pregunta_num||'?')
+    +'\nReportada por '+(r.alumno_nombre||'alumno')
+    +(r.motivo?('\nMotivo: «'+r.motivo+'»'):'');
+  try{
+    await call('/rest/v1/rpc/sc_prof_enviar',{method:'POST',body:{p_texto:txt,p_adjunto_url:null,p_adjunto_nombre:null}});
+    try{ await call('/rest/v1/rpc/reportes_prof_resolver',{method:'POST',body:{p_id:id}}); }catch(_){}
+    openReportes('Reporte enviado a soporte. Te responderán por el chat de soporte.');
+  }catch(e){ appAlert('No se pudo enviar: '+(e.message||'')); }
 }
 async function resolverReporte(id){
   try{ await call('/rest/v1/rpc/reportes_prof_resolver',{method:'POST',body:{p_id:id}}); openReportes('Reporte marcado como resuelto.'); }
@@ -10873,7 +10908,7 @@ function openUnit(unitId){
   const list=(examsByUnit[unitId]||[])
     .filter(e=> staff || e.publicado)
     .filter(e=> !temaSel || (temaSel==='__sin' ? !e.tema_id : String(e.tema_id)===String(temaSel)))
-    .sort(_cmpEx);
+    .sort(staff ? _cmpEx : _cmpExAlum);
   showView('unit'); window.scrollTo(0,0);
   const est=unitEstado(unitId);
   const terminada = (est==='terminado' && !staff);
