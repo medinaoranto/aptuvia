@@ -8162,7 +8162,7 @@ function escHtml(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;
 function escHtmlNL(t){ return escHtml(t||'').replace(/\r\n|\r|\n/g,'<br>'); }
 function escAttr(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
-let builder={mode:'auto',kind:'test',unidad:'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
+let builder={mode:'auto',kind:'test',unidad:'',temaId:'',aaTemasCache:{},titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
 
 async function ensureTemas(unidad){
   if(!unidad) return [];
@@ -8176,6 +8176,26 @@ async function ensureTemas(unidad){
   }
   catch(e){ builder.temasCache[unidad]=[]; }
   return builder.temasCache[unidad];
+}
+async function ensureAaTemas(unidad){
+  if(!unidad) return [];
+  if(builder.aaTemasCache[unidad]) return builder.aaTemasCache[unidad];
+  try{ builder.aaTemasCache[unidad]=_temasProgPrimero((await call('/rest/v1/rpc/aa_temas_listar',{method:'POST',body:impProf({p_unidad:unidad})}))||[]); }
+  catch(e){ builder.aaTemasCache[unidad]=[]; }
+  return builder.aaTemasCache[unidad];
+}
+function temaIdSelectHtml(){
+  const temas=builder.aaTemasCache[builder.unidad]||[];
+  if(!temas.length) return '';
+  const opts=temas.map(t=>`<option value="${escAttr(t.id)}"${String(builder.temaId||'')===String(t.id)?' selected':''}>${escHtml(t.titulo)}</option>`).join('');
+  return `<label style="margin-top:12px">Tema al que va el examen</label><select id="ce-tema-id" onchange="builder.temaId=this.value"><option value="">— Sin tema (lo coloco luego) —</option>${opts}</select>`;
+}
+async function stampTemaNuevos(unidad, antes){
+  if(!builder.temaId) return;
+  const nuevos=(examsByUnit[unidad]||[]).map(e=>String(e.id)).filter(id=>!antes.has(id));
+  for(const id of nuevos){
+    try{ await call('/rest/v1/rpc/aa_examen_tema',{method:'POST',body:impProf({p_examen:id,p_tema:builder.temaId})}); const ex=(examsByUnit[unidad]||[]).find(e=>String(e.id)===id); if(ex) ex.tema_id=builder.temaId; }catch(_){}
+  }
 }
 async function ensureBank(unidad,tema){
   const k=unidad+'|'+(tema||'');
@@ -8194,6 +8214,7 @@ function captureFields(){
   const n=$('ce-n'); if(n) builder.n=Math.max(1,Math.min(100,parseInt(n.value,10)||15));
   const tm=$('ce-tema'); if(tm) builder.tema=tm.value;
   const cf=$('ce-final'); if(cf) builder.cuentaFinal=cf.checked;
+  const ti=$('ce-tema-id'); if(ti) builder.temaId=ti.value;
 }
 
 // Etiqueta de tema reutilizable (global, usada por builder y picker)
@@ -8206,10 +8227,10 @@ function temaLabelGlobal(t){
 async function openExamMgmt(){
   window._teacherScreen='examgmt';
   const units=unidadesParaCrearExamen();
-  builder={mode:'auto',kind:'test',unidad:units[0]||'',titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
+  builder={mode:'auto',kind:'test',unidad:units[0]||'',temaId:'',aaTemasCache:{},titulo:'',nivel:'medio',n:15,tema:'',items:[],redItems:[{enun:'',file:null,matName:'',matMode:'inline'}],adding:false,picking:false,bankTema:'',temasCache:{},bankCache:{},cuentaFinal:false,examFile:null,examMatName:'',examMatMode:'inline',redPicking:false,redBank:[],redBankTema:'',redBankUnidad:''};
   bancoDraft={codigo:'',tema:'',enun:'',expl:'',id:null,matUrl:'',matName:'',matFile:null}; bancoListUnidad='';
   showView('teacher'); window.scrollTo(0,0);
-  if(builder.unidad) await ensureTemas(builder.unidad);
+  if(builder.unidad){ await ensureTemas(builder.unidad); await ensureAaTemas(builder.unidad); }
   renderExamMgmt();
 }
 
@@ -8321,7 +8342,7 @@ function renderExamMgmt(okMsg,errMsg){
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button><button id="kd-banco" class="${builder.kind==='banco'?'on':''}">📚 Banco</button></div>`);
   if(builder.kind==='redaccion'){
     h.push('<div class="mgmt-2col"><div class="mgmt-left">');
-        h.push('<div class="t-card"><label style="margin-top:6px">Unidad de destino</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55">Examen de <b>redacción</b>: una o varias preguntas abiertas que el alumno responde escribiendo, y que tú corriges (a mano o con ayuda de IA). Puedes adjuntar un PDF (mapa, texto o imagen) que verá junto al enunciado.</div><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
+        h.push('<div class="t-card"><label style="margin-top:6px">Unidad de destino</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55">Examen de <b>redacción</b>: una o varias preguntas abiertas que el alumno responde escribiendo, y que tú corriges (a mano o con ayuda de IA). Puedes adjuntar un PDF (mapa, texto o imagen) que verá junto al enunciado.</div><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label>'+temaIdSelectHtml()+'<label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
     h.push(`<div style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0">Se creará en <b>${escHtml(unidadesById[builder.unidad]?unidadesById[builder.unidad].codigo+' · '+tituloMateria(unidadesById[builder.unidad]):(builder.unidad||'—'))}</b>.</div>`);
     h.push(renderRedSection());
     h.push('</div><div class="mgmt-right">');
@@ -8348,6 +8369,7 @@ function renderExamMgmt(okMsg,errMsg){
       <label>Título del examen</label>
       <input id="ce-titulo" type="text" placeholder="Ej.: Examen Tema 3 · Importado" value="${escAttr(builder.titulo)}">
       <label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"${builder.cuentaFinal?' checked':''}> Cuenta para la nota final</label>
+      ${temaIdSelectHtml()}
     </div>`);
     h.push(`<div class="t-card" style="margin-top:12px">
       <div style="background:#eff6ff;border-left:3px solid var(--navy);border-radius:0 8px 8px 0;padding:10px 12px;font-size:.74rem;color:#1e3a8a;line-height:1.6;margin-bottom:12px;">
@@ -8409,6 +8431,7 @@ D) Opción
   if(builder.mode==='auto') h.push(`<div style="flex:1"><label>Nº de preguntas</label><input id="ce-n" type="number" min="1" max="100" value="${builder.n}"></div>`);
   h.push(`</div>`);
   h.push(`<label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"${builder.cuentaFinal?' checked':''}> Cuenta para la nota final</label>`);
+  h.push(temaIdSelectHtml());
   if(builder.mode==='auto'){
     const tOpts=`<option value="">Toda la unidad</option>`+temas.map(t=>`<option value="${escAttr(t.tema)}"${t.tema===builder.tema?' selected':''}>${escHtml(temaLabel(t))} (${t.n})</option>`).join('');
 h.push(`<label>Tema</label><select id="ce-tema">${tOpts}</select><button class="btn btn-primary" id="ce-btn" style="margin-top:16px">Crear examen</button>`);
@@ -8750,6 +8773,7 @@ async function crearRedUI(){
     (examsByUnit[builder.unidad]=examsByUnit[builder.unidad]||[]).push(nuevo);
     const visible = vis==='si';
     try{ await call('/rest/v1/rpc/set_examen_publicado',{method:'POST',body:impProf({p_examen_id:nuevo.id, p_publicado:visible})}); nuevo.publicado=visible; }catch(_){}
+    if(builder.temaId){ try{ await call('/rest/v1/rpc/aa_examen_tema',{method:'POST',body:impProf({p_examen:nuevo.id,p_tema:builder.temaId})}); nuevo.tema_id=builder.temaId; }catch(_){} }
     builder.titulo=''; builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}]; builder.cuentaFinal=false;
     builder.examFile=null; builder.examMatName=''; builder.examMatMode='inline';
     renderExamMgmt(visible ? '✅ Examen de redacción creado. Ya aparece para el alumnado.' : '✅ Examen de redacción creado (oculto). Actívalo en «Exámenes y estados» cuando quieras.');
@@ -8797,7 +8821,7 @@ function wireBuilder(){
 }
 
 function setMode(m){ captureFields(); builder.mode=m; builder.adding=false; builder.picking=false; renderExamMgmt(); }
-async function onUnidadChange(){ captureFields(); if(builder.kind==='redaccion') captureRed(); builder.tema=''; builder.bankTema=''; await ensureTemas(builder.unidad); renderExamMgmt(); }
+async function onUnidadChange(){ captureFields(); if(builder.kind==='redaccion') captureRed(); builder.tema=''; builder.bankTema=''; builder.temaId=''; await ensureTemas(builder.unidad); await ensureAaTemas(builder.unidad); renderExamMgmt(); }
 function openAddNew(){ captureFields(); builder.adding=true; builder.picking=false; renderExamMgmt(); }
 async function openPicker(){
   captureFields();
@@ -8861,6 +8885,7 @@ async function crearAutoUI(){
     await call('/rest/v1/rpc/crear_examen',{method:'POST',body:impProf(body)});
     await refrescarExamenes();
     await fijarVisibilidadNuevos(builder.unidad, antes, vis==='si');
+    await stampTemaNuevos(builder.unidad, antes);
     builder.cuentaFinal=false;
     const temaTxt=builder.tema?(' · '+builder.tema):'';
     const ocultoTxt = vis==='si' ? '' : ' · (oculto — actívalo en «Exámenes y estados»)';
@@ -8880,6 +8905,7 @@ async function crearMedidaUI(){
     await call('/rest/v1/rpc/crear_examen_medida',{method:'POST',body:impProf({p_unidad:builder.unidad,p_titulo:builder.titulo||'Examen del profesor',p_nivel:builder.nivel,p_preguntas:payload,p_cuenta_final:builder.cuentaFinal})});
     await refrescarExamenes();
     await fijarVisibilidadNuevos(builder.unidad, antes, vis==='si');
+    await stampTemaNuevos(builder.unidad, antes);
     const titulo=builder.titulo||'Examen del profesor', nq=builder.items.length;
     builder.items=[]; builder.adding=false; builder.picking=false; builder.cuentaFinal=false;
     const ocultoTxt = vis==='si' ? '' : ' · (oculto — actívalo en «Exámenes y estados»)';
@@ -12023,7 +12049,7 @@ function renderExam(){
     <div class="exam-body"><div class="exam-left">
     <div class="qcard">
       ${tema?`<span class="tema-chip">${tema}</span>`:''}
-      <div class="qnum">Pregunta ${i+1}</div>
+      <div class="qnum">Pregunta ${i+1}${(!window._demoMode&&current.exam&&current.exam.id)?`<button class="rep-btn" onclick="reportarPreguntaUI('${escAttr(current.exam.id)}',${i+1},${q.id||'null'})" title="Reportar esta pregunta" style="float:right;background:#fff3e0;border:1px solid var(--honey);color:var(--honey-deep);border-radius:8px;padding:2px 7px;font-size:.62rem;cursor:pointer;font-family:inherit;font-weight:700">⚠️ Reportar</button>`:''}</div>
       <div class="qtext">${q.enunciado}</div>
       <div id="opts-${q.id}">`;
   const ordEx=current.optOrder[q.id]||(q.opciones||[]).map((_,k)=>k);
@@ -12613,6 +12639,7 @@ async function crearDesdeTexto(){
   const titulo=($('ce-titulo')?$('ce-titulo').value.trim():'')||'Examen importado';
   const nivel=$('ce-nivel')?$('ce-nivel').value:builder.nivel;
   const cuentaFinal=$('ce-final')?$('ce-final').checked:false;
+  const temaId=($('ce-tema-id')?$('ce-tema-id').value:builder.temaId)||null;
   const txt=$('imp-text')?$('imp-text').value.trim():'';
   const status=$('imp-status');
   const preview=$('imp-preview');
@@ -12665,7 +12692,7 @@ async function crearDesdeTexto(){
     const examRes=await fetch(SUPABASE_URL+'/rest/v1/examenes',{
       method:'POST',
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=representation'},
-      body:JSON.stringify(Object.assign({id:examId,titulo:titulo,tema:'Examen importado por el profesor',unidad:unidad,nivel:nivel2,publicado:true,cuenta_final:cuentaFinal,orden:999,barajar:true,numero:null}, window._saImpersona?{profesor_id:window._saImpersonaProf,academia_id:window._saImpersonaAcademia}:{}))
+      body:JSON.stringify(Object.assign({id:examId,titulo:titulo,tema:'Examen importado por el profesor',unidad:unidad,nivel:nivel2,publicado:true,cuenta_final:cuentaFinal,orden:999,barajar:true,numero:null,tema_id:temaId}, window._saImpersona?{profesor_id:window._saImpersonaProf,academia_id:window._saImpersonaAcademia}:{}))
     });
     if(!examRes.ok){ const e=await examRes.json(); throw new Error(JSON.stringify(e)); }
 

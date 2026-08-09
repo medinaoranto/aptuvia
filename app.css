@@ -595,8 +595,8 @@ body.tema-aula-abierta .t-welcome .t-course .t-code-inline{color:#0077B6;}
 .ce-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
 .ce-info b{font-size:.88rem;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ce-info span{font-size:.68rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;}
-.ce-del{flex:0 0 auto;background:var(--no-bg);color:var(--no);border:none;border-radius:9px;padding:8px 12px;font-size:.95rem;cursor:pointer;}
-.ce-del:active{transform:scale(.96);}
+.ce-del{flex:0 0 auto;background:var(--no-bg);color:var(--no);border:none;border-radius:9px;padding:8px 12px;font-size:.95rem;cursor:pointer;box-shadow:inset 2px 2px 5px rgba(70,95,125,.22), inset -1px -1px 3px rgba(255,255,255,.7);}
+.ce-del:active{box-shadow:inset 3px 3px 7px rgba(70,95,125,.32);transform:none;}
 .bld-empty{font-size:.8rem;color:var(--ink-soft);background:var(--navy-tint);border-radius:10px;padding:12px 13px;margin:6px 0 4px;line-height:1.4;}
 .bld-row{display:flex;align-items:center;gap:9px;background:#fffdf9;border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:6px;}
 .bld-tag{flex:0 0 auto;font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);background:var(--line);border-radius:6px;padding:3px 7px;}
