@@ -4156,9 +4156,105 @@ function arRender(){
     <button class="fact-menu" style="margin:0" onclick="arProveedores()"><b>🚚 Proveedores</b><span>Alta y baja de proveedores</span></button>
     <button class="fact-menu" style="margin:0" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
     <button class="fact-menu" style="margin:0" onclick="arFacturas('compras')"><b>🧾 Facturas de compras</b><span>Gastos de proveedores · automático</span></button>
+    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arPresupuestos()"><b>📝 Presupuestos</b><span>Todos: vigentes, aceptados, archivados · solo lectura</span></button>
+    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arResumen()"><b>📊 Resumen del ejercicio</b><span>Ventas, compras, IVA y resultado del año · de un vistazo</span></button>
     <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arDocs()"><b>📄 Contratos y documentación</b><span>Licencias, encargado del tratamiento (art. 28), altas… el PDF y su registro</span></button>
   </div>`;
   $('teacher').innerHTML=saShell(h);
+}
+async function arPresupuestos(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  let list=[];
+  try{ list=await call('/rest/v1/presupuestos?select=*&order=fecha.desc')||[]; }
+  catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudieron cargar: ${escHtml(e.message||'')}</div>`); return; }
+  window._arPresu=list; window._arPresuQ=window._arPresuQ||'';
+  arPresuPintar();
+}
+function arPresuPintar(){
+  const q=(window._arPresuQ||'').toLowerCase();
+  const arr=(window._arPresu||[]).filter(p=>{
+    const cli=(p.cliente&&p.cliente.razon_social)||'';
+    return !q || (String(p.numero||'')+' '+cli+' '+String(p.fecha||'')).toLowerCase().includes(q);
+  });
+  let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Presupuestos</h2>`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Todos los presupuestos y su situación (vigentes, aceptados, archivados). Solo lectura. Toca una fila para verlo.</p>`;
+  h+=`<input id="apr-q" placeholder="Buscar por nº, cliente o fecha…" value="${escAttr(window._arPresuQ||'')}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px">`;
+  h+=`<div style="background:var(--navy);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:.9rem;font-weight:700">${arr.length} presupuesto${arr.length===1?'':'s'}</div>`;
+  if(!arr.length){ h+=`<p class="sa-empty">No hay presupuestos con ese filtro.</p>`; $('teacher').innerHTML=saShell(h); const q0=$('apr-q'); if(q0) q0.oninput=arPresuQChange; return; }
+  h+=`<div style="overflow-x:auto;border:1.5px solid var(--line);border-radius:12px"><table style="border-collapse:collapse;width:100%;font-size:.78rem;white-space:nowrap"><thead><tr style="background:var(--navy-tint)">`;
+  ['Nº','Cliente','Fecha','Situación','Total'].forEach((lab,i)=>{ h+=`<th style="text-align:${i===4?'right':'left'};padding:9px 10px;color:var(--navy);font-weight:800;border-bottom:1.5px solid var(--line)">${lab}</th>`; });
+  h+=`</tr></thead><tbody>`;
+  arr.forEach((p,i)=>{
+    const est=pxEstadoReal(p), e=PX_ESTADOS[est]||PX_ESTADOS.borrador;
+    const cli=(p.cliente&&p.cliente.razon_social)||'—';
+    const sit=`<span style="color:${e.col};font-weight:700">${e.lab}</span>${p.archivado?' · <span style="color:var(--ink-soft)">archivado</span>':''}${p.facturado_en?' · <span style="color:#15803d">facturado</span>':''}`;
+    h+=`<tr onclick="arPresuVer('${p.id}')" style="background:${i%2?'#fff':'#fafbff'};cursor:pointer">
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy)">${escHtml(p.numero||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${escHtml(cli)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink-soft)">${escHtml(p.fecha||'—')}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line)">${sit}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-weight:700">${gxEur(p.total)}</td>
+    </tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  $('teacher').innerHTML=saShell(h);
+  const qi=$('apr-q'); if(qi) qi.oninput=arPresuQChange;
+}
+function arPresuQChange(){ const qi=$('apr-q'); if(!qi) return; window._arPresuQ=qi.value; const pos=qi.selectionStart; arPresuPintar(); const el=$('apr-q'); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} } }
+function arPresuVer(id){
+  const p=(window._arPresu||[]).find(x=>String(x.id)===String(id)); if(!p){ appAlert('No se encontró el presupuesto.'); return; }
+  $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="arPresuPintar()" style="margin-bottom:10px">← Presupuestos</button>
+    ${presuFichaHTML(p)}
+    <button class="btn btn-ghost" onclick="arPresuPDF('${p.id}')" style="margin-top:12px">📄 Descargar PDF</button>`);
+  window.scrollTo(0,0);
+}
+function arPresuPDF(id){ const p=(window._arPresu||[]).find(x=>String(x.id)===String(id)); if(p) pxRenderPDF(p); }
+async function arResumen(){
+  $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
+  window._arResYear = window._arResYear || new Date().getFullYear();
+  let fact=[], gas=[];
+  try{
+    fact=await call('/rest/v1/facturas?select=subtotal,descuento_pct,total,fecha,pagada')||[];
+    gas =await call('/rest/v1/gastos?select=base,iva,importe,fecha,pagada,deducible')||[];
+  }catch(e){ $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saFactSub('archivo')">← Archivo central</button><div class="t-note err">No se pudo cargar: ${escHtml(e.message||'')}</div>`); return; }
+  window._arResFact=fact; window._arResGas=gas;
+  arResPintar();
+}
+function arResPintar(){
+  const Y=window._arResYear;
+  const fact=(window._arResFact||[]).filter(f=>String(f.fecha||'').slice(0,4)===String(Y));
+  const gas =(window._arResGas ||[]).filter(g=>String(g.fecha||'').slice(0,4)===String(Y));
+  const years=(()=>{ const s=new Set(); (window._arResFact||[]).forEach(f=>{const y=String(f.fecha||'').slice(0,4); if(y)s.add(y);}); (window._arResGas||[]).forEach(g=>{const y=String(g.fecha||'').slice(0,4); if(y)s.add(y);}); s.add(String(new Date().getFullYear())); return Array.from(s).sort().reverse(); })();
+  // Ventas
+  let vBase=0, vTotal=0, vPag=0;
+  fact.forEach(f=>{ const sub=Number(f.subtotal||0); const desc=Number(f.descuento_pct||0); const base=sub*(1-desc/100); vBase+=base; vTotal+=Number(f.total||0); if(f.pagada) vPag++; });
+  const vIVA=vTotal-vBase;
+  // Compras (solo deducibles para IVA/gasto)
+  let cBase=0, cIVA=0, cTotal=0, cPag=0;
+  gas.forEach(g=>{ const ded=g.deducible!==false; cTotal+=Number(g.importe||0); if(g.pagada) cPag++; if(ded){ cBase+=Number(g.base||0); cIVA+=Number(g.iva||0); } });
+  const resultado=vBase-cBase;
+  const ivaLiquidar=vIVA-cIVA;
+  const card=(lab,val,col)=>`<div class="gx-kpi" style="min-width:0"><span>${lab}</span><b style="${col?`color:${col}`:''}">${val}</b></div>`;
+  let h=`<button class="backbtn" onclick="saFactSub('archivo')" style="margin-bottom:10px">← Archivo central</button>`;
+  h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📊 Resumen del ejercicio</h2>`;
+  h+=`<p style="font-size:.74rem;color:var(--ink-soft);margin:0 2px 10px">Cifras orientativas calculadas a partir de tus facturas y gastos. <b>No sustituyen a la gestoría</b>: valida los modelos trimestrales con un profesional.</p>`;
+  h+=`<select id="ar-res-year" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:10px;background:#fff">${years.map(y=>`<option value="${y}"${String(y)===String(Y)?' selected':''}>Ejercicio ${y}</option>`).join('')}</select>`;
+  h+=`<div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;margin:4px 2px 6px">Ventas (${fact.length} factura${fact.length===1?'':'s'} · ${vPag} pagada${vPag===1?'':'s'})</div>`;
+  h+=`<div class="gx-kpis">${card('Base',gxEur(vBase))}${card('IVA repercutido',gxEur(vIVA))}${card('Total',gxEur(vTotal),'#15803d')}</div>`;
+  h+=`<div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;margin:12px 2px 6px">Compras (${gas.length} gasto${gas.length===1?'':'s'} · ${cPag} pagado${cPag===1?'':'s'})</div>`;
+  h+=`<div class="gx-kpis">${card('Base deducible',gxEur(cBase))}${card('IVA soportado',gxEur(cIVA))}${card('Total',gxEur(cTotal),'#b4232a')}</div>`;
+  h+=`<div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;margin:12px 2px 6px">Resultado</div>`;
+  h+=`<div class="gx-kpis">${card('Beneficio (base)',gxEur(resultado),resultado>=0?'#15803d':'#b4232a')}${card(ivaLiquidar>=0?'IVA a ingresar':'IVA a compensar',gxEur(Math.abs(ivaLiquidar)),ivaLiquidar>=0?'#b4232a':'#15803d')}</div>`;
+  h+=`<div class="t-card" style="margin-top:14px"><b style="font-size:.9rem;color:var(--navy)">⚠️ Pendiente antes de operar en firme</b>
+    <ul style="margin:8px 0 0;padding-left:18px;font-size:.8rem;color:var(--ink-soft);line-height:1.7">
+      <li>Contrato de licencia + encargado del tratamiento (art. 28) firmados con el abogado.</li>
+      <li>Marca APTUVIA registrada en la OEPM (clases 9 y 41).</li>
+      <li>Supabase Pro (backups diarios + PITR) antes del primer cliente de pago.</li>
+      <li>Alta de autónomo por gestoría y modelos trimestrales (303/130) validados.</li>
+    </ul></div>`;
+  $('teacher').innerHTML=saShell(h);
+  const ys=$('ar-res-year'); if(ys) ys.onchange=function(){ window._arResYear=ys.value; arResPintar(); };
 }
 function presuEsAA(p){
   if(p.profesor_id) return true;
@@ -4694,7 +4790,7 @@ function pxPintar(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b>
           <span style="font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;color:${e.col};background:${e.bg}">${e.lab}</span><br>
-          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}</div>
+          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}${p.facturado_en?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ Facturado</span>`:''}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:6px;margin-top:9px;align-items:center">
@@ -4708,9 +4804,9 @@ function pxPintar(){
         </select>
         ${p.aceptacion_url
           ? `<button onclick="pxAcepVer('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">👁 Aceptación</button><button onclick="pxAcepBorrar('${p.id}')" class="px-btn del" style="flex:0 0 auto">🗑</button>`
-          : `<label class="px-btn" style="flex:1 1 0;min-width:0;cursor:pointer;text-align:center">📎 Adjuntar aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label>`}
+          : `<label class="px-btn" style="flex:1 1 0;min-width:0;cursor:pointer;text-align:center">📎 Aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label>`}
       </div>`}
-      ${(!verArch && est==='aceptado')?`<div style="margin-top:6px">${p.facturado_en?`<span class="px-btn" style="cursor:default;color:#15803d!important">✅ Facturado</span>`:`<span class="px-btn" style="cursor:default">→ Factura Admin.</span>`}</div>`:''}
+      ${(!verArch && est==='aceptado' && !p.facturado_en)?`<div style="margin-top:6px"><span class="px-btn" style="cursor:default">→ Factura Admin.</span></div>`:''}
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:nowrap;align-items:center">
         ${verArch?'':`<button onclick="${p.aceptacion_url?`pxAcepDrive('${p.id}')`:'driveAbrir()'}" class="px-btn" style="flex:1 1 0;min-width:0" title="Google Drive">☁️ Drive</button>`}
         <button onclick="pxArchivar('${p.id}',${verArch?'false':'true'})" class="px-btn" style="flex:1 1 0;min-width:0" title="${verArch?'Devolver al escritorio':'Quitar del escritorio sin borrarlo'}">${verArch?'↩ Recuperar':'🗄 Archivar'}</button>
@@ -11056,10 +11152,11 @@ function openUnit(unitId){
   const mfA = fN>0 ? ((fSum/fN)*10).toFixed(1) : '—';
   const mtV = mediaMisTodos(unitId);
   const mtA = mtV!=null ? mtV.toFixed(1) : '—';
+  const notaCol=v=>{const n=parseFloat(v);return isNaN(n)?'var(--navy)':(n>=5?'#15803d':'#b4232a');};
   const stickyNota = `<div class="nota-sticky">
-      <div class="ns-card"><span>½ Mejor int.</span><b>${mcA}</b></div>
-      <div class="ns-card"><span>½ todos int.</span><b>${mtA}</b></div>
-      <div class="ns-card"><span>½ Ex. Final</span><b>${mfA}</b></div>
+      <div class="ns-card"><span>½ Mejor int.</span><b style="color:${notaCol(mcA)}">${mcA}</b></div>
+      <div class="ns-card"><span>½ todos int.</span><b style="color:${notaCol(mtA)}">${mtA}</b></div>
+      <div class="ns-card"><span>½ Ex. Final</span><b style="color:${notaCol(mfA)}">${mfA}</b></div>
     </div>`;
   let html=head+stickyNota+`<div class="section">`;
   list.forEach(e=>{
