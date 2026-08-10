@@ -2560,17 +2560,21 @@ function docsBar(area){
   const pills=[];
   if(area==='soporte') pills.push(`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`);
   if(sopPill) pills.push(sopPill);
-  const sub='display:block;width:100%;text-align:left;cursor:pointer;font:inherit;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--navy)';
   return `<div style="margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
-    ${pills.length?`<div style="display:flex;gap:5px;justify-content:center;margin-bottom:10px;flex-wrap:nowrap">${pills.join('')}</div>`:''}
-    <button class="fact-menu" style="width:100%;margin:0" onclick="docMTToggle()"><b>📘 Manual y trazabilidad</b><span>Guía de tu área y el circuito comercial completo</span></button>
-    <div id="doc-mt-wrap" class="hidden" style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-      ${area?`<button style="${sub}" onclick="docManualArea('${area}')"><b style="font-size:.95rem">📘 Manual del área</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Paso a paso de todo lo que se hace aquí</div></button>`:''}
-      <button style="${sub}" onclick="docTrazabilidad()"><b style="font-size:.95rem">📄 Trazabilidad</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Del presupuesto a la baja del cliente · quién hace qué en cada paso</div></button>
-    </div>
+    <button class="fact-menu" style="width:100%;margin:0" onclick="docMTOpen('${area||''}')"><b>📘 Manual y trazabilidad</b><span>Guía de tu área y el circuito comercial completo</span></button>
+    ${pills.length?`<div style="display:flex;gap:5px;justify-content:flex-end;margin-top:10px;flex-wrap:nowrap">${pills.join('')}</div>`:''}
   </div>`;
 }
-function docMTToggle(){ const w=document.getElementById('doc-mt-wrap'); if(w) w.classList.toggle('hidden'); }
+function docMTOpen(area){
+  showView('teacher'); window.scrollTo(0,0);
+  const sub='display:block;width:100%;text-align:left;cursor:pointer;font:inherit;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;color:var(--navy);margin-top:10px';
+  const back = area==='soporte'?"saSetMain('sop')":(area==='comercial'?"saSetMain('rs')":"saSetMain('fact')");
+  $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="${back}" style="margin-bottom:10px">← Volver</button>
+    <h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📘 Manual y trazabilidad</h1>
+    <p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:6px">Elige qué quieres abrir.</p>
+    ${area?`<button style="${sub}" onclick="docManualArea('${area}')"><b style="font-size:.95rem">📘 Manual del área</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Paso a paso de todo lo que se hace aquí</div></button>`:''}
+    <button style="${sub}" onclick="docTrazabilidad()"><b style="font-size:.95rem">📄 Trazabilidad</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Del presupuesto a la baja del cliente · quién hace qué en cada paso</div></button>`,{noChat:true});
+}
 async function sopTrabLoad(){
   try{ const v=await call('/rest/v1/rpc/sop_trabajando',{method:'POST',body:{}}); window._sopTrab=(v===true||v==='true'||v==='si'); }catch(e){}
 }
@@ -3013,10 +3017,7 @@ function saShell(inner,opts){
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
     </div>
-    ${enSoporte
-      ? `<div class="av-row" id="av-row" style="margin:0 0 8px"><div id="av-bar"></div><div id="ai-bar"></div></div>`
-      : `<div style="display:flex;gap:8px;align-items:flex-start;margin:0 0 12px"><div class="av-row" id="av-row" style="flex:1;min-width:0;margin:0"><div id="av-bar"></div><div id="ai-bar"></div></div><button onclick="openCalendario('admin')" title="Calendario" style="flex:0 0 auto;align-self:flex-start;background:#fff;border:1.5px solid var(--honey);border-radius:12px;padding:11px 12px;font-size:1.3rem;cursor:pointer;line-height:1">📅</button></div>`
-    }
+    <div style="display:flex;gap:8px;align-items:flex-start;margin:0 0 ${enSoporte?'8px':'12px'}"><div class="av-row" id="av-row" style="flex:1;min-width:0;margin:0"><div id="av-bar"></div><div id="ai-bar"></div></div><button onclick="openCalendario('adm')" title="Calendario" style="flex:0 0 auto;align-self:flex-start;background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:11px;padding:9px 11px;font-size:1.05rem;cursor:pointer;line-height:1">📅</button></div>
     ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
     ${inner}`;
 }
@@ -3048,10 +3049,7 @@ function saRenderLista(okMsg,errMsg){
   }
   if(saMainTab==='sop'){
     const barSop='width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden';
-    h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <button id="sc-inbox-card" style="${barSop}"><span>💬 Chat</span><span id="sc-inbox-badge"></span></button>
-      <button onclick="openCalendario('adm')" style="${barSop}"><span>📅 Calendario</span></button>
-    </div>`;
+    h+=`<button id="sc-inbox-card" style="${barSop};margin-bottom:12px"><span>💬 Chat con profesorado</span><span id="sc-inbox-badge"></span></button>`;
     h+=`<button class="fact-menu" style="position:relative" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button>`;
     h+=docsBar('soporte');
     $('teacher').innerHTML=saShell(h,{noChat:true});
@@ -8476,12 +8474,17 @@ function renderBancoLista(){
 }
 function bancoVer(id){
   const q=(bancoList||[]).find(x=>String(x.id)===String(id)); if(!q) return;
-  const partes=[];
-  if(q.codigo) partes.push('Código: '+q.codigo);
-  partes.push('ENUNCIADO:\n'+String(q.enunciado||'').trim());
-  partes.push('RESPUESTA MODELO:\n'+(String(q.explicacion||'').trim()||'(sin respuesta modelo)'));
-  if(q.material_url) partes.push('📎 Lleva PDF adjunto.');
-  appAlert(partes.join('\n\n'));
+  const box='background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;white-space:pre-wrap;word-break:break-word;font-size:.86rem;line-height:1.55;color:var(--ink)';
+  const okm=String(q.explicacion||'').trim();
+  showView('teacher'); window.scrollTo(0,0);
+  $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="renderExamMgmt()" style="margin-bottom:10px">← Volver</button>
+    <h1 style="font-size:1.15rem;font-weight:800;color:var(--navy);margin:4px 0 2px">Actividad del banco</h1>
+    ${q.codigo?`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 0 12px"><b>Código:</b> ${escHtml(q.codigo)}</p>`:'<div style="height:8px"></div>'}
+    <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:0 2px 6px">Enunciado</div>
+    <div style="${box}">${escHtml(String(q.enunciado||'').trim())||'(vacío)'}</div>
+    <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:14px 2px 6px">Respuesta modelo</div>
+    <div style="${box}">${okm?escHtml(okm):'(sin respuesta modelo)'}</div>
+    ${q.material_url?`<button class="btn btn-ghost" onclick="window.open('${escAttr(q.material_url)}','_blank')" style="width:100%;margin-top:14px">📎 Ver PDF adjunto</button>`:''}`,{noChat:true});
 }
 function wireBanco(){
   const s=$('bq-save'); if(s) s.onclick=bancoGuardar;
