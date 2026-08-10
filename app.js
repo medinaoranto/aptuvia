@@ -556,13 +556,13 @@ function pdfCabeceraMarca(doc, y, opts){
   const esAA=(window._activeCertId==='__aula_abierta');
   const acad=esAA?'':(window._brandAcademia||'');
   if(esAA){
-    // Documento de Aula Abierta / Aptuvia dirigido al usuario: lleva el logo de Aptuvia.
-    pdfLogo(doc,M,y,w);
-    return y+lh+hueco;
+    // Aula Abierta: SIN logo de Aptuvia. Solo se menciona al profesor (bajo el título).
+    return y+hueco;
   }
-  // Documento de la academia (profesor → alumno): sin logo de Aptuvia; solo el nombre de la academia, si lo hay, a la derecha.
-  if(acad){
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(96,84,70);
+  // Documento de la academia (profesor → alumno): sin logo de Aptuvia; el nombre de la academia
+  // en azul corporativo, a la derecha y pegado a la línea inferior.
+  if(acad && !o.noAcad){
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(46,49,99);
     doc.text(pdfSafe(acad),PW-M,y+6,{align:'right'});
     return y+9+hueco;
   }
@@ -3007,7 +3007,7 @@ function saShell(inner,opts){
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
     </div>
-    <div class="av-row" id="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'}"><div id="av-bar"></div><div id="ai-bar"></div></div>
+    <div class="av-row" id="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'};display:flex;gap:8px;align-items:stretch"><div id="av-bar" style="flex:1;min-width:0"></div><div id="ai-bar" style="flex:1;min-width:0"></div>${enSoporte?'':`<button onclick="openCalendario('admin')" title="Calendario" style="flex:0 0 auto;background:#fff;border:1.5px solid var(--honey);border-radius:12px;padding:0 12px;font-size:1.35rem;cursor:pointer;line-height:1">📅</button>`}</div>
     ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
     ${inner}`;
 }
@@ -3072,19 +3072,22 @@ function saRenderLista(okMsg,errMsg){
     </div>
   </div>`;
   h+=`<button id="sa-acad-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">🏫 Academias<span style="font-weight:800;color:var(--ink-soft)">${saAcademias.length} ▾</span></button>`;
-  h+=`<div id="sa-acad-list" class="sa-cards-grid hidden">`;
+  h+=`<div id="sa-acad-wrap" class="hidden">`;
+  h+=`<input id="sa-acad-q" placeholder="Buscar academia por nombre…" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px">`;
+  h+=`<div id="sa-acad-list" class="sa-cards-grid">`;
   saAcademias.forEach(a=>{
     const rev = a.activa===false;
-    h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" style="background:#fff;padding:9px 12px;margin-bottom:7px;${rev?'opacity:.72':''}">
+    h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" data-nom="${escAttr(String(a.nombre||'').toLowerCase())}" style="background:#fff;padding:9px 12px;margin-bottom:7px;${rev?'opacity:.72':''}">
       <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:1.02rem;color:var(--navy)">${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id}</span></div>
       <div class="sa-counts" style="display:none"><span>${a.n_profes} profes</span><span>${a.n_alumnos} alumnos</span><span>${a.n_examenes} exs</span></div>
     </div>`;
   });
-  h+=`</div>`;
+  h+=`</div></div>`;
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=()=>saAltaDesdePresu('ev');
-  const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); } };
+  const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-wrap'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); if(abre){ const q=$('sa-acad-q'); if(q) q.focus(); } } };
+  const acq=$('sa-acad-q'); if(acq) acq.oninput=()=>{ const v=acq.value.toLowerCase().trim(); $('teacher').querySelectorAll('#sa-acad-list .sa-card[data-acad]').forEach(c=>{ c.style.display=(!v||(c.dataset.nom||'').includes(v))?'':'none'; }); };
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
   call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento').then(m=>{ const on=(m&&m[0]&&m[0].valor==='on'); window._mantOn=on; const p=$('sa-mant-pill'); if(p){ p.textContent='🛠️ '+(on?'Mantenimiento':'Operativo'); p.style.borderColor=on?'#b4232a':'#15803d'; p.style.background=on?'#fdeaea':'#dcfce7'; p.style.color=on?'#b4232a':'#15803d'; } }).catch(()=>{});
 }
@@ -4152,13 +4155,13 @@ function arRender(){
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🗄 Archivo central</h2>`;
   h+=`<p style="font-size:.76rem;color:var(--ink-soft);margin:0 2px 12px">El expediente de la empresa: clientes, proveedores, facturas y documentación.</p>`;
   h+=`<div class="sa-cards-grid">
-    <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Desde tus presupuestos · crear, editar y filtrar por origen</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arProveedores()"><b>🚚 Proveedores</b><span>Alta y baja de proveedores</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arFacturas('compras')"><b>🧾 Facturas de compras</b><span>Gastos de proveedores · automático</span></button>
     <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arPresupuestos()"><b>📝 Presupuestos</b><span>Todos: vigentes, aceptados, archivados · solo lectura</span></button>
-    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arResumen()"><b>📊 Resumen del ejercicio</b><span>Ventas, compras, IVA y resultado del año · de un vistazo</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Desde tus presupuestos · crear, editar y filtrar por origen</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arProveedores()"><b>🚚 Proveedores</b><span>Alta y baja de proveedores</span></button>
+    <button class="fact-menu" style="margin:0" onclick="arFacturas('compras')"><b>🧾 Facturas de compras</b><span>Gastos de proveedores · automático</span></button>
     <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arDocs()"><b>📄 Contratos y documentación</b><span>Licencias, encargado del tratamiento (art. 28), altas… el PDF y su registro</span></button>
+    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arResumen()"><b>📊 Resumen del ejercicio</b><span>Ventas, compras, IVA y resultado del año · de un vistazo</span></button>
   </div>`;
   $('teacher').innerHTML=saShell(h);
 }
@@ -4245,17 +4248,19 @@ function arResPintar(){
   h+=`<div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;margin:12px 2px 6px">Compras (${gas.length} gasto${gas.length===1?'':'s'} · ${cPag} pagado${cPag===1?'':'s'})</div>`;
   h+=`<div class="gx-kpis">${card('Base deducible',gxEur(cBase))}${card('IVA soportado',gxEur(cIVA))}${card('Total',gxEur(cTotal),'#b4232a')}</div>`;
   h+=`<div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;margin:12px 2px 6px">Resultado</div>`;
-  h+=`<div class="gx-kpis">${card('Beneficio (base)',gxEur(resultado),resultado>=0?'#15803d':'#b4232a')}${card(ivaLiquidar>=0?'IVA a ingresar':'IVA a compensar',gxEur(Math.abs(ivaLiquidar)),ivaLiquidar>=0?'#b4232a':'#15803d')}</div>`;
+  h+=`<div class="gx-kpis">${card('Beneficio real (base)',gxEur(resultado),resultado>=0?'#15803d':'#b4232a')}${card(ivaLiquidar>=0?'IVA a ingresar a Hacienda':'IVA a compensar',gxEur(Math.abs(ivaLiquidar)),ivaLiquidar>=0?'#b4232a':'#15803d')}</div>`;
+  h+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:8px 2px 0;line-height:1.6"><b>Beneficio real</b> = ventas (base) − compras (base). Es lo que ganas de verdad. El <b>IVA</b> no es beneficio: es dinero que cobras/pagas por cuenta de Hacienda y que liquidas en el trimestre (por eso va aparte).</p>`;
+  const pend=[['pend_art28','Contrato de licencia + encargado del tratamiento (art. 28) firmados con el abogado.'],['pend_oepm','Marca APTUVIA registrada en la OEPM (clases 9 y 41).'],['pend_supapro','Supabase Pro (backups diarios + PITR) antes del primer cliente de pago.'],['pend_autonomo','Alta de autónomo por gestoría y modelos trimestrales (303/130) validados.']];
+  let done={}; try{ done=JSON.parse(localStorage.getItem('ar_pend')||'{}')||{}; }catch(_){ done={}; }
+  window._arPendDone=done;
   h+=`<div class="t-card" style="margin-top:14px"><b style="font-size:.9rem;color:var(--navy)">⚠️ Pendiente antes de operar en firme</b>
-    <ul style="margin:8px 0 0;padding-left:18px;font-size:.8rem;color:var(--ink-soft);line-height:1.7">
-      <li>Contrato de licencia + encargado del tratamiento (art. 28) firmados con el abogado.</li>
-      <li>Marca APTUVIA registrada en la OEPM (clases 9 y 41).</li>
-      <li>Supabase Pro (backups diarios + PITR) antes del primer cliente de pago.</li>
-      <li>Alta de autónomo por gestoría y modelos trimestrales (303/130) validados.</li>
-    </ul></div>`;
+    <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
+      ${pend.map(([k,txt])=>`<label style="display:flex;gap:9px;align-items:flex-start;font-size:.8rem;color:var(--ink-soft);line-height:1.5;cursor:pointer"><input type="checkbox" onchange="arPendToggle('${k}',this.checked)" ${done[k]?'checked':''} style="width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:#15803d"><span style="${done[k]?'text-decoration:line-through;opacity:.6':''}">${txt}</span></label>`).join('')}
+    </div></div>`;
   $('teacher').innerHTML=saShell(h);
   const ys=$('ar-res-year'); if(ys) ys.onchange=function(){ window._arResYear=ys.value; arResPintar(); };
 }
+function arPendToggle(k,val){ const d=window._arPendDone||{}; d[k]=!!val; window._arPendDone=d; try{ localStorage.setItem('ar_pend',JSON.stringify(d)); }catch(_){} arResPintar(); }
 function presuEsAA(p){
   if(p.profesor_id) return true;
   if(p.academia_id) return false;
@@ -6981,6 +6986,7 @@ function saPintarFacturasEmitidas(){
           <b style="font-size:.95rem;color:var(--navy)">${Number(f.total||0).toFixed(2)} €</b>
         </div>
         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button onclick="factVerFactura('${f.id}')" style="font-size:.72rem;padding:5px 10px;border-radius:14px;cursor:pointer;border:1.5px solid #cbd5e1;background:#fff;color:var(--navy);font-weight:700">👁 Ver</button>
           <button onclick="saToggleFactura('${f.id}','pagada',${f.pagada?'false':'true'})" style="font-size:.72rem;padding:5px 10px;border-radius:14px;cursor:pointer;border:1.5px solid ${f.pagada?'#15803d':'#cbd5e1'};background:${f.pagada?'#dcfce7':'#fff'};color:${f.pagada?'#15803d':'var(--ink-soft)'};font-weight:700">${f.pagada?'✅ Pagada':'○ Pendiente'}</button>
           <button onclick="saToggleFactura('${f.id}','enviada',${f.enviada?'false':'true'})" style="font-size:.72rem;padding:5px 10px;border-radius:14px;cursor:pointer;border:1.5px solid ${f.enviada?'#2563a8':'#cbd5e1'};background:${f.enviada?'#dbeafe':'#fff'};color:${f.enviada?'#2563a8':'var(--ink-soft)'};font-weight:700">${f.enviada?'✉️ Enviada':'○ No enviada'}</button>
           ${f.enviada?'':`<button onclick="factEnviarDesdePanel('${f.id}')" style="font-size:.72rem;padding:5px 10px;border-radius:14px;cursor:pointer;border:1.5px solid var(--honey);background:var(--honey-tint);color:var(--honey-deep);font-weight:700">✉️ Enviar</button>`}
@@ -7137,7 +7143,7 @@ function pintarTeacher(){
   let cabecera;
   if(esAula){
     const nombreAula = (window._aulaNombre||'').trim();
-    const textoIzq = nombreAula || 'Materias propias';
+    const textoIzq = nombreAula || 'Pon el nombre que quieras';
     cabecera = `<button class="t-course" id="edit-aula-nombre" title="Cambiar este texto" style="background:none;border:none;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit">${escHtml(textoIzq)} <span style="opacity:.5">✎</span></button>`;
   }else{
     cabecera = `<span class="t-course"><span class="t-code-inline">${certCodigo}</span> · ${certNombre}</span>`;
@@ -7226,7 +7232,7 @@ async function reportarABanco(id){
   if(window._demoMode){ appAlert('Demo: aquí se enviaría el reporte al banco (soporte).'); return; }
   if(!await appConfirm('Se enviará este reporte a soporte para que revise la pregunta del banco general. ¿Continuar?')) return;
   const txt='🚩 Reporte de pregunta del BANCO GENERAL'
-    +'\nExamen: '+(r.examen_titulo||r.examen_id||'')+(r.examen_id?(' ('+r.examen_id+')'):'')
+    +'\nExamen: '+(r.examen_titulo||r.examen_id||'')
     +'\nPregunta nº '+(r.pregunta_num||'?')
     +'\nReportada por '+(r.alumno_nombre||'alumno')
     +(r.motivo?('\nMotivo: «'+r.motivo+'»'):'');
@@ -8445,7 +8451,7 @@ function renderBancoSection(){
   return h.join('');
 }
 function renderBancoLista(){
-  const list=bancoList||[];
+  const list=(bancoList||[]).slice().sort((a,b)=> String(a.codigo||'').localeCompare(String(b.codigo||''),'es',{numeric:true,sensitivity:'base'}) || ((a.id||0)-(b.id||0)));
   if(bancoListUnidad!==builder.unidad) return '<p class="sa-empty" style="font-size:.82rem">Cargando…</p>';
   if(!list.length) return '<p class="sa-empty" style="font-size:.82rem">Aún no hay respuestas en esta unidad.</p>';
   const h=['<div class="bk-list">'];
@@ -8453,10 +8459,19 @@ function renderBancoLista(){
     const titulo=sinNumeroInicial(String(q.enunciado||'').split('\n')[0]);
     const cod=q.codigo?`<b style="color:var(--navy)">${escHtml(q.codigo)}</b> · `:'';
     const okm=String(q.explicacion||'').trim();
-    h.push(`<div class="bk-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><label style="cursor:pointer;flex:1;margin:0" data-bqedit="${q.id}"><span>${cod}${escHtml(titulo)}<br><span style="font-size:.7rem;color:${okm?'#1c7a44':'#b4232a'}">${okm?'✔ con respuesta modelo':'sin respuesta modelo'}</span></span></label><button type="button" class="bk-del" data-bqdel="${q.id}" style="flex:0 0 auto;background:#f7d9d9;border:1.5px solid #e6adad;color:#b4232a;border-radius:9px;padding:6px 9px;cursor:pointer;font-family:inherit">🗑</button></div>`);
+    h.push(`<div class="bk-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><label style="cursor:pointer;flex:1;margin:0" data-bqedit="${q.id}"><span>${cod}${escHtml(titulo)}<br><span style="font-size:.7rem;color:${okm?'#1c7a44':'#b4232a'}">${okm?'✔ con respuesta modelo':'sin respuesta modelo'}</span></span></label><button type="button" data-bqver="${q.id}" style="flex:0 0 auto;background:var(--navy-tint);border:1.5px solid rgba(46,49,99,.14);color:var(--navy);border-radius:9px;padding:6px 9px;cursor:pointer;font-family:inherit">👁</button><button type="button" class="bk-del" data-bqdel="${q.id}" style="flex:0 0 auto;background:#f7d9d9;border:1.5px solid #e6adad;color:#b4232a;border-radius:9px;padding:6px 9px;cursor:pointer;font-family:inherit">🗑</button></div>`);
   });
   h.push('</div>');
   return h.join('');
+}
+function bancoVer(id){
+  const q=(bancoList||[]).find(x=>String(x.id)===String(id)); if(!q) return;
+  const partes=[];
+  if(q.codigo) partes.push('Código: '+q.codigo);
+  partes.push('ENUNCIADO:\n'+String(q.enunciado||'').trim());
+  partes.push('RESPUESTA MODELO:\n'+(String(q.explicacion||'').trim()||'(sin respuesta modelo)'));
+  if(q.material_url) partes.push('📎 Lleva PDF adjunto.');
+  appAlert(partes.join('\n\n'));
 }
 function wireBanco(){
   const s=$('bq-save'); if(s) s.onclick=bancoGuardar;
@@ -8464,6 +8479,7 @@ function wireBanco(){
   const bf=$('bq-file'); if(bf) bf.onchange=()=>{ if(bf.files&&bf.files[0]){ bancoDraft.matFile=bf.files[0]; bancoDraft.matName=bf.files[0].name; } };
   const bqx=$('bq-quitar'); if(bqx) bqx.onclick=()=>{ captureBanco(); bancoDraft.matFile=null; bancoDraft.matUrl=''; bancoDraft.matName=''; renderExamMgmt(); };
   $('teacher').querySelectorAll('[data-bqedit]').forEach(b=> b.onclick=()=>{ const q=(bancoList||[]).find(x=>String(x.id)===String(b.dataset.bqedit)); if(q){ bancoDraft={codigo:String(q.codigo||''),tema:String(q.tema||''),enun:String(q.enunciado||''),expl:String(q.explicacion||''),id:q.id,matUrl:String(q.material_url||''),matName:(q.material_url?'📎 PDF adjunto':''),matFile:null}; window.scrollTo(0,0); renderExamMgmt(); } });
+  $('teacher').querySelectorAll('[data-bqver]').forEach(b=> b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); bancoVer(b.dataset.bqver); });
   $('teacher').querySelectorAll('[data-bqdel]').forEach(b=> b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); bancoBorrar(b.dataset.bqdel); });
 }
 async function bancoBorrar(id){
@@ -8671,7 +8687,7 @@ async function pdfExamenPapel(examId){
     pagina++;
     y=M;
     if(pagina===1){
-      y=pdfCabeceraMarca(doc,y);
+      y=pdfCabeceraMarca(doc,y,{noAcad:true});
       doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
       doc.splitTextToSize(pdfSafe(ex.titulo||'Examen'),ANCHO).forEach(l=>{ doc.text(l,M,y); y+=6; });
       doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
@@ -8679,6 +8695,8 @@ async function pdfExamenPapel(examId){
       const _dat=pdfLineaDatos();
       if(_dat){ doc.text(pdfSafe(_dat),M,y); y+=4; }
       y-=1;
+      const _acad=(window._activeCertId==='__aula_abierta')?'':(window._brandAcademia||'');
+      if(_acad){ doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(46,49,99);doc.text(pdfSafe(_acad),PW-M,y-1,{align:'right'}); }
       doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=9;
       doc.setFontSize(9.5);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
       doc.text('Nombre y apellidos:',M,y);
