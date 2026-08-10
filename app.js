@@ -2557,14 +2557,20 @@ function docsBar(area){
     const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;border-radius:999px;padding:4px 9px;font-size:.6rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
     sopPill='<span title="Soporte está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="'+s+'">🔴 Soporte</span>';
   }
-  return `<div class="docs-bar" style="display:flex;gap:5px;justify-content:center;margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:nowrap">
-    ${area==='soporte'?`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`:''}
-    ${sopPill}
-    ${area!=='soporte'?`<button onclick="openCalendario('adm')" title="Calendario del departamento" style="${est};box-shadow:inset 2px 2px 5px rgba(70,95,125,.22), inset -1px -1px 3px rgba(255,255,255,.7)">📅 Calendario</button>`:''}
-    ${area?`<button onclick="docManualArea('${area}')" title="Paso a paso de todo lo que se hace en esta área" style="${est}">📘 Manual</button>`:''}
-    <button onclick="docTrazabilidad()" title="Cómo se trabaja el circuito completo, paso a paso" style="${est}">📄 Trazabilidad</button>
+  const pills=[];
+  if(area==='soporte') pills.push(`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`);
+  if(sopPill) pills.push(sopPill);
+  const sub='display:block;width:100%;text-align:left;cursor:pointer;font:inherit;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--navy)';
+  return `<div style="margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+    ${pills.length?`<div style="display:flex;gap:5px;justify-content:center;margin-bottom:10px;flex-wrap:nowrap">${pills.join('')}</div>`:''}
+    <button class="fact-menu" style="width:100%;margin:0" onclick="docMTToggle()"><b>📘 Manual y trazabilidad</b><span>Guía de tu área y el circuito comercial completo</span></button>
+    <div id="doc-mt-wrap" class="hidden" style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+      ${area?`<button style="${sub}" onclick="docManualArea('${area}')"><b style="font-size:.95rem">📘 Manual del área</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Paso a paso de todo lo que se hace aquí</div></button>`:''}
+      <button style="${sub}" onclick="docTrazabilidad()"><b style="font-size:.95rem">📄 Trazabilidad</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Del presupuesto a la baja del cliente · quién hace qué en cada paso</div></button>
+    </div>
   </div>`;
 }
+function docMTToggle(){ const w=document.getElementById('doc-mt-wrap'); if(w) w.classList.toggle('hidden'); }
 async function sopTrabLoad(){
   try{ const v=await call('/rest/v1/rpc/sop_trabajando',{method:'POST',body:{}}); window._sopTrab=(v===true||v==='true'||v==='si'); }catch(e){}
 }
@@ -3007,7 +3013,10 @@ function saShell(inner,opts){
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
     </div>
-    <div class="av-row" id="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'};display:flex;gap:8px;align-items:stretch"><div id="av-bar" style="flex:1;min-width:0"></div><div id="ai-bar" style="flex:1;min-width:0"></div>${enSoporte?'':`<button onclick="openCalendario('admin')" title="Calendario" style="flex:0 0 auto;background:#fff;border:1.5px solid var(--honey);border-radius:12px;padding:0 12px;font-size:1.35rem;cursor:pointer;line-height:1">📅</button>`}</div>
+    ${enSoporte
+      ? `<div class="av-row" id="av-row" style="margin:0 0 8px"><div id="av-bar"></div><div id="ai-bar"></div></div>`
+      : `<div style="display:flex;gap:8px;align-items:flex-start;margin:0 0 12px"><div class="av-row" id="av-row" style="flex:1;min-width:0;margin:0"><div id="av-bar"></div><div id="ai-bar"></div></div><button onclick="openCalendario('admin')" title="Calendario" style="flex:0 0 auto;align-self:flex-start;background:#fff;border:1.5px solid var(--honey);border-radius:12px;padding:11px 12px;font-size:1.3rem;cursor:pointer;line-height:1">📅</button></div>`
+    }
     ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
     ${inner}`;
 }
@@ -3184,11 +3193,12 @@ function saDetalle(msg){
     ${esAA?'':saPremiumCard(a)}
     ${esAA
       ? `<button id="sa-aa-users-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">👥 Usuarios<span style="font-weight:800;color:var(--ink-soft)">${profes.length}${uOpen?' ▴':' ▾'}</span></button>
-         <div id="sa-aa-users-list" class="sa-cards-grid ${uOpen?'':'hidden'}">${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}</div>`
+         <div id="sa-aa-users-wrap" class="${uOpen?'':'hidden'}"><input id="sa-aa-q" placeholder="Buscar usuario por nombre…" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px"><div id="sa-aa-users-list" class="sa-cards-grid">${profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>'}</div></div>`
       : (profes.length?profes.map(tarjetaProf).join(''):'<p class="sa-empty">Sin profesores.</p>')}`;
   $('teacher').innerHTML=saShell(h);
   const g=(id)=>$(id);
-  if(esAA){ const ut=$('sa-aa-users-toggle'); if(ut) ut.onclick=()=>{ const l=$('sa-aa-users-list'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); window._saAAUsersOpen=abre; const cap=ut.querySelector('span'); if(cap) cap.textContent=profes.length+(abre?' ▴':' ▾'); } }; }
+  if(esAA){ const ut=$('sa-aa-users-toggle'); if(ut) ut.onclick=()=>{ const l=$('sa-aa-users-wrap'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); window._saAAUsersOpen=abre; const cap=ut.querySelector('span'); if(cap) cap.textContent=profes.length+(abre?' ▴':' ▾'); if(abre){ const q=$('sa-aa-q'); if(q) q.focus(); } } };
+    const aq=$('sa-aa-q'); if(aq) aq.oninput=()=>{ const v=aq.value.toLowerCase().trim(); const list=$('sa-aa-users-list'); if(list) Array.from(list.children).forEach(c=>{ if(c.classList&&c.classList.contains('sa-empty'))return; c.style.display=(!v||(c.textContent||'').toLowerCase().includes(v))?'':'none'; }); }; }
   if(g('sa-prem-tog')) g('sa-prem-tog').onclick=()=>saPremiumToggle(a.academia_id);
   if(g('sa-prem-link')) g('sa-prem-link').onclick=()=>saPremiumEnlazar(a.academia_id);
   if(g('sa-prem-fact')) g('sa-prem-fact').onchange=(ev)=>saPremiumFacturada(a.academia_id, ev.target.checked);
