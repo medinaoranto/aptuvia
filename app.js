@@ -595,7 +595,7 @@ function guardarPanel(){
     if(userEmail!=='admin@evaluatest.com' || window._saImpersona) return;
     localStorage.setItem(_PANEL_KEY, JSON.stringify({
       main:saMainTab||'ev', fsub:window._factSub||null, gtab:gxTab||'facturas',
-      rsub:window._rsSub||null, rtab:rsTab||'redactor'
+      rsub:window._rsSub||null, rtab:rsTab||'redactor', arsub:window._arSub||null
     }));
   }catch(e){}
 }
@@ -1423,7 +1423,7 @@ async function loadData(){
     unidadesById={}; unidades.forEach(u=>{ u.estado='activo'; u.ver_megatest=true; u.ver_falladas=true; unidadesById[u.id]=u; });
     const _certAct=certBD();
     if(window._activeCertId==='__aula_abierta'){ await cargarAsignacionesAA(); }
-    examsByUnit={}; examenes.forEach(e=>{ const id=String(e.id); if(id.startsWith('repaso-')||id.startsWith('falladas-')) return; if(!examVisible(e)) return; const _u=unidadesById[e.unidad]; if(_u && _u.certificado_id && _u.certificado_id!==_certAct) return; e.tipo='test'; e.publicado=true; (examsByUnit[e.unidad]=examsByUnit[e.unidad]||[]).push(e); });
+    examsByUnit={}; examenes.forEach(e=>{ const id=String(e.id); if(id.startsWith('repaso-')||id.startsWith('falladas-')) return; if(!examVisible(e)) return; const _u=unidadesById[e.unidad]; if(_u && _u.certificado_id && _u.certificado_id!==_certAct) return; if(window._activeCertId==='__aula_abierta' && aaEsAlumno()){ const _asig=aaAsigna[userId]||aaAsigna[_authUid()]; if(_asig && _asig.size && !_asig.has(e.unidad)) return; } e.tipo='test'; e.publicado=true; (examsByUnit[e.unidad]=examsByUnit[e.unidad]||[]).push(e); });
     attemptsByExam={}; entregasByExam={}; falladasByUnit={};
     // Si es profesor/admin, ir directamente al Área Docente (así sus datos
     // de clase empiezan a cargar ya mismo, en vez de esperar a que entre
@@ -2019,6 +2019,7 @@ async function openSuperadmin(okMsg,errMsg){
     if(p){
       saMainTab=p.main||'sop'; window._factSub=p.fsub||null;
       gxTab=p.gtab||'facturas'; window._rsSub=p.rsub||null; rsTab=p.rtab||'redactor';
+      window._arSubRestore=p.arsub||null;
     }
   }
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
@@ -4342,11 +4343,15 @@ function saRenderFacturacionLista(){
 }
 
 /* ═══════════════ ARCHIVO CENTRAL (Ca7) ═══════════════ */
+const AR_REPLAY={ clientes:()=>arClientes(), proveedores:()=>arProveedores(), fac_ventas:()=>arFacturas('ventas'), fac_compras:()=>arFacturas('compras'), presupuestos:()=>arPresupuestos(), resumen:()=>arResumen(), docs:()=>arDocs() };
 function arRender(){
+  window._arSub=null; guardarPanel();
+  // Tras refrescar, si estabas en una subpantalla de Archivo central, vuelve a ella.
+  if(window._arSubRestore){ const k=window._arSubRestore; window._arSubRestore=null; if(AR_REPLAY[k]){ try{ AR_REPLAY[k](); return; }catch(e){} } }
   let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🗄 Archivo central</h2>`;
   h+=`<p style="font-size:.76rem;color:var(--ink-soft);margin:0 2px 12px">El expediente de la empresa: clientes, proveedores, facturas y documentación.</p>`;
-  h+=`<div class="sa-cards-grid" style="gap:16px">
+  h+=`<div class="sa-cards-grid" style="gap:20px;row-gap:20px">
     <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arPresupuestos()"><b>📝 Presupuestos</b><span>Todos: vigentes, aceptados, archivados · solo lectura</span></button>
     <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Desde tus presupuestos · crear, editar y filtrar por origen</span></button>
     <button class="fact-menu" style="margin:0" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
@@ -4358,6 +4363,7 @@ function arRender(){
   $('teacher').innerHTML=saShell(h);
 }
 async function arPresupuestos(){
+  window._arSub="presupuestos"; guardarPanel();
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let list=[];
   try{ list=await call('/rest/v1/presupuestos?select=*&order=fecha.desc')||[]; }
@@ -4406,6 +4412,7 @@ function arPresuVer(id){
 }
 function arPresuPDF(id){ const p=(window._arPresu||[]).find(x=>String(x.id)===String(id)); if(p) pxRenderPDF(p); }
 async function arResumen(){
+  window._arSub="resumen"; guardarPanel();
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   window._arResYear = window._arResYear || new Date().getFullYear();
   let fact=[], gas=[];
@@ -4469,6 +4476,7 @@ function presuTieneAcademia(p){
   return hayLineas ? hayNoAA : !presuEsAA(p);
 }
 async function arClientes(){
+  window._arSub="clientes"; guardarPanel();
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let lista=[], overrides=[];
   try{
@@ -4624,6 +4632,7 @@ async function arBorrarCliente(nif, ov){
 
 /* ── PROVEEDORES ── */
 async function arProveedores(){
+  window._arSub="proveedores"; guardarPanel();
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let list=[];
   try{ list=await call('/rest/v1/proveedores?select=*&order=nombre.asc')||[]; }
@@ -4704,6 +4713,7 @@ async function arProvBorrar(id, ov){
 
 /* ── FACTURAS DE VENTAS / COMPRAS (automático, solo lectura) ── */
 async function arFacturas(modo){
+  window._arSub=(modo==="compras"?"fac_compras":"fac_ventas"); guardarPanel();
   const esV=modo==='ventas'; window._arFacModo=modo;
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let list=[], provs=[];
@@ -4774,6 +4784,7 @@ function arCSV(){
 }
 const AR_TIPOS=['Contrato','Licencia de software','Encargado del tratamiento (art. 28)','Alta / cliente','Fiscal','Marca / PI','Otro'];
 async function arDocs(){
+  window._arSub="docs"; guardarPanel();
   $('teacher').innerHTML=saShell('<div class="loader"><span class="spin"></span></div>');
   let list=[];
   try{ list=await call('/rest/v1/documentos_empresa?select=*&order=creado_en.desc')||[]; }
@@ -6646,7 +6657,7 @@ function saToggleMes(mk){
   window._factMesAbierto[mk] = !window._factMesAbierto[mk];
   saPintarFacturasEmitidas();
 }
-function saFactSub(v){ window._factSub=v; guardarPanel(); saRenderFacturacionLista(); }
+function saFactSub(v){ window._factSub=v; if(v!=='archivo') window._arSub=null; guardarPanel(); saRenderFacturacionLista(); }
 
 async function saCargarClientesAA(){
   let profs=[];
