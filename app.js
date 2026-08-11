@@ -1623,14 +1623,22 @@ function alumTemaNombre(e){
 }
 function alumHomeData(){
   const all=[].concat(...Object.values(examsByUnit)).filter(e=> e && !String(e.id).startsWith('repaso-') && !String(e.id).startsWith('falladas-'));
-  const pend=[], hist=[];
-  all.forEach(e=>{ if(alumExamDone(e)) hist.push(e); else pend.push(e); });
+  // Historial: todo lo hecho (de cualquier unidad).
+  const hist=all.filter(alumExamDone);
+  // Pendientes y progreso: solo exámenes de unidades ACTIVAS y que aún no se han hecho.
+  const activos=all.filter(e=> unitEstado(e.unidad)==='activo');
+  const pend=activos.filter(e=>!alumExamDone(e));
   const keyEnt=e=> e.fecha_entrega ? Date.parse(e.fecha_entrega) : 8.64e15;
   pend.sort((a,b)=> keyEnt(a)-keyEnt(b) || (Date.parse(b.creado_en||0)-Date.parse(a.creado_en||0)));
-  hist.sort((a,b)=> (Date.parse(b.creado_en||0)-Date.parse(a.creado_en||0)));
-  const total=all.length, hechos=hist.length;
+  hist.sort((a,b)=> (alumFechaHecho(b)-alumFechaHecho(a)));
+  const total=activos.length, hechos=activos.filter(alumExamDone).length;
   const pct= total? Math.round(hechos/total*100) : 0;
   return {all,pend,hist,total,hechos,pct};
+}
+function alumFechaHecho(e){
+  const at=attemptsByExam[e.id]; if(at && at.creado_en){ const t=Date.parse(at.creado_en); if(!isNaN(t)) return t; }
+  const en=entregasByExam[e.id]; if(en && en.creado_en){ const t=Date.parse(en.creado_en); if(!isNaN(t)) return t; }
+  return 0;
 }
 function alumFmtFecha(d){ if(!d) return '—'; try{ const x=new Date(d); const p=n=>String(n).padStart(2,'0'); return p(x.getDate())+'/'+p(x.getMonth()+1)+'/'+x.getFullYear(); }catch(e){ return '—'; } }
 function renderHomeAlumno(headerHtml){
@@ -1642,9 +1650,9 @@ function renderHomeAlumno(headerHtml){
   let h=headerHtml;
   h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
     ${tbtn('aula','📚 Mi aula')}
+    ${tbtn('chat','💬 Chat')}
     ${tbtn('pend','📝 Pendientes'+(d.pend.length?' <span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 6px;font-size:.7rem">'+d.pend.length+'</span>':''))}
     ${tbtn('hist','📊 Historial')}
-    ${tbtn('chat','💬 Chat y manual')}
   </div>`;
   if(tab==='aula') h+=alumTabAula(d);
   else if(tab==='pend') h+=alumTabPend(d);
@@ -1699,10 +1707,11 @@ function alumTabHist(d){
     const n=alumExamNota(e);
     const notaTxt = n==null ? 'Pdte. corregir' : n.toFixed(1);
     const col = n==null ? 'var(--ink-soft)' : (n>=5?'#15803d':'#b4232a');
+    const fh=alumFechaHecho(e); const fhTxt = fh? (' · '+alumFmtFecha(fh)) : '';
     h+=`<button onclick="alumVerCorregido('${e.id}','${e.unidad}')" style="width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:13px 15px;margin-bottom:10px;cursor:pointer;font:inherit;box-shadow:0 4px 10px -6px rgba(70,95,125,.35);display:flex;align-items:center;gap:12px">
       <span style="flex:1;min-width:0">
         <b style="color:var(--navy);font-size:.92rem">${escHtml(e.titulo||'Examen')}</b>
-        <span style="display:block;font-size:.73rem;color:var(--ink-soft);margin-top:3px">${escHtml(alumTemaNombre(e))} · ${alumExamTipo(e)}${e.cuenta_final?' · ⭐ nota final':''}</span>
+        <span style="display:block;font-size:.73rem;color:var(--ink-soft);margin-top:3px">${escHtml(alumTemaNombre(e))} · ${alumExamTipo(e)}${e.cuenta_final?' · ⭐ nota final':''}${fhTxt}</span>
       </span>
       <span style="flex:0 0 auto;font-weight:800;font-size:1.15rem;color:${col}">${notaTxt}</span>
     </button>`;
@@ -1710,17 +1719,20 @@ function alumTabHist(d){
   return h;
 }
 function alumTabChat(){
-  const sunk='display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:16px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:800;font-size:.95rem;box-shadow:0 4px 10px -5px rgba(70,95,125,.4)';
-  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:4px">
-      <button onclick="caAlumChat()" style="${sunk}">💬 Chat<span id="alum-chat-badge"></span></button>
-      <button onclick="docManualAlumno()" style="${sunk}">📖 Manual</button>
-    </div>
-    <p style="font-size:.76rem;color:var(--ink-soft);margin:14px 2px 0;line-height:1.5">Habla con tu profesor por el chat para dudas y avisos. En el manual tienes la guía de uso de la plataforma.</p>`;
+  const card='display:block;width:100%;text-align:left;cursor:pointer;font:inherit;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:15px 17px;margin-bottom:11px;box-shadow:0 4px 10px -6px rgba(70,95,125,.35)';
+  return `<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">💬 Chat y manual</h2>
+    <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Elige qué quieres abrir.</p>
+    <button onclick="caAlumChat()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con tu profesor<span id="alum-chat-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas, entregas y avisos con tu profesor</div></button>
+    <button onclick="docManualAlumno()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">📖 Manual</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Guía de uso de la plataforma</div></button>`;
 }
 function alumVerCorregido(examId, unidad){
+  window._alumRetornoHist=true;
+  const en=entregasByExam[examId];
+  if(en){ openRedaccion(examId); return; }           // redacción: openRedaccion muestra el corregido en solo lectura
   const at=attemptsByExam[examId];
-  if(at && at.id){ verIntentoAlumno(examId, unidad); return; }
-  openExam(examId);
+  if(at && at.id){ abrirIntentoAlumno(at.id, unidad, ''); return; }  // test: intento corregido, solo lectura
+  window._alumRetornoHist=false;
+  appAlert('Este ejercicio no tiene detalle para revisar.');
 }
 
 let teacherRows=[], teacherMode='best', teacherById={};
@@ -5510,12 +5522,12 @@ async function saRenderPresuAceptados(){
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:nowrap;align-items:center">
-        <button onclick="saPresuVer('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0">👁 Ver</button>
-        <button onclick="saPresuPDF('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0">📄 PDF</button>
-        <button onclick="saPresuArchivar('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0" title="Quitar del escritorio sin borrarlo">🗄 Archivar</button>
+        <button onclick="saPresuVer('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0;white-space:nowrap">👁 Ver</button>
+        <button onclick="saPresuPDF('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0;white-space:nowrap">📄 PDF</button>
+        <button onclick="saPresuArchivar('${p.id}')" class="gx-mini" style="flex:1 1 0;min-width:0;white-space:nowrap" title="Quitar del escritorio sin borrarlo">🗄 Archivar</button>
         ${fact
-          ? `<button onclick="saPresuDesbloquear('${p.id}')" class="gx-mini del" style="flex:1 1 0;min-width:0">↩ Desbloquear</button>`
-          : `<button onclick="saPresuFacturar('${p.id}')" class="gx-mini ok" style="flex:1 1 0;min-width:0">→ Facturar</button>`}
+          ? `<button onclick="saPresuDesbloquear('${p.id}')" class="gx-mini del" style="flex:1 1 0;min-width:0;white-space:nowrap">↩ Desbloq.</button>`
+          : `<button onclick="saPresuFacturar('${p.id}')" class="gx-mini ok" style="flex:1 1 0;min-width:0;white-space:nowrap">→ Facturar</button>`}
       </div>
     </div>`;
   });
@@ -11198,7 +11210,7 @@ function pdfDesdeIntento(it, ex, unitId){
 }
 async function abrirIntentoAlumno(id,unitId,titulo){
   if(!id){ appAlert('No hay detalle disponible para este intento.'); return; }
-  const backFn=`openUnit('${unitId.replace(/'/g,"\\'")}')`;
+  const backFn = window._alumRetornoHist ? "(function(){window._alumRetornoHist=false;alumVolverHist();})()" : `openUnit('${unitId.replace(/'/g,"\\'")}')`;
   showView('unit'); window.scrollTo(0,0);
   $('unit').innerHTML=`<button class="backbtn" onclick="${backFn}">← Volver</button><div class="loader"><span class="spin"></span></div>`;
   try{
@@ -13056,8 +13068,10 @@ function backToUnit(){
     window._redHideHandler = null;
   }
   window._redVigilando = false;
+  if(window._alumRetornoHist){ window._alumRetornoHist=false; alumVolverHist(); return; }
   if(current.unit){ openUnit(current.unit); } else { goHome(); }
 }
+function alumVolverHist(){ window._alumTab='hist'; showView('home'); renderHome(); }
 
 // ============ SIDEBAR ============
 function sbRender(){
