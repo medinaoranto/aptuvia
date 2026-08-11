@@ -1622,7 +1622,16 @@ function alumTemaNombre(e){
   return (u&&u.titulo)||'';
 }
 function alumHomeData(){
-  const all=[].concat(...Object.values(examsByUnit)).filter(e=> e && !String(e.id).startsWith('repaso-') && !String(e.id).startsWith('falladas-'));
+  const seen={};
+  const all=[].concat(...Object.values(examsByUnit)).filter(e=>{
+    if(!e) return false;
+    const id=String(e.id);
+    if(id.startsWith('repaso-')||id.startsWith('falladas-')) return false;
+    if(/^(Mega test de repaso|Preguntas falladas)/.test(String(e.titulo||''))) return false;
+    if(typeof examVisible==='function' && !examVisible(e)) return false;
+    if(seen[id]) return false; seen[id]=1;
+    return true;
+  });
   // Historial: todo lo hecho (de cualquier unidad).
   const hist=all.filter(alumExamDone);
   // Pendientes y progreso: solo exámenes de unidades ACTIVAS y que aún no se han hecho.
@@ -1694,7 +1703,7 @@ function alumTabPend(d){
         <div style="font-size:.71rem;color:var(--ink-soft);margin-top:2px">📤 Colgado: ${alumFmtFecha(e.creado_en)}   ·   📅 Entrega: ${e.fecha_entrega?alumFmtFecha(e.fecha_entrega):'sin fecha'}</div>
         ${cuenta}
       </div>
-      <button onclick="openExam('${e.id}')" title="Empezar" style="flex:0 0 auto;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;width:46px;height:46px;border-radius:50%;font-size:1.4rem;cursor:pointer;box-shadow:0 5px 12px -4px rgba(21,128,61,.6);line-height:1">➜</button>
+      <button onclick="alumAbrirPendiente('${e.id}','${e.tipo==='redaccion'?'red':'test'}')" title="Empezar" style="flex:0 0 auto;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;width:46px;height:46px;border-radius:50%;font-size:1.4rem;cursor:pointer;box-shadow:0 5px 12px -4px rgba(21,128,61,.6);line-height:1">➜</button>
     </div>`;
   });
   return h;
@@ -1724,6 +1733,9 @@ function alumTabChat(){
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Elige qué quieres abrir.</p>
     <button onclick="caAlumChat()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con tu profesor<span id="alum-chat-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas, entregas y avisos con tu profesor</div></button>
     <button onclick="docManualAlumno()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">📖 Manual</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Guía de uso de la plataforma</div></button>`;
+}
+function alumAbrirPendiente(examId, tipo){
+  if(tipo==='red'){ openRedaccion(examId); } else { openExam(examId); }
 }
 function alumVerCorregido(examId, unidad){
   window._alumRetornoHist=true;
@@ -4334,7 +4346,7 @@ function arRender(){
   let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🗄 Archivo central</h2>`;
   h+=`<p style="font-size:.76rem;color:var(--ink-soft);margin:0 2px 12px">El expediente de la empresa: clientes, proveedores, facturas y documentación.</p>`;
-  h+=`<div class="sa-cards-grid">
+  h+=`<div class="sa-cards-grid" style="gap:16px">
     <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arPresupuestos()"><b>📝 Presupuestos</b><span>Todos: vigentes, aceptados, archivados · solo lectura</span></button>
     <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Desde tus presupuestos · crear, editar y filtrar por origen</span></button>
     <button class="fact-menu" style="margin:0" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
