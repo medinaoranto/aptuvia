@@ -1561,3 +1561,9 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
   color:#fff!important;
   box-shadow:0 6px 14px -6px rgba(0,150,199,.55), inset 0 1px 0 rgba(255,255,255,.35)!important;
 }
+
+/* Ca4: el número (badge) de las tarjetas fact-menu va pegado a la derecha */
+.fact-menu > b{ display:flex; align-items:center; gap:6px; }
+.fact-menu > b .alta-badge,
+.fact-menu > b .alta-badge-ev,
+.fact-menu > b .alta-badge-aa{ margin-left:auto; }

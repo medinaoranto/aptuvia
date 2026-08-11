@@ -1371,7 +1371,7 @@ async function loadData(){
     // ── FASE 1: datos mínimos para mostrar la UI ──
     const [unidades, examenes, perfil] = await Promise.all([
       fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id,profesor_id&order=orden.asc').catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id&order=orden.asc')).catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden&order=orden.asc')),
-      fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id&order=orden.asc').catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,material_url,material_modo&order=orden.asc')).catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id&order=orden.asc')),
+      fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id,fecha_entrega,creado_en&order=orden.asc').catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id&order=orden.asc')).catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,material_url,material_modo&order=orden.asc')).catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id&order=orden.asc')),
       fetchR(_perfilPath()).catch(()=>fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id')),
     ]);
 
@@ -1572,6 +1572,7 @@ function renderHome(){
         <button id="alum-bell-btn" onclick="openAvAlumBell()" title="Avisos de tu profesor" style="background:none;border:none;cursor:pointer;font-size:1.5rem;position:relative;line-height:1;padding:2px 0">🔔<span id="alum-bell-badge" style="display:none;position:absolute;top:-3px;right:-6px;min-width:16px;height:16px;padding:0 3px;background:#e11d1d;color:#fff;border-radius:9px;font-size:.62rem;font-weight:800;line-height:16px;text-align:center;border:1.5px solid #fff"></span></button>
         <button onclick="openCalendario('alum')" title="Calendario" style="background:none;border:none;cursor:pointer;font-size:1.5rem;line-height:1;padding:2px 0">📅</button>
     </div>`;
+  if(!isStaff()){ return renderHomeAlumno(html); }
   html+=renderModulosCardsHtml();
   if(isStaff()) html+=`<div class="dash-teacher-row">
       <button class="admin-card" id="dash-open-teacher" type="button" aria-label="Acceso Docente — entrar al Panel del Profesor">
@@ -1599,8 +1600,129 @@ function renderHome(){
   if(teacherBtn) teacherBtn.onclick=openTeacher;
 }
 
-// Acceso Docente — panel del profesor (resultados del alumnado)
-function fmtShort(d){const p=n=>String(n).padStart(2,'0');const m=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear()+' · '+p(d.getHours())+':'+p(d.getMinutes());}
+// ============ ALUMNO · interfaz rediseñada (4 pestañas) ============
+function alumExamDone(e){
+  const at=attemptsByExam[e.id]; const en=entregasByExam[e.id];
+  return (at && at.count>0) || !!en;
+}
+function alumExamNota(e){
+  const en=entregasByExam[e.id];
+  if(en && en.nota!=null) return +en.nota;
+  const at=attemptsByExam[e.id];
+  if(at && at.total>0) return (at.mejor/at.total)*10;
+  return null;
+}
+function alumExamTipo(e){
+  if(e.tipo==='redaccion' || entregasByExam[e.id]) return 'Redacción';
+  return 'Test';
+}
+function alumTemaNombre(e){
+  if(e.tema) return String(e.tema);
+  const u=unidadesById[e.unidad];
+  return (u&&u.titulo)||'';
+}
+function alumHomeData(){
+  const all=[].concat(...Object.values(examsByUnit)).filter(e=> e && !String(e.id).startsWith('repaso-') && !String(e.id).startsWith('falladas-'));
+  const pend=[], hist=[];
+  all.forEach(e=>{ if(alumExamDone(e)) hist.push(e); else pend.push(e); });
+  const keyEnt=e=> e.fecha_entrega ? Date.parse(e.fecha_entrega) : 8.64e15;
+  pend.sort((a,b)=> keyEnt(a)-keyEnt(b) || (Date.parse(b.creado_en||0)-Date.parse(a.creado_en||0)));
+  hist.sort((a,b)=> (Date.parse(b.creado_en||0)-Date.parse(a.creado_en||0)));
+  const total=all.length, hechos=hist.length;
+  const pct= total? Math.round(hechos/total*100) : 0;
+  return {all,pend,hist,total,hechos,pct};
+}
+function alumFmtFecha(d){ if(!d) return '—'; try{ const x=new Date(d); const p=n=>String(n).padStart(2,'0'); return p(x.getDate())+'/'+p(x.getMonth()+1)+'/'+x.getFullYear(); }catch(e){ return '—'; } }
+function renderHomeAlumno(headerHtml){
+  const tab = window._alumTab || 'aula';
+  const d = alumHomeData();
+  const on='background:var(--honey-tint);border-color:var(--honey);color:var(--honey-deep)';
+  const base='background:#fff;border:1.5px solid var(--line);color:var(--navy)';
+  const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;box-shadow:0 4px 10px -5px rgba(70,95,125,.4);display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
+  let h=headerHtml;
+  h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+    ${tbtn('aula','📚 Mi aula')}
+    ${tbtn('pend','📝 Pendientes'+(d.pend.length?' <span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 6px;font-size:.7rem">'+d.pend.length+'</span>':''))}
+    ${tbtn('hist','📊 Historial')}
+    ${tbtn('chat','💬 Chat y manual')}
+  </div>`;
+  if(tab==='aula') h+=alumTabAula(d);
+  else if(tab==='pend') h+=alumTabPend(d);
+  else if(tab==='hist') h+=alumTabHist(d);
+  else h+=alumTabChat();
+  $('home').innerHTML=h;
+  if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.style.display='block'; bd.textContent=String(n); } }).catch(()=>{}); }
+  if(tab==='chat' && !window._demoMode){ call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
+  document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
+}
+function alumTab(k){ window._alumTab=k; renderHome(); }
+function alumTabAula(d){
+  const nombre = window._activeCertId==='__aula_abierta' ? (window._aulaNombre||'tu aula') : (window._certNombre||'tu certificado');
+  let h='';
+  h+=`<div style="background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:15px 17px;margin-bottom:14px;box-shadow:0 6px 14px -8px rgba(70,95,125,.4)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px"><b style="color:var(--navy);font-size:.95rem">Tu progreso</b><span style="font-weight:800;color:#15803d;font-size:1.1rem">${d.pct}%</span></div>
+    <div style="height:13px;background:#e6eef0;border-radius:99px;overflow:hidden"><div style="height:100%;width:${d.pct}%;background:linear-gradient(90deg,#22c55e,#15803d);border-radius:99px;transition:width .5s"></div></div>
+    <div style="font-size:.74rem;color:var(--ink-soft);margin-top:7px">${d.hechos} de ${d.total} ejercicios realizados · objetivo: llegar al 100% 🎯</div>
+  </div>`;
+  h+=`<p style="font-size:.8rem;color:var(--ink-soft);margin:0 2px 12px;line-height:1.5">Aquí tienes todo tu temario, tus exámenes y tu material. Entra en cada unidad y practica a tu ritmo.</p>`;
+  h+=renderModulosCardsHtml();
+  h+=`<div style="background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:16px;padding:14px 16px;margin-top:16px;font-size:.83rem;color:var(--navy);line-height:1.6">
+    <b>Cada ejercicio suma. 💪</b> Aptuvia no es solo "hacer un examen": es tu herramienta de estudio. Todo lo que practicas queda registrado y tu profesor valora tu esfuerzo. Nadie te vigila mientras respondes; podrías copiar y sacar buena nota, pero solo te engañarías a ti. Hazlos con honestidad y verás tu evolución de verdad: así sabrás si llegas preparado al examen final. Ánimo, ¡a por ese 100%!
+  </div>`;
+  return h;
+}
+function alumTabPend(d){
+  let h='<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📝 Exámenes y ejercicios pendientes</h2>';
+  h+='<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Lo que tu profesor ha subido y aún no has hecho. Toca la flecha verde para empezar. Al completarlo, desaparece de aquí.</p>';
+  if(!d.pend.length){ return h+'<div style="background:#eafaf0;border:1.5px solid #b7e4c7;border-radius:16px;padding:22px 16px;text-align:center;color:#15803d;font-weight:700">🎉 ¡Estás al día! No tienes nada pendiente.</div>'; }
+  d.pend.forEach(e=>{
+    const cuenta = e.cuenta_final
+      ? '<div style="font-size:.72rem;color:#b45309;font-weight:800;margin-top:4px">⭐ Cuenta para la nota final</div>'
+      : '<div style="font-size:.72rem;color:var(--ink-soft);margin-top:4px">✏️ Práctica libre (no cuenta para la nota)</div>';
+    h+=`<div style="background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:13px 15px;margin-bottom:11px;box-shadow:0 4px 10px -6px rgba(70,95,125,.35);display:flex;align-items:center;gap:12px">
+      <div style="flex:1;min-width:0">
+        <b style="color:var(--navy);font-size:.92rem">${escHtml(e.titulo||'Examen')}</b>
+        <div style="font-size:.73rem;color:var(--ink-soft);margin-top:3px">${alumExamTipo(e)} · ${escHtml(alumTemaNombre(e))}</div>
+        <div style="font-size:.71rem;color:var(--ink-soft);margin-top:2px">📤 Colgado: ${alumFmtFecha(e.creado_en)}   ·   📅 Entrega: ${e.fecha_entrega?alumFmtFecha(e.fecha_entrega):'sin fecha'}</div>
+        ${cuenta}
+      </div>
+      <button onclick="openExam('${e.id}')" title="Empezar" style="flex:0 0 auto;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;width:46px;height:46px;border-radius:50%;font-size:1.4rem;cursor:pointer;box-shadow:0 5px 12px -4px rgba(21,128,61,.6);line-height:1">➜</button>
+    </div>`;
+  });
+  return h;
+}
+function alumTabHist(d){
+  let h='<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">📊 Historial y calificaciones</h2>';
+  h+='<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Lo que ya has hecho. Toca cualquiera para ver tu examen corregido (solo lectura).</p>';
+  if(!d.hist.length){ return h+'<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:16px;padding:22px 16px;text-align:center;color:var(--ink-soft)">Todavía no has realizado ningún ejercicio. ¡Empieza por Pendientes!</div>'; }
+  d.hist.forEach(e=>{
+    const n=alumExamNota(e);
+    const notaTxt = n==null ? 'Pdte. corregir' : n.toFixed(1);
+    const col = n==null ? 'var(--ink-soft)' : (n>=5?'#15803d':'#b4232a');
+    h+=`<button onclick="alumVerCorregido('${e.id}','${e.unidad}')" style="width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:13px 15px;margin-bottom:10px;cursor:pointer;font:inherit;box-shadow:0 4px 10px -6px rgba(70,95,125,.35);display:flex;align-items:center;gap:12px">
+      <span style="flex:1;min-width:0">
+        <b style="color:var(--navy);font-size:.92rem">${escHtml(e.titulo||'Examen')}</b>
+        <span style="display:block;font-size:.73rem;color:var(--ink-soft);margin-top:3px">${escHtml(alumTemaNombre(e))} · ${alumExamTipo(e)}${e.cuenta_final?' · ⭐ nota final':''}</span>
+      </span>
+      <span style="flex:0 0 auto;font-weight:800;font-size:1.15rem;color:${col}">${notaTxt}</span>
+    </button>`;
+  });
+  return h;
+}
+function alumTabChat(){
+  const sunk='display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:16px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:800;font-size:.95rem;box-shadow:0 4px 10px -5px rgba(70,95,125,.4)';
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:4px">
+      <button onclick="caAlumChat()" style="${sunk}">💬 Chat<span id="alum-chat-badge"></span></button>
+      <button onclick="docManualAlumno()" style="${sunk}">📖 Manual</button>
+    </div>
+    <p style="font-size:.76rem;color:var(--ink-soft);margin:14px 2px 0;line-height:1.5">Habla con tu profesor por el chat para dudas y avisos. En el manual tienes la guía de uso de la plataforma.</p>`;
+}
+function alumVerCorregido(examId, unidad){
+  const at=attemptsByExam[examId];
+  if(at && at.id){ verIntentoAlumno(examId, unidad); return; }
+  openExam(examId);
+}
+
 let teacherRows=[], teacherMode='best', teacherById={};
 let resumenRows=null, teacherView='panel', teacherAl=null, alumnosTab='listado', pendientesCount=0, teacherUnidadSel=null, teacherSortBy='mejor';
 async function openTeacher(){
@@ -2087,7 +2209,8 @@ function manualProfeSecciones(esAula){
       'DÓNDE: Área Docente → Módulos.',
       'Una materia equivale a una clase o asignatura (por ejemplo Historia 4º ESO). Se crea con «+ Nueva materia»: se le pone nombre y, si quieres, una etiqueta corta que aparece como distintivo (HISTORIA). Se numeran solas: AULA-01, AULA-02... según el orden en que las creas.',
       'AL PULSAR UNA MATERIA ENTRAS DENTRO. Ese es tu espacio de trabajo de esa clase: sus temas, sus exámenes y su temario, todo junto.',
-      'TEMAS: dentro de la materia, con «+ Nuevo tema» organizas el curso por temas (Tema 1, Tema 2, «Programación didáctica»...). Cada tarjeta de tema indica cuántos exámenes y cuántos materiales tiene. El lápiz lo renombra; la papelera lo borra. Los temas solo sirven para ordenar: el alumno ve el material y los exámenes agrupados por tema.',
+      'TEMAS: dentro de la materia, con «+ Nuevo tema» organizas el curso por temas (Tema 1, Tema 2, «Programación didáctica»...). Al crear o editar un tema se abre una pantalla propia donde pones su NOMBRE y sus APARTADOS (los puntos que verá el alumno dentro del tema, como en «Tema 1» desplegado): añade los que quieras con «➕ Añadir apartado» y bórralos con la papelera. El lápiz abre esa misma pantalla para editarlo; la papelera borra el tema (sus exámenes pasan a «Sin tema»). Los temas ordenan el curso: el alumno ve el material y los exámenes agrupados por tema.',
+      'FECHA DE ENTREGA: al crear un examen (en cualquiera de los modos) tienes un campo «Fecha de entrega (opcional)». Si la pones, el alumno la ve en su pestaña de PENDIENTES. Puedes dejarla vacía.',
       'EXÁMENES DE CADA TEMA: al abrir un tema ves sus exámenes en fila y, de un vistazo, el resultado de la clase en cada uno (la media, o «Sin intentos» si nadie lo ha hecho todavía) y si es tipo test o de redacción.',
       'ABRIR UN EXAMEN: al tocarlo puedes revisar sus preguntas (la respuesta correcta sale marcada en verde), añadir una pregunta nueva, editar el enunciado o las opciones de una que esté mal, y quitar preguntas sueltas. En los exámenes generados solos puedes además «Reponer pregunta del banco» si quitaste alguna. Desde el mismo examen ves también quién lo ha hecho y sus intentos.',
       'CAMBIAR EL NOMBRE DE TU ESPACIO: el nombre que aparece arriba, junto a la pastilla de Aula Abierta, se cambia con el lápiz que hay al lado. Es tuyo y no lo ven los demás profesores.',
@@ -2176,7 +2299,7 @@ function manualProfeSecciones(esAula){
     'CHATS. DÓNDE: Área Docente → Chats. Hay dos: «Chat con soporte» (dudas o incidencias con Aptuvia; te responde el equipo) y «Chat con alumnos» (mensajería opcional con tu clase). La tarjeta avisa con un número cuando tienes mensajes sin leer.',
     'ARCHIVAR Y BORRAR. En cualquier chat, «🗂 Archivar» guarda la conversación en la carpeta Archivados sin perderla; «Ver archivados» la muestra y «Desarchivar» la devuelve al chat. «🗑 Borrar» solo oculta TU copia (el otro lado conserva la suya) y al revés: cada lado gestiona la suya por separado, tanto con el soporte como con tus alumnos. Cualquier mensaje nuevo devuelve la conversación a activos.',
     'CHAT CON ALUMNOS. Es opcional: mientras no lo actives con el interruptor, tus alumnos no ven ningún chat. Puedes escribir tú primero con «✏️ Escribir a un alumno».',
-    'CALENDARIO. DÓNDE: botón «📅 Calendario» abajo. Anotas tareas y fechas; cada evento sale con su puntito de color y las tareas hechas aparecen tachadas. Las de hoy te saltan en la campanita.',
+    'CALENDARIO. DÓNDE: botón «📅 Calendario» abajo. Anotas tareas y fechas; cada evento sale con su puntito de color y las tareas hechas aparecen tachadas. Las de hoy te saltan en la campanita. Al añadir una nota tienes la casilla «🔔 Avisar al alumnado en su campana» (marcada por defecto): si la dejas marcada, a los alumnos de esa clase les llega el aviso en su campanita; si la desmarcas, la nota queda en el calendario sin avisar (útil para notas internas tuyas).',
     'CAMPANITA (🔔). La campana de arriba te muestra tus avisos —puntuales, semanales o mensuales— y las tareas del calendario para hoy.',
     'AVISOS AL ALUMNADO. DÓNDE: dentro de «Chat con alumnos» → «🔔 Enviar avisos al alumnado». Le llegan al alumno en SU campanita, a uno concreto o a toda la clase. Ideal para recordar un examen o una entrega sin abrir conversación.'
   ]});
@@ -2223,6 +2346,14 @@ function manualAlumnoSecciones(esAula){
     'Se entra desde aptuvia.es con tu correo y tu contraseña. Si es la primera vez, tu profesor te habrá autorizado antes: hasta entonces el registro no te dejará entrar.',
     'Si pierdes la contraseña, pídesela a tu profesor: él puede generarte una nueva.'
   ]});
+  s.push({ t:'2. Tu pantalla de inicio', p:[
+    'Tu inicio tiene cuatro pestañas: MI AULA, PENDIENTES, HISTORIAL y CHAT Y MANUAL.',
+    'MI AULA: aquí tienes todo tu temario, exámenes y material para practicar a tu ritmo. Arriba hay una BARRA VERDE DE PROGRESO con el porcentaje de ejercicios que has hecho sobre el total que ha colgado tu profesor. El objetivo es llegar al 100 %.',
+    'PENDIENTES: la lista de exámenes y ejercicios que tu profesor ha subido y aún no has hecho. Cada uno indica el tipo, el tema, cuándo se colgó y su fecha de entrega, y si cuenta o no para la nota final. Toca la flecha verde para empezarlo directamente; al completarlo desaparece de esta lista.',
+    'HISTORIAL Y CALIFICACIONES: lo que ya has realizado, con tu nota (verde si es 5 o más, roja si es menos). Tócalo para ver tu examen corregido; es solo de lectura.',
+    'CHAT Y MANUAL: el chat con tu profesor y este manual.',
+    'IMPORTANTE — hazlo con honestidad: nadie te vigila cuando haces un examen; podrías copiar y sacar buena nota, pero solo te engañarías a ti. Si haces los ejercicios de verdad verás tu evolución real y sabrás si llegas preparado al examen final. Cada ejercicio que completas suma y tu profesor valora tu esfuerzo.'
+  ]});
   s.push({ t:esAula?'2. Tus materias':'2. Módulos y unidades formativas', p:[
     esAula
       ? 'La pantalla principal muestra las materias que tu profesor te ha asignado. Si no ves ninguna, todavía no te ha dado clase asignada: díselo.'
@@ -2254,7 +2385,7 @@ function manualAlumnoSecciones(esAula){
   s.push({ t:'7. Avisos, chat y calendario', p:[
     'CAMPANITA (🔔): arriba tienes una campana con los avisos que te manda tu profesor (un examen, una entrega, un recordatorio). El número indica los que no has leído.',
     'CHAT CON TU PROFESOR (💬): si tu profesor lo ha activado, tienes un chat para escribirle. Puedes archivar una conversación con «🗂 Archivar» y recuperarla en «Ver archivados»; con «🗑 Borrar» la quitas de tu vista (tu profesor conserva su copia). Un mensaje nuevo la devuelve al chat.',
-    'CALENDARIO (📅): muestra las tareas y fechas que ha puesto tu profesor. Es solo de consulta: tú no lo editas.'
+    'CALENDARIO (📅): muestra las tareas y fechas que ha puesto tu profesor. Es solo de consulta: tú no lo editas. Cuando tu profesor añade una fecha importante (un examen, una entrega), además de aparecer en el calendario te llega el aviso en la campanita.'
   ]});
   s.push({ t:'8. Qué NO es Aptuvia', p:[
     'Aptuvia es una herramienta de apoyo al estudio. Las notas de la plataforma no son notas oficiales.',
@@ -2355,6 +2486,13 @@ function manualPremiumSecciones(){
     'EL INFORME TARDA: consulta a cada profesor uno por uno. Con muchos profesores tarda unos segundos; el botón va indicando por dónde va.'
   ]});
 
+  s.push({ t:'12. Chat con Aptuvia', p:[
+    'DÓNDE: pantalla de inicio → botón "Chat con soporte".',
+    'Al abrirlo eliges a quién diriges la consulta: SOPORTE (dudas técnicas o incidencias de la plataforma), ADMINISTRACIÓN (facturas, pagos y datos de facturación) o COMERCIAL (presupuestos, altas, planes y servicios).',
+    'Cada destino es una conversación aparte, con su propio historial. Escribes, puedes adjuntar un PDF o una imagen, y el equipo de Aptuvia te responde por el mismo sitio.',
+    'Puedes Archivar una conversación (se guarda en Archivados y se recupera con Desarchivar) o Borrarla, que solo la oculta de tu vista; Aptuvia conserva su copia. Es la vía recomendada para dejar por escrito lo que se paga y lo que se acuerda.'
+  ]});
+
   return s;
 }
 
@@ -2393,7 +2531,8 @@ const MANUAL_AREAS = {
         'Soporte es quien monta y desmonta clientes: da de alta la academia o el usuario de Aula Abierta, lo configura para que pueda trabajar, y lo revoca cuando termina el contrato o hay impago.',
         'Soporte NO factura ni prepara presupuestos. Solo ejecuta el alta y la baja, y avisa a las otras áreas.',
         'La pantalla tiene dos pestañas: Aptuvia (academias con certificados de profesionalidad) y Aula Abierta (usuarios independientes).',
-        'CHAT CON PROFESORADO: arriba de Soporte está la tarjeta "💬 Chat con profesorado". Ahí llegan los mensajes que los profesores escriben desde su tarjeta "Soporte". La tarjeta lleva un número con los mensajes sin leer; se abre la conversación, se responde y al profesor le aparece el aviso de respuesta. Cada profesor tiene su hilo privado. En cada hilo puedes "🗂 Archivar" (va a la carpeta Archivados y se recupera con "Desarchivar") o "🗑 Borrar", que solo oculta TU copia: el profesor conserva la suya. Cada lado gestiona la suya por separado.'
+        'CHAT CON PROFESORADO: arriba de Soporte está la tarjeta "💬 Profesorado". Ahí llegan los mensajes que los profesores escriben desde su tarjeta "Soporte". La tarjeta lleva un número con los mensajes sin leer; se abre la conversación, se responde y al profesor le aparece el aviso de respuesta. Cada profesor tiene su hilo privado. En cada hilo puedes "Archivar" (va a la carpeta Archivados y se recupera con "Desarchivar") o "Borrar", que solo oculta TU copia: el profesor conserva la suya. Cada lado gestiona la suya por separado.',
+        'CHAT CON CENTROS: al lado está "Centros". Son las consultas que escriben las cuentas de dirección (academia y premium/grupo). Tiene dos pestañas: "Con academia" y "Con premium". El cliente, al escribir, elige a qué área dirige la consulta (Soporte, Administración o Comercial); por eso ese mismo chat con centros aparece también en Comercial y en Administración, cada uno con las consultas que le tocan. Se responde, se adjunta PDF o imagen y se archiva o borra igual que con el profesorado.'
       ]},
       { t:'2. Dar de alta un cliente', p:[
         'BOTÓN NARANJA: "Alta desde presupuesto". Es el que hay que usar siempre que el cliente venga de un presupuesto aceptado.',
@@ -2480,6 +2619,12 @@ const MANUAL_AREAS = {
         'No emitas ninguna factura que no venga de un presupuesto aceptado y con el alta hecha.',
         'Ante cualquier duda sobre un importe, deja el aviso puesto y pregunta. Una factura mal emitida a un cliente nuevo cuesta la relación.',
         'No borres facturas para "arreglar" un error: consúltalo antes.'
+      ]},
+      { t:'9. Chat con centros', p:[
+        'DÓNDE: tarjeta "Chat con centros" en la pantalla principal de Administración.',
+        'Son las consultas que las cuentas de dirección (academia y premium/grupo) dirigen específicamente a Administración: facturas, pagos, datos de facturación.',
+        'Dos pestañas: "Con academia" y "Con premium". Cada centro tiene su hilo: se abre, se responde, se adjunta PDF o imagen y se marca leído solo.',
+        'En cada hilo puedes Archivar (va a Archivados y se recupera con Desarchivar) o Borrar, que solo oculta TU copia; el cliente conserva la suya.'
       ]}
     ]
   },
@@ -2530,6 +2675,12 @@ const MANUAL_AREAS = {
         'Lo único irreversible aquí es enviar algo a un cliente. Revisa el PDF antes de mandarlo.',
         'Si un presupuesto ya está aceptado y hay que cambiar condiciones, no lo edites: haz uno nuevo. El aceptado es el contrato.',
         'Ante una duda de precio, pregunta antes de enviar.'
+      ]},
+      { t:'8. Chat con centros', p:[
+        'DÓNDE: tarjeta "Chat con centros" en la pantalla principal de Comercial.',
+        'Son las consultas que las cuentas de dirección (academia y premium/grupo) dirigen a Comercial: presupuestos, altas, planes y servicios.',
+        'Dos pestañas: "Con academia" y "Con premium". Se abre el hilo, se responde, se adjunta y se marca leído solo.',
+        'Puedes Archivar (recuperable con Desarchivar) o Borrar, que solo oculta TU copia; el cliente conserva la suya.'
       ]}
     ]
   }
@@ -2560,7 +2711,7 @@ function docsBar(area){
   const pills=[];
   if(area==='soporte') pills.push(`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`);
   if(sopPill) pills.push(sopPill);
-  return `<div style="margin:20px 2px 4px;padding-top:12px;border-top:1px solid var(--line)">
+  return `<div style="margin:14px 0 4px">
     <button class="fact-menu" style="width:100%;margin:0" onclick="docMTOpen('${area||''}')"><b>📘 Manual y trazabilidad</b><span>Guía de tu área y el circuito comercial completo</span></button>
     ${pills.length?`<div style="display:flex;gap:5px;justify-content:flex-end;margin-top:10px;flex-wrap:nowrap">${pills.join('')}</div>`:''}
   </div>`;
@@ -2676,11 +2827,11 @@ function avPintarBarra(){
   const vis=avVisibles(area);
   const urgentes=vis.some(a=>a.urgente===true);
   const abierta=window._avAbierta;
-  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:7px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid ${vis.length?'var(--honey)':'var(--line)'};border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem;white-space:nowrap;overflow:hidden">
+  bar.innerHTML=`<button onclick="avToggle()" style="width:100%;display:flex;align-items:center;gap:7px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid ${vis.length?'#00B4D8':'var(--line)'};border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem;white-space:nowrap;overflow:hidden">
       <span style="position:relative">🔔${urgentes?'<span style="position:absolute;top:-3px;right:-5px;width:9px;height:9px;background:#e11d1d;border-radius:50%;border:1.5px solid #fff"></span>':''}</span>
       <span>Avisos</span>
-      ${vis.length?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${vis.length}</span>`:''}
-      <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
+      ${vis.length?`<span style="margin-left:auto;background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${vis.length}</span>`:''}
+      <span style="margin-left:${vis.length?'6px':'auto'};color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
     </button>`;
   if(abierta) bar.innerHTML+=avPanel(area,vis);
   avPintarAltaBadges();
@@ -2893,11 +3044,11 @@ function aiPintarBarra(){
   const vis=aiVisibles(area);
   const nuevos=(aiLista||[]).filter(a=> a.para_area===area && !a.leido).length;
   const abierta=window._aiAbierta;
-  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:7px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid var(--line);border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem;white-space:nowrap;overflow:hidden">
+  bar.innerHTML=`<button onclick="aiToggle()" style="width:100%;display:flex;align-items:center;gap:7px;background:${abierta?'linear-gradient(to right,#dfe7f5,#c3d1eb)':'var(--honey-tint)'};border:1.5px solid ${nuevos?'#00B4D8':'var(--line)'};border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:${abierta?'800':'700'};font-size:.82rem;white-space:nowrap;overflow:hidden">
       <span>✉️</span>
       <span style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis">Internos</span>
-      ${nuevos?`<span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:''}
-      <span style="margin-left:auto;color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
+      ${nuevos?`<span style="margin-left:auto;background:var(--honey);color:#fff;border-radius:9px;padding:0 7px;font-size:.72rem">${nuevos}</span>`:''}
+      <span style="margin-left:${nuevos?'6px':'auto'};color:var(--ink-soft);font-size:.72rem">${abierta?'▲':'▼'}</span>
     </button>`;
   if(abierta) bar.innerHTML+=aiPanel(area,vis);
 }
@@ -3017,13 +3168,15 @@ function saShell(inner,opts){
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
     </div>
-    <div style="display:flex;gap:8px;align-items:flex-start;margin:0 0 ${enSoporte?'8px':'12px'}"><div class="av-row" id="av-row" style="flex:1;min-width:0;margin:0"><div id="av-bar"></div><div id="ai-bar"></div></div><button onclick="openCalendario('adm')" title="Calendario" style="flex:0 0 auto;align-self:flex-start;background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:11px;padding:9px 11px;font-size:1.05rem;cursor:pointer;line-height:1">📅</button></div>
+    <div style="display:flex;gap:8px;align-items:flex-start;margin:0 0 ${enSoporte?'8px':'12px'}"><div class="av-row" id="av-row" style="flex:1;min-width:0;margin:0"><div id="av-bar"></div><div id="ai-bar"></div></div><button onclick="openCalendario('adm')" title="Calendario" style="flex:0 0 auto;align-self:flex-start;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 11px;font-size:1.05rem;cursor:pointer;line-height:1">📅</button></div>
     ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
     ${inner}`;
 }
 function scWireInbox(){
   const c=$('sc-inbox-card'); if(c) c.onclick=()=>scAdminInbox();
   call('/rest/v1/rpc/sc_sop_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('sc-inbox-badge'); if(el && +n>0){ el.style.position='static'; el.style.background='var(--honey)'; el.style.color='#fff'; el.style.borderRadius='9px'; el.style.padding='0 7px'; el.style.fontSize='.72rem'; el.style.fontWeight='700'; el.textContent=String(n); } }).catch(()=>{});
+  const cc=$('ca-inbox-card'); if(cc) cc.onclick=()=>caCentrosInbox('academia',false,'soporte');
+  call('/rest/v1/rpc/ca_sop_no_leidos',{method:'POST',body:{p_area:'soporte'}}).then(n=>{ const el=$('ca-inbox-badge'); if(el && +n>0){ el.style.position='static'; el.style.background='var(--honey)'; el.style.color='#fff'; el.style.borderRadius='9px'; el.style.padding='0 7px'; el.style.fontSize='.72rem'; el.style.fontWeight='700'; el.textContent=String(n); } }).catch(()=>{});
 }
 function saRenderLista(okMsg,errMsg){
   saSelAcad=null;
@@ -3049,7 +3202,10 @@ function saRenderLista(okMsg,errMsg){
   }
   if(saMainTab==='sop'){
     const barSop='width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden';
-    h+=`<button id="sc-inbox-card" style="${barSop};margin-bottom:12px"><span>💬 Chat con profesorado</span><span id="sc-inbox-badge"></span></button>`;
+    h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <button id="sc-inbox-card" style="${barSop}"><span>💬 Profesorado</span><span id="sc-inbox-badge"></span></button>
+      <button id="ca-inbox-card" style="${barSop}"><span>🏫 Centros</span><span id="ca-inbox-badge"></span></button>
+    </div>`;
     h+=`<button class="fact-menu" style="position:relative" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button>`;
     h+=docsBar('soporte');
     $('teacher').innerHTML=saShell(h,{noChat:true});
@@ -4081,6 +4237,7 @@ function rsRender(){
   let h='';
   h+=`<div class="sa-cards-grid">`;
   h+=`<button class="fact-menu" onclick="rsAbrirPresu()" style="background:#eef8fe"><b>📝 Presupuestos</b><span>Preparar, enviar y aceptar presupuestos. El aceptado y firmado es el contrato</span></button>`;
+  h+=`<button class="fact-menu" onclick="caCentrosInbox('academia',false,'comercial')"><b>💬 Chat con centros <span id="ca-com-badge"></span></b><span>Consultas de academias y premium dirigidas a Comercial</span></button>`;
   h+=`</div>`;
   h+=`<h3 style="font-size:.78rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft);margin:22px 2px 8px">Redes sociales</h3>`;
   h+=`<div class="sa-cards-grid">`;
@@ -4096,6 +4253,7 @@ function rsRender(){
   h+=`<p style="font-size:.72rem;color:var(--ink-soft);background:#f6f1e6;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:12px 2px 0;line-height:1.6">Se abre en otra pestaña y pide la cuenta de Google. La propiedad está a nombre de <b>aptuvia@gmail.com</b>.</p>`;
   h+=docsBar('comercial');
   $('teacher').innerHTML=saShell(h);
+  caPintaBadge('ca-com-badge','comercial');
 }
 
 function abrirFuera(url){
@@ -4114,6 +4272,7 @@ function saRenderFacturacionLista(){
     let h='';
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
+    h+=`<button class="fact-menu" onclick="caCentrosInbox('academia',false,'administracion')"><b>💬 Chat con centros <span id="ca-adm-badge"></span></b><span>Consultas de academias y premium dirigidas a Administración</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('aa')"><b>Facturar Aula Abierta</b><span>Emitir factura a los clientes de Aula Abierta</span></button>`;
@@ -4123,6 +4282,7 @@ function saRenderFacturacionLista(){
     h+=`</div>`;
     h+=docsBar('admin');
     $('teacher').innerHTML=saShell(h);
+    caPintaBadge('ca-adm-badge','administracion');
     return;
   }
   if(sub==='conta'){ ctRender(); return; }
@@ -6772,7 +6932,7 @@ function factRenderPDF(data){
   doc.text('contacto@aptuvia.es · aptuvia.es', M, 288);
   const _fnFact='Factura_'+data.numero+'_'+((data.nombreCliente||'').replace(/[^a-z0-9]/gi,'_'))+'.pdf';
   pdfStash(doc,_fnFact);
-  doc.save(_fnFact);
+  if(data.ver){ docVer(doc,_fnFact); } else { doc.save(_fnFact); }
   return {subtotal,desc,iva,total};
 }
 
@@ -6811,7 +6971,7 @@ async function factVerFactura(id){
       nombreCliente:(fc.cliente&&fc.cliente.razon_social)||window._fact.academiaNombre||'cliente',
       d:fc.cliente||{}, rec:lin.rec||[], uni:lin.uni||[],
       descuento:Number(fc.descuento_pct)||0, iva:Number(fc.iva_pct)||21,
-      presuNumero:fc.presupuesto_numero||''
+      presuNumero:fc.presupuesto_numero||'', ver:true
     });
   }catch(e){ appAlert('No se pudo abrir: '+(e.message||'')); }
 }
@@ -7562,7 +7722,8 @@ function calRender(){
     }
     const ph = mode==='alum' ? 'Mi tarea (ej.: estudiar Tema 3)' : 'Título (ej.: Examen Tema 3)';
     if(mode==='alum') h.push('<p style="font-size:.72rem;color:var(--ink-soft);margin:12px 2px 2px">🙋 Tus notas son privadas: solo las ves tú.</p>');
-    h.push('<div style="margin-top:'+(mode==='alum'?'2px':'12px')+';border-top:1px solid var(--line);padding-top:10px"><input id="cal-tit" type="text" placeholder="'+ph+'" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem"><input id="cal-nota" type="text" placeholder="Nota (opcional)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem">'+selAula+'<button class="btn btn-honey" id="cal-add" style="margin-top:8px">Añadir al '+calFechaCorta(sel)+'</button></div>');
+    const avisarChk = (mode==='prof') ? '<label class="ckrow" style="margin-top:8px;font-size:.82rem"><input type="checkbox" id="cal-avisar" checked> 🔔 Avisar al alumnado en su campana</label>' : '';
+    h.push('<div style="margin-top:'+(mode==='alum'?'2px':'12px')+';border-top:1px solid var(--line);padding-top:10px"><input id="cal-tit" type="text" placeholder="'+ph+'" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.9rem"><input id="cal-nota" type="text" placeholder="Nota (opcional)" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:10px;font-size:.85rem">'+selAula+avisarChk+'<button class="btn btn-honey" id="cal-add" style="margin-top:8px">Añadir al '+calFechaCorta(sel)+'</button></div>');
   }
   h.push('</div>');
   if(window._demoMode) h.push('<p style="font-size:.72rem;color:var(--ink-soft);text-align:center;margin-top:10px">Calendario de demostración.</p>');
@@ -7576,7 +7737,12 @@ async function calAdd(){
   try{
     if(window._cal.mode==='adm') await call('/rest/v1/rpc/cal_adm_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_area:window._cal.area}});
     else if(window._cal.mode==='alum') await call('/rest/v1/rpc/cal_alum_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null}});
-    else await call('/rest/v1/rpc/cal_prof_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_unidad:($('cal-unidad')&&$('cal-unidad').value)||null}});
+    else {
+      const uni=($('cal-unidad')&&$('cal-unidad').value)||null;
+      await call('/rest/v1/rpc/cal_prof_crear',{method:'POST',body:{p_fecha:window._cal.sel,p_titulo:tit,p_nota:nota||null,p_unidad:uni}});
+      const avisar=$('cal-avisar')?$('cal-avisar').checked:false;
+      if(avisar){ try{ await call('/rest/v1/rpc/av_al_prof_crear',{method:'POST',body:{p_alumno:null,p_texto:'📅 '+tit+(nota?(' — '+nota):'')+' ('+calFechaCorta(window._cal.sel)+')',p_unidad:uni}}); }catch(_){} }
+    }
     await calCargar();
   }catch(e){ if(b){ b.disabled=false; b.textContent='Añadir'; } appAlert('No se pudo: '+(e.message||'')); }
 }
@@ -8021,6 +8187,161 @@ async function scSopResponder(pid, nombre){
   catch(e){ if(b){ b.disabled=false; b.textContent='Responder'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
 
+// ===== Chat con centros (academia / premium) — soporte ↔ dirección =====
+function caBurbuja(m, yoSoy){
+  const mine = yoSoy==='soporte' ? m.de_soporte : !m.de_soporte;
+  let fecha=''; try{ fecha=new Date(m.creado_en).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){}
+  const quien = m.de_soporte ? (yoSoy==='soporte'?'Tú':'Soporte') : (yoSoy==='centro'?'Tú':'Centro');
+  const est = mine ? 'align-self:flex-end;background:var(--honey-tint);border:1px solid var(--honey)' : 'align-self:flex-start;background:var(--navy-tint);border:1px solid #c9cef0';
+  return `<div style="max-width:82%;${est};border-radius:12px;padding:8px 11px;margin:4px 0"><div style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:2px">${quien} · ${fecha}</div><div style="font-size:.88rem;line-height:1.5;color:var(--navy);white-space:pre-wrap">${escHtml(m.texto||'')}</div>${m.adjunto_url?scAdjuntoHtml(m.adjunto_url,m.adjunto_nombre):''}</div>`;
+}
+async function caEstadoMias(lado){
+  if(window._demoMode) return {};
+  let rows=[]; try{ rows=await call('/rest/v1/rpc/caest_mias',{method:'POST',body:{p_lado:lado}})||[]; }catch(e){}
+  const map={}; rows.forEach(r=>{ map[String(r.academia_id)]={arch:(r.arch_hasta?Date.parse(r.arch_hasta):0), del:(r.del_hasta?Date.parse(r.del_hasta):0)}; });
+  return map;
+}
+function caAccion(lado,aid,accion){ return call('/rest/v1/rpc/caest_accion',{method:'POST',body:{p_lado:lado,p_academia:+aid,p_accion:accion}}); }
+function caPintaBadge(id,area){ call('/rest/v1/rpc/ca_sop_no_leidos',{method:'POST',body:{p_area:area}}).then(n=>{ const el=$(id); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
+const CA_AREA_LABEL={soporte:'Soporte', administracion:'Administración', comercial:'Comercial'};
+function caBackArea(area){ return area==='comercial'?"saSetMain('rs')":(area==='administracion'?"saSetMain('fact')":'openSuperadmin()'); }
+function caBackAreaTxt(area){ return area==='comercial'?'Comercial':(area==='administracion'?'Administración':'Torre de control'); }
+async function caCentrosInbox(canal, verArch, area){
+  canal = canal||'academia'; area=area||'soporte';
+  showView('teacher'); window.scrollTo(0,0);
+  const backRoot=caBackArea(area);
+  $('teacher').innerHTML='<button class="backbtn" onclick="'+backRoot+'">← '+caBackAreaTxt(area)+'</button><div class="loader"><span class="spin"></span></div>';
+  let hilos=[];
+  try{ hilos=await call('/rest/v1/rpc/ca_sop_hilos',{method:'POST',body:{p_area:area}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="'+backRoot+'">← '+caBackAreaTxt(area)+'</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  const estMap=await caEstadoMias('sop:'+area);
+  const canalHilos=(hilos||[]).filter(t=>String(t.canal)===canal);
+  const live=[], arch=[];
+  canalHilos.forEach(t=>{ const e=estMap[String(t.academia_id)]; if(chatVivo(t.ultimo,e)) live.push(t); else if(chatArchivado(t.ultimo,e)) arch.push(t); });
+  const lista = verArch?arch:live;
+  const tab=(k,txt)=>`<button onclick="caCentrosInbox('${k}',false,'${area}')" class="px-btn" style="flex:1 1 0;min-width:0;${canal===k?'background:var(--honey-tint)!important;border-color:var(--honey)!important;box-shadow:none!important':''}">${txt}</button>`;
+  const h=['<button class="backbtn" onclick="'+(verArch?"caCentrosInbox('"+canal+"',false,'"+area+"')":backRoot)+'">← '+(verArch?'Conversaciones':caBackAreaTxt(area))+'</button>'];
+  h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">🏫 Chat con centros'+(verArch?' · Archivados':'')+'</h1>');
+  h.push('<p style="font-size:.75rem;color:var(--ink-soft);margin:0 2px 10px">Consultas dirigidas a <b>'+CA_AREA_LABEL[area]+'</b>.</p>');
+  h.push('<div style="display:flex;gap:6px;margin-bottom:14px">'+tab('academia','🏫 Con academia')+tab('premium','👑 Con premium')+'</div>');
+  if(!verArch && arch.length) h.push('<button class="btn btn-ghost" onclick="caCentrosInbox(\''+canal+'\',true,\''+area+'\')" style="margin-bottom:10px;font-size:.82rem">🗂 Archivados ('+arch.length+')</button>');
+  if(!lista.length){ h.push('<p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin:20px 0">'+(verArch?'No hay conversaciones archivadas.':'No hay conversaciones en este canal todavía.')+'</p>'); }
+  else lista.forEach(t=>{
+    let fecha=''; try{ fecha=new Date(t.ultimo).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){}
+    const badge = +t.no_leidos>0 ? `<span class="tile-badge" style="position:static;margin-left:6px">${t.no_leidos}</span>` : '';
+    h.push(`<button class="ca-hilo-row" data-aid="${escAttr(t.academia_id)}" data-canal="${escAttr(t.canal)}" data-nom="${escAttr(t.nombre||'')}" data-arch="${verArch?'1':''}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.9rem;color:var(--navy)">${escHtml(t.nombre||'Centro')}</b><span style="display:flex;align-items:center;gap:6px"><span style="font-size:.68rem;color:var(--ink-soft)">${fecha}</span>${badge}</span></div></button>`);
+  });
+  $('teacher').innerHTML=h.join('');
+  $('teacher').querySelectorAll('.ca-hilo-row').forEach(b=> b.onclick=()=>caCentrosHilo(b.dataset.aid, b.dataset.canal, b.dataset.nom, b.dataset.arch==='1', area));
+}
+async function caCentrosHilo(aid, canal, nombre, verArch, area){
+  area=area||'soporte';
+  showView('teacher'); window.scrollTo(0,0);
+  const back="caCentrosInbox('"+canal+"',"+(verArch?'true':'false')+",'"+area+"')";
+  $('teacher').innerHTML='<button class="backbtn" onclick="'+back+'">← Conversaciones</button><div class="loader"><span class="spin"></span></div>';
+  let msgs=[];
+  try{ msgs=await call('/rest/v1/rpc/ca_sop_listar',{method:'POST',body:{p_academia:+aid,p_canal:canal,p_area:area}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="'+back+'">← Conversaciones</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  const estMap=await caEstadoMias('sop:'+area); const e=estMap[String(aid)];
+  const shown=(msgs||[]).filter(m=> verArch?chatArchivado(m.creado_en,e):chatVivo(m.creado_en,e));
+  const nArch=(msgs||[]).filter(m=>chatArchivado(m.creado_en,e)).length;
+  const h=['<button class="backbtn" onclick="'+back+'">← Conversaciones</button>'];
+  h.push('<h1 style="font-size:1.15rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">'+escHtml(nombre||'Centro')+' · '+CA_AREA_LABEL[area]+(verArch?' · Archivados':'')+'</h1>');
+  h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
+  if(!shown.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">'+(verArch?'No hay mensajes archivados.':'Sin mensajes.')+'</p>');
+  else shown.forEach(m=>h.push(caBurbuja(m,'soporte')));
+  h.push('</div>');
+  h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu respuesta…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+  if(!verArch) h.push('<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label class="btn btn-ghost" style="margin:0;cursor:pointer;flex:0 0 auto">📎 Adjuntar<input type="file" id="sc-file" accept="application/pdf,image/*" style="display:none"></label><span id="sc-file-name" style="font-size:.78rem;color:var(--ink-soft)"></span></div>');
+  h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Responder</button>');
+  if(verArch){ h.push('<button class="btn btn-honey" id="sc-desarch" style="margin-top:8px">↩ Desarchivar</button>'); }
+  else{
+    h.push('<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-ghost" id="sc-arch" style="margin:0;flex:1">🗂 Archivar</button><button class="btn btn-ghost" id="sc-del" style="margin:0;flex:1;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar</button></div>');
+    if(nArch>0) h.push('<button class="btn btn-ghost" id="sc-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>');
+  }
+  $('teacher').innerHTML=h.join('');
+  const fi=$('sc-file'); if(fi) fi.onchange=()=>{ const n=$('sc-file-name'); if(n) n.textContent=(fi.files&&fi.files[0])?('📎 '+fi.files[0].name):''; };
+  const b=$('sc-send'); if(b) b.onclick=()=>caSopResponder(aid,canal,nombre,verArch,area);
+  const ba=$('sc-arch'); if(ba) ba.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await caAccion('sop:'+area,aid,'arch'); caCentrosInbox(canal,false,area); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bd=$('sc-del'); if(bd) bd.onclick=async()=>{ if(!await appConfirm('¿Borrar esta conversación de tu bandeja? El centro conserva su copia.')) return; try{ await caAccion('sop:'+area,aid,'del'); caCentrosInbox(canal,false,area); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bde=$('sc-desarch'); if(bde) bde.onclick=async()=>{ try{ await caAccion('sop:'+area,aid,'desarch'); caCentrosInbox(canal,false,area); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bv=$('sc-verarch'); if(bv) bv.onclick=()=>caCentrosHilo(aid,canal,nombre,true,area);
+  scScrollBottom();
+}
+async function caSopResponder(aid, canal, nombre, verArch, area){
+  area=area||'soporte';
+  const t=$('sc-txt'); const txt=(t&&t.value||'').trim();
+  const fi=$('sc-file'); const file=fi&&fi.files&&fi.files[0];
+  if(!txt && !file) return;
+  const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{
+    let url=null, nombre2=null;
+    if(file){ url=await subirAdjuntoChat(file); nombre2=file.name; }
+    await call('/rest/v1/rpc/ca_sop_responder',{method:'POST',body:{p_academia:+aid,p_texto:txt,p_adjunto_url:url,p_adjunto_nombre:nombre2,p_canal:canal,p_area:area}});
+    await caCentrosHilo(aid,canal,nombre,verArch,area);
+  }catch(e){ if(b){ b.disabled=false; b.textContent='Responder'; } appAlert('No se pudo enviar: '+(e.message||'')); }
+}
+async function caCliChat(){
+  showView('teacher'); window.scrollTo(0,0);
+  const card=(area,tit,sub)=>`<button onclick="caCliArea('${area}')" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">${tit}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub}</div></button>`;
+  $('teacher').innerHTML=`<button class="backbtn" onclick="openAcademiaCentro()">← Volver</button>
+    <h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 Chat con Aptuvia</h1>
+    <p style="font-size:.8rem;color:var(--ink-soft);margin:0 0 8px">Elige a quién diriges tu consulta:</p>
+    ${card('soporte','💬 Soporte','Dudas técnicas o incidencias de la plataforma')}
+    ${card('administracion','🧾 Administración','Facturas, pagos y datos de facturación')}
+    ${card('comercial','📣 Comercial','Presupuestos, altas, planes y servicios')}`;
+}
+async function caCliArea(area, verArch){
+  area=area||'soporte';
+  showView('teacher'); window.scrollTo(0,0);
+  $('teacher').innerHTML='<button class="backbtn" onclick="caCliChat()">← Chat con Aptuvia</button><div class="loader"><span class="spin"></span></div>';
+  let msgs=[];
+  try{ msgs=await call('/rest/v1/rpc/ca_cli_listar',{method:'POST',body:{p_area:area}})||[]; }
+  catch(e){ $('teacher').innerHTML='<button class="backbtn" onclick="caCliChat()">← Chat con Aptuvia</button><div class="t-note err">No se pudo abrir: '+escHtml(e.message||'')+'</div>'; return; }
+  const aid=(msgs&&msgs.length)?msgs[0].academia_id:null;
+  const estMap=await caEstadoMias('cli:'+area); const e=aid!=null?estMap[String(aid)]:null;
+  const shown=(msgs||[]).filter(m=> verArch?chatArchivado(m.creado_en,e):chatVivo(m.creado_en,e));
+  const nArch=(msgs||[]).filter(m=>chatArchivado(m.creado_en,e)).length;
+  const back = verArch?("caCliArea('"+area+"')"):'caCliChat()';
+  const h=['<button class="backbtn" onclick="'+back+'">← '+(verArch?CA_AREA_LABEL[area]:'Chat con Aptuvia')+'</button>'];
+  h.push('<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 '+CA_AREA_LABEL[area]+(verArch?' · Archivados':'')+'</h1>');
+  h.push('<p style="font-size:.78rem;color:var(--ink-soft);margin:0 0 12px">Escribe a '+CA_AREA_LABEL[area]+' de Aptuvia. Te responden por aquí.</p>');
+  h.push('<div id="sc-hilo" style="display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow-y:auto;background:#fbfbf7;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">');
+  if(!shown.length) h.push('<p style="font-size:.82rem;color:var(--ink-soft);text-align:center;margin:14px 0">'+(verArch?'No hay mensajes archivados.':'Escríbenos tu primera consulta.')+'</p>');
+  else shown.forEach(m=>h.push(caBurbuja(m,'centro')));
+  h.push('</div>');
+  if(!verArch){
+    h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
+    h.push('<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label class="btn btn-ghost" style="margin:0;cursor:pointer;flex:0 0 auto">📎 Adjuntar<input type="file" id="sc-file" accept="application/pdf,image/*" style="display:none"></label><span id="sc-file-name" style="font-size:.78rem;color:var(--ink-soft)"></span></div>');
+    h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar</button>');
+    if(aid!=null) h.push('<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-ghost" id="sc-arch" style="margin:0;flex:1">🗂 Archivar</button><button class="btn btn-ghost" id="sc-del" style="margin:0;flex:1;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar</button></div>');
+    if(nArch>0) h.push('<button class="btn btn-ghost" id="sc-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>');
+  }else{
+    h.push('<button class="btn btn-honey" id="sc-desarch" style="margin-top:8px">↩ Desarchivar</button>');
+  }
+  $('teacher').innerHTML=h.join('');
+  const fi=$('sc-file'); if(fi) fi.onchange=()=>{ const n=$('sc-file-name'); if(n) n.textContent=(fi.files&&fi.files[0])?('📎 '+fi.files[0].name):''; };
+  const b=$('sc-send'); if(b) b.onclick=()=>caCliEnviar(area);
+  const ba=$('sc-arch'); if(ba) ba.onclick=async()=>{ if(!await appConfirm('¿Archivar esta conversación? Podrás verla en Archivados.')) return; try{ await caAccion('cli:'+area,aid,'arch'); caCliArea(area); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bd=$('sc-del'); if(bd) bd.onclick=async()=>{ if(!await appConfirm('¿Borrar esta conversación de tu vista? Aptuvia conserva su copia.')) return; try{ await caAccion('cli:'+area,aid,'del'); caCliArea(area); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bde=$('sc-desarch'); if(bde) bde.onclick=async()=>{ try{ await caAccion('cli:'+area,aid,'desarch'); caCliArea(area); }catch(err){ appAlert('No se pudo: '+(err.message||'')); } };
+  const bv=$('sc-verarch'); if(bv) bv.onclick=()=>caCliArea(area,true);
+  scScrollBottom();
+}
+async function caCliEnviar(area){
+  area=area||'soporte';
+  const t=$('sc-txt'); const txt=(t&&t.value||'').trim();
+  const fi=$('sc-file'); const file=fi&&fi.files&&fi.files[0];
+  if(!txt && !file) return;
+  const b=$('sc-send'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{
+    let url=null, nombre2=null;
+    if(file){ url=await subirAdjuntoChat(file); nombre2=file.name; }
+    await call('/rest/v1/rpc/ca_cli_enviar',{method:'POST',body:{p_texto:txt,p_adjunto_url:url,p_adjunto_nombre:nombre2,p_area:area}});
+    await caCliArea(area);
+  }catch(e){ if(b){ b.disabled=false; b.textContent='Enviar'; } appAlert('No se pudo enviar: '+(e.message||'')); }
+}
+
 // ---- Manual del usuario (manual · temario · contraseña) ----
 function openPassword(okMsg, errMsg, sub){
   showView('teacher'); window.scrollTo(0,0);
@@ -8322,7 +8643,7 @@ function examVisible(e){
 }
 async function refrescarExamenes(){
   const [ex, tipos, pubAcad] = await Promise.all([
-    call('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id&order=orden.asc'),
+    call('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id,fecha_entrega,creado_en&order=orden.asc').catch(()=>call('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id&order=orden.asc')),
     call('/rest/v1/examenes?select=id,tipo').catch(()=>null),
     call('/rest/v1/rpc/examenes_publicados_academia',{method:'POST',body:impProf({})}).catch(()=>[])
   ]);
@@ -8375,6 +8696,13 @@ function temaIdSelectHtml(){
   const opts=temas.map(t=>`<option value="${escAttr(t.id)}"${String(builder.temaId||'')===String(t.id)?' selected':''}>${escHtml(t.titulo)}</option>`).join('');
   return `<label style="margin-top:12px">Tema al que va el examen</label><select id="ce-tema-id" onchange="builder.temaId=this.value"><option value="">— Sin tema (lo coloco luego) —</option>${opts}</select>`;
 }
+async function stampEntregaNuevos(unidad, antes){
+  const f=(builder.fechaEntrega||'').trim(); if(!f) return;
+  const nuevos=(examsByUnit[unidad]||[]).map(e=>String(e.id)).filter(id=>!antes.has(id));
+  for(const id of nuevos){
+    try{ await call('/rest/v1/rpc/examen_set_entrega',{method:'POST',body:impProf({p_examen:id,p_fecha:f})}); const ex=(examsByUnit[unidad]||[]).find(e=>String(e.id)===id); if(ex) ex.fecha_entrega=f; }catch(_){}
+  }
+}
 async function stampTemaNuevos(unidad, antes){
   if(!builder.temaId) return;
   const nuevos=(examsByUnit[unidad]||[]).map(e=>String(e.id)).filter(id=>!antes.has(id));
@@ -8399,7 +8727,13 @@ function captureFields(){
   const n=$('ce-n'); if(n) builder.n=Math.max(1,Math.min(100,parseInt(n.value,10)||15));
   const tm=$('ce-tema'); if(tm) builder.tema=tm.value;
   const cf=$('ce-final'); if(cf) builder.cuentaFinal=cf.checked;
+  const fe=$('ce-entrega'); if(fe) builder.fechaEntrega=fe.value||'';
   const ti=$('ce-tema-id'); if(ti) builder.temaId=ti.value;
+}
+async function fijarEntregaExamen(examId){
+  const id=String(examId||''); if(!id) return;
+  const f=(builder.fechaEntrega||'').trim()||null;
+  try{ await call('/rest/v1/rpc/examen_set_entrega',{method:'POST',body:impProf({p_examen:id,p_fecha:f})}); }catch(_){}
 }
 
 // Etiqueta de tema reutilizable (global, usada por builder y picker)
@@ -8542,7 +8876,7 @@ function renderExamMgmt(okMsg,errMsg){
   h.push(`<div class="t-toggle" style="margin-bottom:14px"><button id="kd-test" class="${builder.kind==='test'?'on':''}">📝 Test</button><button id="kd-red" class="${builder.kind==='redaccion'?'on':''}">✍️ Redacción</button><button id="kd-imp" class="${builder.kind==='importar'?'on':''}">📋 Pegar examen</button><button id="kd-banco" class="${builder.kind==='banco'?'on':''}">📚 Banco</button></div>`);
   if(builder.kind==='redaccion'){
     h.push('<div class="mgmt-2col"><div class="mgmt-left">');
-        h.push('<div class="t-card"><label style="margin-top:6px">Unidad de destino</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55">Examen de <b>redacción</b>: una o varias preguntas abiertas que el alumno responde escribiendo, y que tú corriges (a mano o con ayuda de IA). Puedes adjuntar un PDF (mapa, texto o imagen) que verá junto al enunciado.</div><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label>'+temaIdSelectHtml()+'<label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
+        h.push('<div class="t-card"><label style="margin-top:6px">Unidad de destino</label><select id="ce-unidad">'+uOpts+'</select><div style="font-size:.72rem;color:var(--ink-soft);margin-top:8px;line-height:1.55">Examen de <b>redacción</b>: una o varias preguntas abiertas que el alumno responde escribiendo, y que tú corriges (a mano o con ayuda de IA). Puedes adjuntar un PDF (mapa, texto o imagen) que verá junto al enunciado.</div><label>Título del examen</label><input id="ce-titulo" type="text" placeholder="Ej.: Examen de redacción" value="'+escAttr(builder.titulo)+'"><label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"'+(builder.cuentaFinal?' checked':'')+'>  Cuenta para la nota final</label>'+temaIdSelectHtml()+'<label style="margin-top:12px">Fecha de entrega (opcional)</label><input id="ce-entrega" type="date" value="'+escAttr(builder.fechaEntrega||'')+'"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se muestra al alumno en su lista de pendientes.</div><label style="margin-top:14px;font-size:.72rem;color:var(--ink-soft)">PDF del examen (opcional, p.ej. un mapa)'+(builder.examMatName?' · <b>📎 '+escHtml(builder.examMatName)+'</b>':'')+'</label><input id="ce-mat-file" type="file" accept="application/pdf" style="font-size:.75rem"><div style="font-size:.68rem;color:var(--ink-soft);margin-top:4px">Se mostrará incrustado en la pantalla del alumno.</div></div>');
     h.push(`<div style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0">Se creará en <b>${escHtml(unidadesById[builder.unidad]?unidadesById[builder.unidad].codigo+' · '+tituloMateria(unidadesById[builder.unidad]):(builder.unidad||'—'))}</b>.</div>`);
     h.push(renderRedSection());
     h.push('</div><div class="mgmt-right">');
@@ -8570,6 +8904,7 @@ function renderExamMgmt(okMsg,errMsg){
       <input id="ce-titulo" type="text" placeholder="Ej.: Examen Tema 3 · Importado" value="${escAttr(builder.titulo)}">
       <label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"${builder.cuentaFinal?' checked':''}> Cuenta para la nota final</label>
       ${temaIdSelectHtml()}
+      <label style="margin-top:12px">Fecha de entrega (opcional)</label><input id="ce-entrega" type="date" value="${escAttr(builder.fechaEntrega||'')}">
     </div>`);
     h.push(`<div class="t-card" style="margin-top:12px">
       <div style="background:#eff6ff;border-left:3px solid var(--navy);border-radius:0 8px 8px 0;padding:10px 12px;font-size:.74rem;color:#1e3a8a;line-height:1.6;margin-bottom:12px;">
@@ -8632,6 +8967,7 @@ D) Opción
   h.push(`</div>`);
   h.push(`<label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ce-final"${builder.cuentaFinal?' checked':''}> Cuenta para la nota final</label>`);
   h.push(temaIdSelectHtml());
+  h.push(`<label style="margin-top:12px">Fecha de entrega (opcional)</label><input id="ce-entrega" type="date" value="${escAttr(builder.fechaEntrega||'')}">`);
   if(builder.mode==='auto'){
     const tOpts=`<option value="">Toda la unidad</option>`+temas.map(t=>`<option value="${escAttr(t.tema)}"${t.tema===builder.tema?' selected':''}>${escHtml(temaLabel(t))} (${t.n})</option>`).join('');
 h.push(`<label>Tema</label><select id="ce-tema">${tOpts}</select><button class="btn btn-primary" id="ce-btn" style="margin-top:16px">Crear examen</button>`);
@@ -8976,7 +9312,8 @@ async function crearRedUI(){
     const visible = vis==='si';
     try{ await call('/rest/v1/rpc/set_examen_publicado',{method:'POST',body:impProf({p_examen_id:nuevo.id, p_publicado:visible})}); nuevo.publicado=visible; }catch(_){}
     if(builder.temaId){ try{ await call('/rest/v1/rpc/aa_examen_tema',{method:'POST',body:impProf({p_examen:nuevo.id,p_tema:builder.temaId})}); nuevo.tema_id=builder.temaId; }catch(_){} }
-    builder.titulo=''; builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}]; builder.cuentaFinal=false;
+    await fijarEntregaExamen(nuevo.id); nuevo.fecha_entrega=(builder.fechaEntrega||'')||null;
+    builder.titulo=''; builder.redItems=[{enun:'',file:null,matName:'',matMode:'inline'}]; builder.cuentaFinal=false; builder.fechaEntrega='';
     builder.examFile=null; builder.examMatName=''; builder.examMatMode='inline';
     renderExamMgmt(visible ? '✅ Examen de redacción creado. Ya aparece para el alumnado.' : '✅ Examen de redacción creado (oculto). Actívalo en «Exámenes y estados» cuando quieras.');
   }catch(err){ if(btn){ btn.disabled=false; btn.textContent='Crear examen de redacción'; } renderExamMgmt(null,'No se pudo crear: '+(err.message||'')); }
@@ -9088,6 +9425,7 @@ async function crearAutoUI(){
     await refrescarExamenes();
     await fijarVisibilidadNuevos(builder.unidad, antes, vis==='si');
     await stampTemaNuevos(builder.unidad, antes);
+    await stampEntregaNuevos(builder.unidad, antes);
     builder.cuentaFinal=false;
     const temaTxt=builder.tema?(' · '+builder.tema):'';
     const ocultoTxt = vis==='si' ? '' : ' · (oculto — actívalo en «Exámenes y estados»)';
@@ -9108,6 +9446,7 @@ async function crearMedidaUI(){
     await refrescarExamenes();
     await fijarVisibilidadNuevos(builder.unidad, antes, vis==='si');
     await stampTemaNuevos(builder.unidad, antes);
+    await stampEntregaNuevos(builder.unidad, antes);
     const titulo=builder.titulo||'Examen del profesor', nq=builder.items.length;
     builder.items=[]; builder.adding=false; builder.picking=false; builder.cuentaFinal=false;
     const ocultoTxt = vis==='si' ? '' : ' · (oculto — actívalo en «Exámenes y estados»)';
@@ -9154,6 +9493,7 @@ function renderEditarCabecera(ex){
       <label style="margin-top:6px">Título</label>
       <input id="ed-tit" type="text" value="${escAttr(ex.titulo||'')}">
       <label class="ckrow" style="margin-top:12px"><input type="checkbox" id="ed-fin"${ex.cuenta_final?' checked':''}> Cuenta para la nota final</label>
+      <label style="margin-top:12px">Fecha de entrega (opcional)</label><input id="ed-entrega" type="date" value="${escAttr(ex.fecha_entrega||'')}">
       <button class="btn btn-honey" id="ed-save" style="margin-top:16px">Guardar cambios</button>
     </div>
     ${ex.tipo!=='redaccion'?`<button class="btn btn-ghost pv-toggle" id="btn-pv-preguntas" style="margin-top:14px;width:100%">👁 Revisar y editar preguntas</button><div id="pv-preguntas"></div>`:`<button class="btn btn-ghost pv-toggle" id="btn-red-edit" style="margin-top:14px;width:100%">✏️ Editar enunciados</button><div id="red-prof"></div>`}`;
@@ -9170,6 +9510,8 @@ async function guardarCabeceraUI(id){
   const btn=$('ed-save'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
   try{
     await call('/rest/v1/rpc/actualizar_examen_cabecera',{method:'POST',body:{p_examen_id:id, p_titulo:tit, p_nivel:niv, p_cuenta_final:fin}});
+    const fe=$('ed-entrega'); const fv=fe?((fe.value||'').trim()||null):null;
+    try{ await call('/rest/v1/rpc/examen_set_entrega',{method:'POST',body:impProf({p_examen:String(id),p_fecha:fv})}); if(_exCab) _exCab.fecha_entrega=fv; }catch(_){}
     await refrescarExamenes();
     renderExamMgmt('✅ Examen actualizado.');
   }catch(err){ btn.disabled=false; btn.textContent='Guardar cambios'; appAlert('No se pudo guardar: '+(err.message||'')); }
@@ -10127,6 +10469,7 @@ async function openAcademiaCentro(msg, academiaId){
   if(msg) h+=`<div class="t-note ok">${escHtml(msg)}</div>`;
   h+=`<div class="t-welcome"><span class="t-course">${escHtml(window._acadNombre||'Mi academia')}</span></div>
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 12px">Consulta de resultados. Elige un profesor para ver las notas de su alumnado.</p>`;
+  if(!prev) h+=`<button class="btn btn-honey" id="ca-cli-chat" style="width:100%;margin-bottom:12px">💬 Chat con soporte <span id="ca-cli-badge"></span></button>`;
   if(profes.length) h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-ghost" id="ac-riesgo" style="flex:1;min-width:150px">⚠️ Alumnado en riesgo</button>
     <button class="btn btn-ghost" id="ac-actividad" style="flex:1;min-width:150px">📊 Actividad del profesorado</button>
@@ -10147,6 +10490,7 @@ async function openAcademiaCentro(msg, academiaId){
   h+=manualPill('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
+  if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=caCliChat; call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
   // El acceso a la vista de grupo solo se pinta si la cuenta pertenece a uno.
   grCargarResumen().then(rows=>{
     if(!rows||!rows.length) return;
@@ -10930,7 +11274,7 @@ async function openAATemas(unitId){
 
   let h=head;
   if(staff){
-    h+=`<button class="btn btn-honey" onclick="aaTemaCrear('${escAttr(unitId)}')" style="margin-bottom:14px">+ Nuevo tema</button>`;
+    h+=`<button class="btn btn-honey" onclick="aaTemaEditor('${escAttr(unitId)}')" style="margin-bottom:14px">+ Nuevo tema</button>`;
   }
   if(!temas.length && !sinTema){
     h+=`<div class="soon-screen"><div class="soon-emoji">📚</div><div class="soon-title">Todavía no hay temas</div>
@@ -10979,7 +11323,7 @@ async function openAATemas(unitId){
       b.textContent = abierto ? '▾' : '▴';
     };
   });
-  $('unit').querySelectorAll('[data-ren]').forEach(b=> b.onclick=(ev)=>{ ev.stopPropagation(); aaTemaRenombrar(unitId,b.dataset.ren); });
+  $('unit').querySelectorAll('[data-ren]').forEach(b=> b.onclick=(ev)=>{ ev.stopPropagation(); aaTemaEditor(unitId,b.dataset.ren); });
   $('unit').querySelectorAll('[data-delt]').forEach(b=> b.onclick=(ev)=>{ ev.stopPropagation(); aaTemaBorrar(unitId,b.dataset.delt); });
 }
 
@@ -10990,6 +11334,47 @@ async function aaTemaCrear(unitId){
     await call('/rest/v1/rpc/aa_tema_crear',{method:'POST',body:impProf({p_unidad:unitId,p_titulo:t.trim()})});
     await openAATemas(unitId);
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
+}
+function aaTemaEditor(unitId, temaId){
+  const t = temaId ? (window._aaTemas||[]).find(x=>String(x.id)===String(temaId)) : null;
+  window._temaEd = { unitId, temaId: temaId||null, titulo: t?(t.titulo||''):'', apartados: (t&&Array.isArray(t.apartados))?t.apartados.slice():[] };
+  aaTemaEditorRender();
+}
+function aaTemaApRow(i,a){
+  return '<div class="te-ap" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><span style="font-size:.78rem;color:var(--ink-soft);width:20px;text-align:right;flex:0 0 auto">'+(i+1)+'.</span><input class="te-ap-inp" type="text" value="'+escAttr(a||'')+'" placeholder="Nombre del apartado" style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:.85rem;font-family:inherit"><button class="te-ap-del" type="button" data-i="'+i+'" style="flex:0 0 auto;background:#f7d9d9;border:1px solid #e6adad;color:#b4232a;border-radius:8px;padding:6px 9px;cursor:pointer">🗑</button></div>';
+}
+function aaTemaEditorCapture(){
+  const s=window._temaEd; if(!s) return;
+  const ti=$('te-tit'); if(ti) s.titulo=ti.value;
+  const inps=document.querySelectorAll('#te-aps .te-ap-inp');
+  s.apartados=Array.from(inps).map(x=>x.value);
+}
+function aaTemaEditorRender(){
+  const s=window._temaEd; if(!s) return;
+  showView('unit'); window.scrollTo(0,0);
+  const aps = s.apartados.length? s.apartados : [''];
+  let h='<button class="backbtn" onclick="openAATemas(\''+escAttr(s.unitId)+'\')" style="margin-bottom:10px">← Temas</button>';
+  h+='<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">'+(s.temaId?'✏️ Editar tema':'📚 Nuevo tema')+'</h1>';
+  h+='<div class="t-card"><label style="margin-top:2px">Nombre del tema</label><input id="te-tit" type="text" value="'+escAttr(s.titulo)+'" placeholder="Ej.: Tema 1. La crisis del Antiguo Régimen" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit">';
+  h+='<label style="margin-top:14px">Apartados</label><div style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 8px;line-height:1.5">Los puntos que verá el alumno dentro del tema (como en «Tema 1» desplegado). Puedes dejarlo vacío o añadir los que quieras.</div>';
+  h+='<div id="te-aps">'+aps.map((a,i)=>aaTemaApRow(i,a)).join('')+'</div>';
+  h+='<button class="btn btn-ghost" id="te-add" style="margin-top:6px">➕ Añadir apartado</button>';
+  h+='<button class="btn btn-honey" id="te-save" style="margin-top:16px">Guardar tema</button></div>';
+  $('unit').innerHTML=h;
+  const ba=$('te-add'); if(ba) ba.onclick=()=>{ aaTemaEditorCapture(); window._temaEd.apartados.push(''); aaTemaEditorRender(); };
+  document.querySelectorAll('#te-aps .te-ap-del').forEach(b=> b.onclick=()=>{ aaTemaEditorCapture(); const i=+b.dataset.i; window._temaEd.apartados.splice(i,1); aaTemaEditorRender(); });
+  const bs=$('te-save'); if(bs) bs.onclick=aaTemaEditorGuardar;
+}
+async function aaTemaEditorGuardar(){
+  aaTemaEditorCapture();
+  const s=window._temaEd;
+  const tit=(s.titulo||'').trim(); if(!tit){ appAlert('Ponle un nombre al tema.'); return; }
+  const aps=(s.apartados||[]).map(x=>String(x||'').trim()).filter(Boolean);
+  const b=$('te-save'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span>'; }
+  try{
+    await call('/rest/v1/rpc/aa_tema_guardar',{method:'POST',body:impProf({p_tema:s.temaId||null, p_unidad:s.unitId, p_titulo:tit, p_apartados:aps})});
+    await openAATemas(s.unitId);
+  }catch(e){ if(b){ b.disabled=false; b.textContent='Guardar tema'; } appAlert('No se pudo guardar: '+(e.message||'')); }
 }
 async function aaTemaRenombrar(unitId, temaId){
   const t=(window._aaTemas||[]).find(x=>String(x.id)===String(temaId));
