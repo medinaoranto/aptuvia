@@ -4235,9 +4235,9 @@ function rsRender(){
   const sub=window._rsSub||null;
   if(sub){ rsCargar(); return; }
   let h='';
+  h+=`<button id="ca-com-card" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:11px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.9rem;margin-bottom:14px" onclick="caCentrosInbox('academia',false,'comercial')">🏫 Chat con centros<span id="ca-com-badge"></span></button>`;
   h+=`<div class="sa-cards-grid">`;
   h+=`<button class="fact-menu" onclick="rsAbrirPresu()" style="background:#eef8fe"><b>📝 Presupuestos</b><span>Preparar, enviar y aceptar presupuestos. El aceptado y firmado es el contrato</span></button>`;
-  h+=`<button class="fact-menu" onclick="caCentrosInbox('academia',false,'comercial')"><b>💬 Chat con centros <span id="ca-com-badge"></span></b><span>Consultas de academias y premium dirigidas a Comercial</span></button>`;
   h+=`</div>`;
   h+=`<h3 style="font-size:.78rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft);margin:22px 2px 8px">Redes sociales</h3>`;
   h+=`<div class="sa-cards-grid">`;
@@ -4270,9 +4270,9 @@ function saRenderFacturacionLista(){
   const sub=window._factSub||null;
   if(!sub){
     let h='';
+    h+=`<button id="ca-adm-card" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:11px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.9rem;margin-bottom:14px" onclick="caCentrosInbox('academia',false,'administracion')">🏫 Chat con centros<span id="ca-adm-badge"></span></button>`;
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
-    h+=`<button class="fact-menu" onclick="caCentrosInbox('academia',false,'administracion')"><b>💬 Chat con centros <span id="ca-adm-badge"></span></b><span>Consultas de academias y premium dirigidas a Administración</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('academias')"><b>Facturar Aptuvia</b><span>Emitir factura a las academias de la plataforma</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('aa')"><b>Facturar Aula Abierta</b><span>Emitir factura a los clientes de Aula Abierta</span></button>`;
