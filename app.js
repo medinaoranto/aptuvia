@@ -2723,29 +2723,31 @@ function docManualArea(area){
 // Presencia por área: cada área tiene su propio aviso "Trabajando"; cuando una está
 // activa, las otras dos lo ven en rojo con el nombre del área.
 const PRES_NOMBRE={soporte:'Soporte',comercial:'Comercial',admin:'Administración'};
+const PRES_CORTO={soporte:'Soporte',comercial:'Comercial',admin:'Admin.'};
 function docsBar(area){
   const mon=!!window._mantOn;
   const pres=window._pres||{soporte:false,comercial:false,admin:false};
   const pills=[];
+  const base='border-radius:999px;padding:4px 8px;font-size:.57rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
   // Modo mantenimiento (solo Soporte), con texto
   if(area==='soporte'){
-    const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:5px 11px;font-size:.62rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
-    pills.push(`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️ ${mon?'Mantenimiento':'Operativo'}</button>`);
+    const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';cursor:pointer;'+base;
+    pills.push(`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️ ${mon?'Mant.':'Operativo'}</button>`);
   }
   // Mi propio aviso de "Trabajando" (con texto)
   const yo=!!pres[area];
-  const ps='border:1.5px solid '+(yo?'#b4232a':'#a9b3c2')+';background:'+(yo?'#fdeaea':'#eef2f7')+';color:'+(yo?'#b4232a':'var(--ink-soft)')+';border-radius:999px;padding:5px 11px;font-size:.62rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+  const ps='border:1.5px solid '+(yo?'#b4232a':'#a9b3c2')+';background:'+(yo?'#fdeaea':'#eef2f7')+';color:'+(yo?'#b4232a':'var(--ink-soft)')+';cursor:pointer;'+base;
   pills.push(`<button onclick="presToggle('${area}')" title="${yo?'Estás marcado como TRABAJANDO: las otras áreas lo ven. Pulsa para apagar.':'Avisa a las otras áreas de que estás trabajando (posibles cambios). Pulsa para activar.'}" style="${ps}">${yo?'🔴 Trabajando':'⚪ Trabajar'}</button>`);
   // Otras áreas que están trabajando ahora mismo
   ['soporte','comercial','admin'].forEach(a=>{
     if(a!==area && pres[a]){
-      const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;border-radius:999px;padding:5px 11px;font-size:.62rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
-      pills.push(`<span title="${PRES_NOMBRE[a]} está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="${s}">🔴 ${PRES_NOMBRE[a]}</span>`);
+      const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;'+base;
+      pills.push(`<span title="${PRES_NOMBRE[a]} está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="${s}">🔴 ${PRES_CORTO[a]}</span>`);
     }
   });
   return `<div style="margin:14px 0 4px">
     <button class="fact-menu" style="width:100%;margin:0" onclick="docMTOpen('${area||''}')"><b>📘 Manual y trazabilidad</b><span>Guía de tu área y el circuito comercial completo</span></button>
-    ${pills.length?`<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">${pills.join('')}</div>`:''}
+    ${pills.length?`<div style="display:flex;gap:5px;justify-content:flex-end;margin-top:10px;flex-wrap:nowrap">${pills.join('')}</div>`:''}
   </div>`;
 }
 function docMTOpen(area){
