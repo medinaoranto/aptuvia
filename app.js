@@ -1552,7 +1552,7 @@ function renderModulosCardsHtml(conBorrar){
     } else {
       const est=moduleEstado(m);
       const accent = est==='activo'?'navy':(est==='proximamente'?'soon':'');
-      const st=`<span class="chip state ${estCls(est)}"${esMateriaAA?' style="margin-right:46px"':''}>${estLabel(est)}</span>`;
+      const st=`<span class="chip state ${estCls(est)}">${estLabel(est)}</span>`;
       html+=`<button class="mod ${accent}" data-mod="${m.id}" type="button">
           <div class="mod-top"><span class="chip eye">${m.eye}</span>${st}</div>
           <h2>${m.code} · ${m.title}</h2>
@@ -8474,7 +8474,7 @@ async function openPublicar(okMsg){
   let any=false;
   getModulos().forEach(m=>{
     const me=moduleEstado(m);
-    h.push(`<div class="est-mod">${m.code} · ${m.title} <span class="chip state ${estCls(me)}" data-modchip="${m.id}">${estLabel(me)}</span></div>`);
+    h.push(`<div class="est-mod"><span style="flex:1 1 auto;min-width:0">${m.code} · ${m.title}</span><span class="chip state ${estCls(me)}" data-modchip="${m.id}">${estLabel(me)}</span></div>`);
     m.unidades.forEach(uid=>{
       const u=unidadesById[uid];
       const codigo = u ? u.codigo : uid.toUpperCase();

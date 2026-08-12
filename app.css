@@ -1577,11 +1577,14 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
    Activo (lavanda) · Terminado se queda igual (miel) */
 .chip.state{ background:var(--navy-tint)!important; color:var(--navy)!important; border:2px solid var(--navy)!important; }
 .chip.state.active{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; border:none!important; }
-.chip.state.done{ background:var(--honey-tint)!important; color:var(--honey)!important; border:none!important; }
+.chip.state.done{ background:var(--honey-tint)!important; color:var(--honey)!important; border:2px solid var(--honey)!important; }
 /* Ca6: el nivel "4° ESO" de la materia ACTIVA, verde con texto blanco */
 .mod.navy .chip.eye{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
 /* Ca1 (nuevo): el nivel de una materia PRÓXIMAMENTE, del mismo color que su píldora */
-.mod.soon .chip.eye{ background:var(--navy-tint)!important; color:var(--navy)!important; }
+.mod.soon .chip.eye{ background:var(--navy-tint)!important; color:var(--navy)!important; border:2px solid var(--navy)!important; }
+/* Estados: la situación siempre a la derecha; el título puede ir en 2 líneas */
+.est-mod{ align-items:flex-start!important; flex-wrap:nowrap!important; }
+.est-mod .chip.state{ margin-left:auto!important; flex:0 0 auto!important; margin-top:2px; }
 
 /* Ca4: "Activar/Quitar todas" y los interruptores de visualización → celeste
    Santorini hundido, con sombra y brillo */
