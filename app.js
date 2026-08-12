@@ -3273,23 +3273,44 @@ function saRenderLista(okMsg,errMsg){
       <button class="btn btn-ghost" id="sa-nueva" style="flex:1;margin:0;min-width:130px">Nueva academia · sin presupuesto</button>
     </div>
   </div>`;
+  // Cargar (una vez) a qué grupo pertenece cada academia, para agruparlas.
+  if(window._grAcad===undefined){
+    window._grAcad=null;
+    Promise.all([
+      call('/rest/v1/academia?select=id,grupo_id').catch(()=>[]),
+      call('/rest/v1/grupos?select=id,nombre').catch(()=>[])
+    ]).then(([acs,grs])=>{
+      const ga={}; (acs||[]).forEach(x=>{ ga[x.id]=x.grupo_id||null; });
+      const gn={}; (grs||[]).forEach(x=>{ gn[x.id]=x.nombre||('Grupo #'+x.id); });
+      window._grAcad=ga; window._grNom=gn;
+      if(!saSelAcad && saMainTab!=='sop' && saMainTab!=='acadprof' && saMainTab!=='aa' && saMainTab!=='fact' && saMainTab!=='rs') saRenderLista();
+    });
+  }
   h+=`<button id="sa-acad-toggle" class="btn btn-ghost" style="margin:0 0 12px;justify-content:space-between">🏫 Academias<span style="font-weight:800;color:var(--ink-soft)">${saAcademias.length} ▾</span></button>`;
   h+=`<div id="sa-acad-wrap" class="hidden">`;
   h+=`<input id="sa-acad-q" placeholder="Buscar academia por nombre…" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.85rem;margin-bottom:8px">`;
   h+=`<div id="sa-acad-list" class="sa-cards-grid">`;
-  saAcademias.forEach(a=>{
+  const _ga=window._grAcad||{}, _gn=window._grNom||{};
+  const _cardAcad=(a,ind)=>{
     const rev = a.activa===false;
-    h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" data-nom="${escAttr(String(a.nombre||'').toLowerCase())}" style="background:#fff;padding:9px 12px;margin-bottom:7px;${rev?'opacity:.72':''}">
+    return `<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" data-nom="${escAttr(String(a.nombre||'').toLowerCase())}" style="background:#fff;padding:9px 12px;margin-bottom:7px;${ind?'margin-left:14px;border-left:3px solid var(--honey);':''}${rev?'opacity:.72':''}">
       <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:1.02rem;color:var(--navy)">${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id}</span></div>
-      <div class="sa-counts" style="display:none"><span>${a.n_profes} profes</span><span>${a.n_alumnos} alumnos</span><span>${a.n_examenes} exs</span></div>
     </div>`;
+  };
+  const _grupos={}, _sueltas=[];
+  saAcademias.forEach(a=>{ const g=_ga[a.academia_id]; if(g){ (_grupos[g]=_grupos[g]||[]).push(a); } else _sueltas.push(a); });
+  _sueltas.forEach(a=>{ h+=_cardAcad(a,false); });
+  Object.keys(_grupos).forEach(gid=>{
+    const nom=_gn[gid]||('Grupo #'+gid); const n=_grupos[gid].length;
+    h+=`<div class="sa-grupo-head" data-grpnom="${escAttr(('direccion '+nom).toLowerCase())}" style="margin:12px 0 5px;font-weight:800;color:var(--navy);font-size:.9rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap">👑 Dirección ${escHtml(nom)}<span style="font-weight:700;color:var(--ink-soft);font-size:.72rem">· ${n} academia${n===1?'':'s'}</span></div>`;
+    _grupos[gid].forEach(a=>{ h+=_cardAcad(a,true); });
   });
   h+=`</div></div>`;
   $('teacher').innerHTML=saShell(h);
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=()=>saAltaDesdePresu('ev');
   const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-wrap'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); if(abre){ const q=$('sa-acad-q'); if(q) q.focus(); } } };
-  const acq=$('sa-acad-q'); if(acq) acq.oninput=()=>{ const v=acq.value.toLowerCase().trim(); $('teacher').querySelectorAll('#sa-acad-list .sa-card[data-acad]').forEach(c=>{ c.style.display=(!v||(c.dataset.nom||'').includes(v))?'':'none'; }); };
+  const acq=$('sa-acad-q'); if(acq) acq.oninput=()=>{ const v=acq.value.toLowerCase().trim(); $('teacher').querySelectorAll('#sa-acad-list .sa-card[data-acad]').forEach(c=>{ c.style.display=(!v||(c.dataset.nom||'').includes(v))?'':'none'; }); $('teacher').querySelectorAll('#sa-acad-list .sa-grupo-head').forEach(hd=>{ hd.style.display=v?'none':'flex'; }); };
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
   call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento').then(m=>{ const on=(m&&m[0]&&m[0].valor==='on'); window._mantOn=on; const p=$('sa-mant-pill'); if(p){ p.textContent='🛠️ '+(on?'Mantenimiento':'Operativo'); p.style.borderColor=on?'#b4232a':'#15803d'; p.style.background=on?'#fdeaea':'#dcfce7'; p.style.color=on?'#b4232a':'#15803d'; } }).catch(()=>{});
 }
@@ -3428,6 +3449,7 @@ async function saAddAcademiaGrupo(grupoId){
     catch(e){ appAlert('La academia se creó pero no se pudo colgar del grupo.\n¿Ejecutaste el SQL de sa_academia_set_grupo?\n\n'+(e.message||'')); }
     saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
     await saAbrirAcademia(academiaId);
+    window._grAcad=undefined;
     appAlert('✅ Academia "'+nombre.trim()+'" creada y colgada del grupo #'+grupoId+'. Añade ahora sus profesores con «Crear profesor».');
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
@@ -3829,6 +3851,7 @@ async function saAltaGrupo(id){
       const hecho=await saPremiumCrearCuenta(academiaId, c, true, gid);
       msgPrem = hecho ? '\n\n🔑 Cuenta de dirección creada (vinculada al grupo).' : '\n\n🔑 Crea la cuenta de dirección desde la ficha cuando quieras.';
     }catch(e){ msgPrem='\n\n⚠️ Revisa el acceso de dirección: '+(e.message||''); }
+    window._grAcad=undefined;
     saAcademias=await call('/rest/v1/rpc/sa_resumen',{method:'POST',body:{}})||saAcademias;
     await saAbrirAcademia(academiaId);
     appAlert('✅ Grupo "'+nombreGrupo.trim()+'" creado con su primera academia "'+nombreAcad.trim()+'", colgada del grupo.'+msgPrem+'\n\nAñade ahora las demás academias del grupo y sus profesores.');
