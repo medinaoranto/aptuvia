@@ -8680,6 +8680,9 @@ function renderIntentoDetalle(meta,it){
     if(q.explicacion) html+=`<div class="expl">${q.explicacion}</div>`;
     html+=`</div>`;
   });
+  if((it.detalle||[]).some(q=>q&&q.explicacion)){
+    html+=`<div style="font-size:.7rem;color:var(--ink-soft);margin:2px 2px 12px;display:flex;gap:6px;align-items:flex-start;line-height:1.45"><span>🤖</span><span>Las explicaciones pueden haberse elaborado con ayuda de inteligencia artificial.</span></div>`;
+  }
   html+=`<div class="bar"><button class="btn btn-ghost" onclick="${back}">← Volver</button></div>`;
   $('teacher').innerHTML=html;
 }
@@ -12385,7 +12388,10 @@ function renderRedaccion(entrega){
   if(corregido){
     const n=(entrega.nota!=null)?(+entrega.nota).toFixed(1):'—', pass=(+entrega.nota>=5);
     h.push(`<div class="t-note ${pass?'ok':'err'}" style="font-size:.95rem"><b>Nota: ${n} / 10</b></div>`);
-    if(entrega.comentario) h.push(`<div class="ia-prev" style="margin-top:10px">${pintarCorreccion(entrega.comentario, n)}</div>`);
+    if(entrega.comentario){
+      h.push(`<div class="ia-prev" style="margin-top:10px">${pintarCorreccion(entrega.comentario, n)}</div>`);
+      h.push(`<div style="font-size:.7rem;color:var(--ink-soft);margin-top:8px;display:flex;gap:6px;align-items:flex-start;line-height:1.45"><span>🤖</span><span>Corrección revisada por tu profesor. Puede haberse apoyado en herramientas de inteligencia artificial.</span></div>`);
+    }
     h.push(`<button class="btn btn-ghost" id="red-pdf" style="margin-top:10px">📄 Descargar mi examen corregido</button>`);
   }else if(estado==='pendiente'){
     h.push(`<div class="t-note" style="background:var(--honey-tint);color:var(--honey-deep);border-color:#f0d9b3">⏳ Entregado. Pendiente de corrección. No puedes volver a entregar hasta que tu profesor lo reabra.</div>`);
