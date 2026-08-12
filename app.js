@@ -4904,7 +4904,7 @@ async function arDocBorrar(id,path){
    Por eso lleva: emisor con NIF, cliente identificado, nº, fecha, validez,
    desglose, condiciones y hueco de firma. */
 
-let pxLista=[], pxEdit=null, pxAA=[];
+let pxLista=[], pxEdit=null, pxAA=[], pxCli=[];
 
 const PX_ESTADOS={
   borrador:{lab:'Borrador', col:'#6e6e78', bg:'#f1f1f4'},
@@ -4957,6 +4957,8 @@ async function pxRender(){
   }
   try{ const all=await call('/rest/v1/rpc/sa_aa_usuarios',{method:'POST',body:{}})||[]; pxAA=all.filter(u=>u.rol==='profesor'); }
   catch(e){ pxAA=[]; }
+  try{ pxCli=await call('/rest/v1/clientes?select=nif,razon_social,direccion,cp,poblacion,provincia,email,telefono,origen&order=razon_social.asc')||[]; }
+  catch(e){ pxCli=[]; }
   try{ pxPintar(); }
   catch(e){
     $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="saSetMain('rs')">← Comercial</button>
@@ -5193,8 +5195,9 @@ function pxForm(){
         return `<input data-pc="${k}" placeholder="${lab}" value="${escAttr(c[k]||'')}" style="font-size:.85rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px">`;
       }).join('')}
       <select data-pc="origen" style="font-size:.85rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff"><option value="">¿Cómo nos ha conocido? (origen)</option>${AR_ORIGENES.map(o=>`<option value="${escAttr(o)}"${(c.origen===o)?' selected':''}>${escHtml(o)}</option>`).join('')}</select>
-      ${((saAcademias&&saAcademias.length)||pxAA.length)?`<select onchange="pxCargarCliente(this.value)" style="font-size:.82rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff">
+      ${((saAcademias&&saAcademias.length)||pxAA.length||pxCli.length)?`<select onchange="pxCargarCliente(this.value)" style="font-size:.82rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff">
         <option value="">— O copiar los datos de un cliente ya dado de alta —</option>
+        ${pxCli.length?`<optgroup label="Fichas de clientes">${pxCli.map(c=>`<option value="cli:${escAttr(c.nif)}">${escHtml(c.razon_social||c.nif)}</option>`).join('')}</optgroup>`:''}
         ${(saAcademias&&saAcademias.length)?`<optgroup label="Aptuvia · academias">${saAcademias.map(a=>`<option value="ac:${a.academia_id}">${escHtml(a.nombre)}</option>`).join('')}</optgroup>`:''}
         ${pxAA.length?`<optgroup label="Aula Abierta">${pxAA.map(u=>`<option value="aa:${u.id}">${escHtml(u.nombre||u.email)}</option>`).join('')}</optgroup>`:''}
       </select>`:''}
@@ -5244,6 +5247,16 @@ function pxCargarCliente(v){
   if(!v) return;
   pxLeerDOM();
   const [tipo,id]=String(v).split(':');
+  if(tipo==='cli'){
+    const c=(pxCli||[]).find(x=>String(x.nif)===String(id))||{};
+    pxEdit.cliente={
+      razon_social:c.razon_social||'', nif:c.nif||'', direccion:c.direccion||'',
+      cp:c.cp||'', poblacion:c.poblacion||'', provincia:c.provincia||'',
+      email:c.email||'', telefono:c.telefono||'', contacto:pxEdit.cliente.contacto||'',
+      origen:c.origen||pxEdit.cliente.origen||''
+    };
+    pxForm(); return;
+  }
   const url = tipo==='aa'
     ? '/rest/v1/datos_facturacion?profesor_id=eq.'+id
     : '/rest/v1/datos_facturacion?academia_id=eq.'+id;
@@ -8596,9 +8609,9 @@ function openAlumnoDetalle(email){
   }
   const _nc=v=>{const n=parseFloat(v);return isNaN(n)?'var(--navy)':(n>=5?'#15803d':'#b4232a');};
   html+=`<div class="al-cards">
-      <div class="al-card"><span>${escHtml(rotulo)}</span><b style="color:${_nc(mc)}">${mc}</b></div>
-      <div class="al-card"><span>½ todos int.</span><b style="color:${_nc(mtF)}">${mtF}</b></div>
-      <div class="al-card"><span>½ Ex. Final</span><b style="color:${_nc(mf)}">${mf}</b></div>
+      <div class="al-card"><span>${escHtml(rotulo)}</span><b style="color:${_nc(mc)}!important">${mc}</b></div>
+      <div class="al-card"><span>½ todos int.</span><b style="color:${_nc(mtF)}!important">${mtF}</b></div>
+      <div class="al-card"><span>½ Ex. Final</span><b style="color:${_nc(mf)}!important">${mf}</b></div>
     </div>
     <button class="btn btn-ghost" style="margin-bottom:12px" onclick="pdfNotasAlumno('${email}')">⬇ Descargar PDF de notas</button>
     <div class="t-toggle"><button class="${teacherMode==='best'?'on':''}" onclick="setTeacherMode('best')">Mejor por examen</button><button class="${teacherMode==='all'?'on':''}" onclick="setTeacherMode('all')">Todos los intentos</button></div>`;
@@ -11618,9 +11631,9 @@ function openUnit(unitId){
   const mtA = mtV!=null ? mtV.toFixed(1) : '—';
   const notaCol=v=>{const n=parseFloat(v);return isNaN(n)?'var(--navy)':(n>=5?'#15803d':'#b4232a');};
   const stickyNota = `<div class="nota-sticky">
-      <div class="ns-card"><span>½ Mejor int.</span><b style="color:${notaCol(mcA)}">${mcA}</b></div>
-      <div class="ns-card"><span>½ todos int.</span><b style="color:${notaCol(mtA)}">${mtA}</b></div>
-      <div class="ns-card"><span>½ Ex. Final</span><b style="color:${notaCol(mfA)}">${mfA}</b></div>
+      <div class="ns-card"><span>½ Mejor int.</span><b style="color:${notaCol(mcA)}!important">${mcA}</b></div>
+      <div class="ns-card"><span>½ todos int.</span><b style="color:${notaCol(mtA)}!important">${mtA}</b></div>
+      <div class="ns-card"><span>½ Ex. Final</span><b style="color:${notaCol(mfA)}!important">${mfA}</b></div>
     </div>`;
   let html=head+stickyNota+`<div class="section">`;
   list.forEach(e=>{

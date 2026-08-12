@@ -1575,11 +1575,13 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 /* Ca3 + Ca6: colores de las píldoras de situación
    Activo → verde (el de la barra de progreso) · Próximamente → el color que tenía
    Activo (lavanda) · Terminado se queda igual (miel) */
-.chip.state{ background:var(--navy-tint)!important; color:var(--navy)!important; }
-.chip.state.active{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
-.chip.state.done{ background:var(--honey-tint)!important; color:var(--honey)!important; }
+.chip.state{ background:var(--navy-tint)!important; color:var(--navy)!important; border:2px solid var(--navy)!important; }
+.chip.state.active{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; border:none!important; }
+.chip.state.done{ background:var(--honey-tint)!important; color:var(--honey)!important; border:none!important; }
 /* Ca6: el nivel "4° ESO" de la materia ACTIVA, verde con texto blanco */
 .mod.navy .chip.eye{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
+/* Ca1 (nuevo): el nivel de una materia PRÓXIMAMENTE, del mismo color que su píldora */
+.mod.soon .chip.eye{ background:var(--navy-tint)!important; color:var(--navy)!important; }
 
 /* Ca4: "Activar/Quitar todas" y los interruptores de visualización → celeste
    Santorini hundido, con sombra y brillo */
@@ -1588,5 +1590,6 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 .pub-allbtn:active{ box-shadow:inset 4px 4px 9px rgba(0,90,130,.42)!important; }
 .switch.on{ background:linear-gradient(135deg,#48cae4,#00B4D8)!important; box-shadow:inset 3px 3px 6px rgba(0,90,130,.45)!important; }
 
-/* Ca7: "Aceptación" del mismo grosor que "Aceptado" (texto en una línea) */
-.px-acep{ white-space:nowrap!important; font-size:.72rem!important; line-height:1.25!important; }
+/* Ca7/Ca1: "Aceptación" del mismo grosor que "Aceptado" (un label, hay que
+   anular el estilo global de <label>: mayúsculas, margen y color) */
+.px-acep{ white-space:nowrap!important; font-size:.72rem!important; line-height:1.25!important; text-transform:none!important; letter-spacing:normal!important; margin:0!important; }
