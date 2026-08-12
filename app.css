@@ -1567,3 +1567,26 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 .fact-menu > b .alta-badge,
 .fact-menu > b .alta-badge-ev,
 .fact-menu > b .alta-badge-aa{ margin-left:auto; }
+
+/* ═══════ Ca (sesión actual) ═══════ */
+/* Ca1: el nivel del curso en UNA sola línea ("4° ESO" no parte en 4°/ESO) */
+.chip.eye{ white-space:nowrap!important; }
+
+/* Ca3 + Ca6: colores de las píldoras de situación
+   Activo → verde (el de la barra de progreso) · Próximamente → el color que tenía
+   Activo (lavanda) · Terminado se queda igual (miel) */
+.chip.state{ background:var(--navy-tint)!important; color:var(--navy)!important; }
+.chip.state.active{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
+.chip.state.done{ background:var(--honey-tint)!important; color:var(--honey)!important; }
+/* Ca6: el nivel "4° ESO" de la materia ACTIVA, verde con texto blanco */
+.mod.navy .chip.eye{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
+
+/* Ca4: "Activar/Quitar todas" y los interruptores de visualización → celeste
+   Santorini hundido, con sombra y brillo */
+.pub-allbtn{ background:linear-gradient(135deg,#48cae4,#00B4D8)!important; border:1.5px solid #0096c7!important; color:#fff!important; box-shadow:inset 3px 3px 7px rgba(0,90,130,.30), inset -2px -2px 5px rgba(255,255,255,.35)!important; }
+.pub-allbtn.ghost{ background:#e2f6fc!important; color:#0077B6!important; border-color:#7ccfe6!important; }
+.pub-allbtn:active{ box-shadow:inset 4px 4px 9px rgba(0,90,130,.42)!important; }
+.switch.on{ background:linear-gradient(135deg,#48cae4,#00B4D8)!important; box-shadow:inset 3px 3px 6px rgba(0,90,130,.45)!important; }
+
+/* Ca7: "Aceptación" del mismo grosor que "Aceptado" (texto en una línea) */
+.px-acep{ white-space:nowrap!important; font-size:.72rem!important; line-height:1.25!important; }

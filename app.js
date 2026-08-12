@@ -2009,7 +2009,7 @@ function saSetMain(t){
 }
 async function openSuperadmin(okMsg,errMsg){
   window._teacherScreen='superadmin';
-  if(window._sopTrab===undefined){ window._sopTrab=false; sopTrabLoad().then(()=>{ if(window._teacherScreen==='superadmin') openSuperadmin(); }); }
+  if(window._pres===undefined){ window._pres={soporte:false,comercial:false,admin:false}; presLoad().then(()=>{ if(window._teacherScreen==='superadmin') openSuperadmin(); }); }
   showView('teacher'); window.scrollTo(0,0);
   teacherView='superadmin';
   // Al recargar la página, volver a la pestaña donde estabas.
@@ -2720,25 +2720,32 @@ function docManualArea(area){
 }
 
 // Barra discreta de documentos internos. Va al pie de cada área, sin robar atención.
+// Presencia por área: cada área tiene su propio aviso "Trabajando"; cuando una está
+// activa, las otras dos lo ven en rojo con el nombre del área.
+const PRES_NOMBRE={soporte:'Soporte',comercial:'Comercial',admin:'Administración'};
 function docsBar(area){
-  const est='background:none;border:1px solid var(--honey);border-radius:999px;padding:4px 9px;font-size:.6rem;color:var(--honey-deep);cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap;flex:0 0 auto';
   const mon=!!window._mantOn;
-  const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:4px 9px;font-size:.6rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
-  const sopOn=!!window._sopTrab;
-  let sopPill='';
-  if(area==='soporte'){
-    const s='border:1.5px solid '+(sopOn?'#b4232a':'#a9b3c2')+';background:'+(sopOn?'#fdeaea':'#eef2f7')+';color:'+(sopOn?'#b4232a':'var(--ink-soft)')+';border-radius:999px;padding:4px 9px;font-size:.6rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
-    sopPill='<button onclick="sopTrabToggle()" title="'+(sopOn?'Estás en modo TRABAJANDO: Administración y Comercial lo ven. Pulsa para apagar.':'Avisar a Administración y Comercial de que estás trabajando (posibles cambios/deploys). Distinto del modo mantenimiento.')+'" style="'+s+'">'+(sopOn?'🔴':'⚪')+'</button>';
-  } else if(sopOn){
-    const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;border-radius:999px;padding:4px 9px;font-size:.6rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
-    sopPill='<span title="Soporte está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="'+s+'">🔴 Soporte</span>';
-  }
+  const pres=window._pres||{soporte:false,comercial:false,admin:false};
   const pills=[];
-  if(area==='soporte') pills.push(`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️</button>`);
-  if(sopPill) pills.push(sopPill);
+  // Modo mantenimiento (solo Soporte), con texto
+  if(area==='soporte'){
+    const mest='border:1.5px solid '+(mon?'#b4232a':'#15803d')+';background:'+(mon?'#fdeaea':'#dcfce7')+';color:'+(mon?'#b4232a':'#15803d')+';border-radius:999px;padding:5px 11px;font-size:.62rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+    pills.push(`<button id="sa-mant-pill" onclick="saMantToggle()" title="${mon?'Modo mantenimiento ACTIVO. Pulsa para volver a operativo.':'Modo operativo. Pulsa para activar mantenimiento.'}" style="${mest}">🛠️ ${mon?'Mantenimiento':'Operativo'}</button>`);
+  }
+  // Mi propio aviso de "Trabajando" (con texto)
+  const yo=!!pres[area];
+  const ps='border:1.5px solid '+(yo?'#b4232a':'#a9b3c2')+';background:'+(yo?'#fdeaea':'#eef2f7')+';color:'+(yo?'#b4232a':'var(--ink-soft)')+';border-radius:999px;padding:5px 11px;font-size:.62rem;cursor:pointer;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+  pills.push(`<button onclick="presToggle('${area}')" title="${yo?'Estás marcado como TRABAJANDO: las otras áreas lo ven. Pulsa para apagar.':'Avisa a las otras áreas de que estás trabajando (posibles cambios). Pulsa para activar.'}" style="${ps}">${yo?'🔴 Trabajando':'⚪ Trabajar'}</button>`);
+  // Otras áreas que están trabajando ahora mismo
+  ['soporte','comercial','admin'].forEach(a=>{
+    if(a!==area && pres[a]){
+      const s='border:1.5px solid #b4232a;background:#fdeaea;color:#b4232a;border-radius:999px;padding:5px 11px;font-size:.62rem;font-family:inherit;font-weight:800;white-space:nowrap;flex:0 0 auto';
+      pills.push(`<span title="${PRES_NOMBRE[a]} está trabajando: puede haber cambios en marcha. Evita acciones delicadas." style="${s}">🔴 ${PRES_NOMBRE[a]}</span>`);
+    }
+  });
   return `<div style="margin:14px 0 4px">
     <button class="fact-menu" style="width:100%;margin:0" onclick="docMTOpen('${area||''}')"><b>📘 Manual y trazabilidad</b><span>Guía de tu área y el circuito comercial completo</span></button>
-    ${pills.length?`<div style="display:flex;gap:5px;justify-content:flex-end;margin-top:10px;flex-wrap:nowrap">${pills.join('')}</div>`:''}
+    ${pills.length?`<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">${pills.join('')}</div>`:''}
   </div>`;
 }
 function docMTOpen(area){
@@ -2751,12 +2758,17 @@ function docMTOpen(area){
     ${area?`<button style="${sub}" onclick="docManualArea('${area}')"><b style="font-size:.95rem">📘 Manual del área</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Paso a paso de todo lo que se hace aquí</div></button>`:''}
     <button style="${sub}" onclick="docTrazabilidad()"><b style="font-size:.95rem">📄 Trazabilidad</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Del presupuesto a la baja del cliente · quién hace qué en cada paso</div></button>`,{noChat:true});
 }
-async function sopTrabLoad(){
-  try{ const v=await call('/rest/v1/rpc/sop_trabajando',{method:'POST',body:{}}); window._sopTrab=(v===true||v==='true'||v==='si'); }catch(e){}
+async function presLoad(){
+  try{
+    const v=await call('/rest/v1/rpc/presencia_estado',{method:'POST',body:{}});
+    const s=','+String(v||'')+',';
+    window._pres={soporte:s.indexOf(',soporte,')>=0,comercial:s.indexOf(',comercial,')>=0,admin:s.indexOf(',admin,')>=0};
+  }catch(e){ if(!window._pres) window._pres={soporte:false,comercial:false,admin:false}; }
 }
-async function sopTrabToggle(){
-  const nuevo=!window._sopTrab;
-  try{ await call('/rest/v1/rpc/sop_trabajando',{method:'POST',body:{p_set:nuevo}}); window._sopTrab=nuevo; }
+async function presToggle(area){
+  const cur=!!(window._pres&&window._pres[area]);
+  const nuevo=!cur;
+  try{ await call('/rest/v1/rpc/presencia_set',{method:'POST',body:{p_area:area,p_on:nuevo}}); window._pres=window._pres||{}; window._pres[area]=nuevo; }
   catch(e){ appAlert('No se pudo cambiar el aviso: '+(e.message||'')); return; }
   openSuperadmin();
 }
@@ -4351,14 +4363,14 @@ function arRender(){
   let h=`<button class="backbtn" onclick="saFactSub(null)" style="margin-bottom:10px">← Administración</button>`;
   h+=`<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🗄 Archivo central</h2>`;
   h+=`<p style="font-size:.76rem;color:var(--ink-soft);margin:0 2px 12px">El expediente de la empresa: clientes, proveedores, facturas y documentación.</p>`;
-  h+=`<div class="sa-cards-grid" style="gap:20px;row-gap:20px">
-    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arPresupuestos()"><b>📝 Presupuestos</b><span>Todos: vigentes, aceptados, archivados · solo lectura</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Desde tus presupuestos · crear, editar y filtrar por origen</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arProveedores()"><b>🚚 Proveedores</b><span>Alta y baja de proveedores</span></button>
-    <button class="fact-menu" style="margin:0" onclick="arFacturas('compras')"><b>🧾 Facturas de compras</b><span>Gastos de proveedores · automático</span></button>
-    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arDocs()"><b>📄 Contratos y documentación</b><span>Licencias, encargado del tratamiento (art. 28), altas… el PDF y su registro</span></button>
-    <button class="fact-menu" style="margin:0;grid-column:1/-1" onclick="arResumen()"><b>📊 Resumen del ejercicio</b><span>Ventas, compras, IVA y resultado del año · de un vistazo</span></button>
+  h+=`<div>
+    <button class="fact-menu" style="margin:0 0 16px;width:100%" onclick="arPresupuestos()"><b>📝 Presupuestos</b><span>Todos: vigentes, aceptados, archivados · solo lectura</span></button>
+    <button class="fact-menu" style="margin:0 0 16px;width:100%" onclick="arClientes()"><b>📇 Ficha de clientes</b><span>Desde tus presupuestos · crear, editar y filtrar por origen</span></button>
+    <button class="fact-menu" style="margin:0 0 16px;width:100%" onclick="arFacturas('ventas')"><b>🧾 Facturas de ventas</b><span>Emitidas · automático desde facturación</span></button>
+    <button class="fact-menu" style="margin:0 0 16px;width:100%" onclick="arProveedores()"><b>🚚 Proveedores</b><span>Alta y baja de proveedores</span></button>
+    <button class="fact-menu" style="margin:0 0 16px;width:100%" onclick="arFacturas('compras')"><b>🧾 Facturas de compras</b><span>Gastos de proveedores · automático</span></button>
+    <button class="fact-menu" style="margin:0 0 16px;width:100%" onclick="arDocs()"><b>📄 Contratos y documentación</b><span>Licencias, encargado del tratamiento (art. 28), altas… el PDF y su registro</span></button>
+    <button class="fact-menu" style="margin:0;width:100%" onclick="arResumen()"><b>📊 Resumen del ejercicio</b><span>Ventas, compras, IVA y resultado del año · de un vistazo</span></button>
   </div>`;
   $('teacher').innerHTML=saShell(h);
 }
@@ -5012,7 +5024,7 @@ function pxPintar(){
         </select>
         ${p.aceptacion_url
           ? `<button onclick="pxAcepVer('${p.id}')" class="px-btn" style="flex:1 1 0;min-width:0">👁 Aceptación</button><button onclick="pxAcepBorrar('${p.id}')" class="px-btn del" style="flex:0 0 auto">🗑</button>`
-          : `<label class="px-btn" style="flex:1 1 0;min-width:0;cursor:pointer;text-align:center">📎 Aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label>`}
+          : `<label class="px-btn px-acep" style="flex:1 1 0;min-width:0;cursor:pointer;text-align:center">📎 Aceptación<input type="file" accept="application/pdf" style="display:none" onchange="pxAcepSubir('${p.id}',this)"></label>`}
       </div>`}
       ${(!verArch && est==='aceptado' && !p.facturado_en)?`<div style="margin-top:6px"><span class="px-btn" style="cursor:default">→ Factura Admin.</span></div>`:''}
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:nowrap;align-items:center">
@@ -8582,10 +8594,11 @@ function openAlumnoDetalle(email){
       ${unidades.map(u=>`<button class="uf-chip${uSel===u?' on':''}" onclick="setTeacherUnidad('${u}')">${escHtml(codigoUnidad(u))}</button>`).join('')}
     </div>`;
   }
+  const _nc=v=>{const n=parseFloat(v);return isNaN(n)?'var(--navy)':(n>=5?'#15803d':'#b4232a');};
   html+=`<div class="al-cards">
-      <div class="al-card"><span>${escHtml(rotulo)}</span><b>${mc}</b></div>
-      <div class="al-card"><span>½ todos int.</span><b>${mtF}</b></div>
-      <div class="al-card"><span>½ Ex. Final</span><b>${mf}</b></div>
+      <div class="al-card"><span>${escHtml(rotulo)}</span><b style="color:${_nc(mc)}">${mc}</b></div>
+      <div class="al-card"><span>½ todos int.</span><b style="color:${_nc(mtF)}">${mtF}</b></div>
+      <div class="al-card"><span>½ Ex. Final</span><b style="color:${_nc(mf)}">${mf}</b></div>
     </div>
     <button class="btn btn-ghost" style="margin-bottom:12px" onclick="pdfNotasAlumno('${email}')">⬇ Descargar PDF de notas</button>
     <div class="t-toggle"><button class="${teacherMode==='best'?'on':''}" onclick="setTeacherMode('best')">Mejor por examen</button><button class="${teacherMode==='all'?'on':''}" onclick="setTeacherMode('all')">Todos los intentos</button></div>`;
@@ -10504,12 +10517,12 @@ async function openAcademiaCentro(msg, academiaId){
   if(msg) h+=`<div class="t-note ok">${escHtml(msg)}</div>`;
   h+=`<div class="t-welcome"><span class="t-course">${escHtml(window._acadNombre||'Mi academia')}</span></div>
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 12px">Consulta de resultados. Elige un profesor para ver las notas de su alumnado.</p>`;
-  if(!prev) h+=`<button class="btn btn-honey" id="ca-cli-chat" style="width:100%;margin-bottom:12px">💬 Chat con soporte <span id="ca-cli-badge"></span></button>`;
+  if(!prev) h+=`<button class="btn btn-honey" id="ca-cli-chat" style="width:100%;margin-bottom:12px">💬 Chat con Aptuvia <span id="ca-cli-badge"></span></button>`;
   if(profes.length) h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-ghost" id="ac-riesgo" style="flex:1;min-width:150px">⚠️ Alumnado en riesgo</button>
     <button class="btn btn-ghost" id="ac-actividad" style="flex:1;min-width:150px">📊 Actividad del profesorado</button>
     <button class="btn btn-ghost" id="ac-informe" style="flex:1;min-width:150px">📄 Informe del centro</button>
-    <button class="btn btn-ghost" id="ac-facturas" style="flex:1;min-width:150px">🧾 Facturación</button></div>`;
+    <button class="btn btn-ghost" id="ac-manual" style="flex:1;min-width:150px">📘 Manual del Acceso Premium</button></div>`;
   if(!profes.length){
     h+=`<div class="center-msg">Tu academia todavía no tiene profesores dados de alta.</div>`;
   }else{
@@ -10522,7 +10535,7 @@ async function openAcademiaCentro(msg, academiaId){
       </button>`;
     });
   }
-  h+=manualPill('docManualPremium()','Manual del Acceso Premium');
+  if(!profes.length) h+=manualPill('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
   if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=caCliChat; call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
@@ -10540,7 +10553,7 @@ async function openAcademiaCentro(msg, academiaId){
   if($('ac-informe')) $('ac-informe').onclick=pdfInformeCentro;
   if($('ac-riesgo')) $('ac-riesgo').onclick=acAlertasRiesgo;
   if($('ac-actividad')) $('ac-actividad').onclick=acActividadProfesorado;
-  if($('ac-facturas')) $('ac-facturas').onclick=acFacturacion;
+  if($('ac-manual')) $('ac-manual').onclick=docManualPremium;
 }
 // Vista previa desde Soporte: el superadmin ve exactamente la pantalla de la dirección.
 function acVerComoAcademia(academiaId){
@@ -11455,7 +11468,7 @@ function openUnit(unitId){
   const list=(examsByUnit[unitId]||[])
     .filter(e=> staff || e.publicado)
     .filter(e=> !temaSel || (temaSel==='__sin' ? !e.tema_id : String(e.tema_id)===String(temaSel)))
-    .sort(staff ? _cmpEx : _cmpExAlum);
+    .sort(_cmpExAlum);
   showView('unit'); window.scrollTo(0,0);
   const est=unitEstado(unitId);
   const terminada = (est==='terminado' && !staff);
