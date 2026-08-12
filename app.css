@@ -1570,7 +1570,7 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 
 /* ═══════ Ca (sesión actual) ═══════ */
 /* Ca1: el nivel del curso en UNA sola línea ("4° ESO" no parte en 4°/ESO) */
-.chip.eye{ white-space:nowrap!important; }
+.chip.eye{ white-space:nowrap!important; border:2px solid var(--honey)!important; }
 
 /* Ca3 + Ca6: colores de las píldoras de situación
    Activo → verde (el de la barra de progreso) · Próximamente → el color que tenía
@@ -1579,7 +1579,7 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 .chip.state.active{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; border:none!important; }
 .chip.state.done{ background:var(--honey-tint)!important; color:var(--honey)!important; border:2px solid var(--honey)!important; }
 /* Ca6: el nivel "4° ESO" de la materia ACTIVA, verde con texto blanco */
-.mod.navy .chip.eye{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
+.mod.navy .chip.eye{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; border:none!important; }
 /* Ca1 (nuevo): el nivel de una materia PRÓXIMAMENTE, del mismo color que su píldora */
 .mod.soon .chip.eye{ background:var(--navy-tint)!important; color:var(--navy)!important; border:2px solid var(--navy)!important; }
 /* Estados: la situación siempre a la derecha; el título puede ir en 2 líneas */

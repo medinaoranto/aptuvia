@@ -1539,7 +1539,7 @@ function renderModulosCardsHtml(conBorrar){
     const esMateriaAA = conBorrar && String(m.id).indexOf('mod-aula-')===0 && m.unidades && m.unidades.length;
     const uidMat = esMateriaAA ? m.unidades[0] : '';
     const wrapIni = esMateriaAA ? '<div class="mat-wrap" style="position:relative">' : '';
-    const wrapFin = esMateriaAA ? `<button class="mat-edit" data-editmat="${escAttr(uidMat)}" title="Editar datos de la materia" style="position:absolute;top:14px;right:58px;z-index:3;background:#eef4fa;border:1.5px solid var(--paper-edge);border-radius:10px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1">✏️</button><button class="mat-del" data-delmat="${escAttr(uidMat)}" data-mattit="${escAttr(m.title)}" title="Borrar materia" style="position:absolute;top:10px;right:10px;z-index:3;background:#fdeaea;border:1.5px solid #f3c4c4;border-radius:10px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1">🗑</button></div>` : '';
+    const wrapFin = esMateriaAA ? `<button class="mat-edit" data-editmat="${escAttr(uidMat)}" title="Editar datos de la materia" style="position:absolute;top:16px;right:58px;z-index:3;background:#eef4fa;border:1.5px solid var(--paper-edge);border-radius:10px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1">✏️</button><button class="mat-del" data-delmat="${escAttr(uidMat)}" data-mattit="${escAttr(m.title)}" title="Borrar materia" style="position:absolute;top:16px;right:10px;z-index:3;background:#fdeaea;border:1.5px solid #f3c4c4;border-radius:10px;padding:5px 8px;cursor:pointer;font-size:.85rem;line-height:1">🗑</button></div>` : '';
     html+=wrapIni;
     if(m.locked){
       // Módulo en preparación — navegable: se puede entrar a ver sus UF
@@ -4590,7 +4590,17 @@ function arWireFiltros(){
   const qi=$('ar-q'); if(qi) qi.oninput=arQChange;
   const so=$('ar-origen'); if(so) so.onchange=function(){ window._arOrigen=so.value; arPintarClientes(); };
 }
-function arClienteModal(f, isNew){
+// La ficha del cliente (tabla 'clientes', por NIF) es la fuente única. Cualquier
+// guardado (ficha o presupuesto) la actualiza. El NIF es la clave y no cambia.
+async function clienteUpsert(nif, data, blanquear){
+  nif=(nif||'').trim(); if(!nif) return;
+  const body={}; Object.keys(data).forEach(k=>{ const v=data[k]; if(blanquear){ body[k]=(v===''?null:v); } else if(v!=null && String(v).trim()!==''){ body[k]=v; } });
+  body.actualizado_en=new Date().toISOString();
+  const ex=await call('/rest/v1/clientes?select=nif&nif=eq.'+encodeURIComponent(nif));
+  if(ex && ex.length){ await call('/rest/v1/clientes?nif=eq.'+encodeURIComponent(nif),{method:'PATCH',body}); }
+  else { await call('/rest/v1/clientes',{method:'POST',body:Object.assign({nif:nif},body)}); }
+}
+function arClienteModal(f, isNew, onSaved){
   const inp=(id,val)=>`<input id="${id}" value="${escAttr(val||'')}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;font-size:.85rem;margin:3px 0 8px">`;
   const lab=t=>`<label style="font-size:.72rem;color:var(--ink-soft);font-weight:700">${t}</label>`;
   const keyNif=(f.nif||'').trim();
@@ -4619,28 +4629,26 @@ function arClienteModal(f, isNew){
   ov.appendChild(box); document.body.appendChild(ov);
   document.getElementById('ac-x').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
-  const sv=document.getElementById('ac-save'); if(sv) sv.onclick=()=>arGuardarCliente(isNew, keyNif, ov);
-  const dl=document.getElementById('ac-del'); if(dl) dl.onclick=()=>arBorrarCliente(keyNif, ov);
+  const sv=document.getElementById('ac-save'); if(sv) sv.onclick=()=>arGuardarCliente(isNew, keyNif, ov, onSaved);
+  const dl=document.getElementById('ac-del'); if(dl) dl.onclick=()=>arBorrarCliente(keyNif, ov, onSaved);
 }
 function arVerCliente(i){ const f=(window._arVista||[])[i]; if(!f) return; arClienteModal(f,false); }
 function arNuevoCliente(){ arClienteModal({num:0,razon:'',nif:'',direccion:'',cp:'',poblacion:'',provincia:'',email:'',telefono:'',origen:'',notas:''}, true); }
-async function arGuardarCliente(isNew, keyNif, ov){
+async function arGuardarCliente(isNew, keyNif, ov, onSaved){
   const g=id=>{ const e=document.getElementById(id); return e?e.value.trim():''; };
   const nif=isNew?g('ac-nif'):keyNif;
   if(!nif){ appAlert('El NIF es obligatorio (es la clave del cliente).'); return; }
-  const data={ razon_social:g('ac-razon')||null, direccion:g('ac-direccion')||null, cp:g('ac-cp')||null, poblacion:g('ac-poblacion')||null, provincia:g('ac-provincia')||null, email:g('ac-email')||null, telefono:g('ac-telefono')||null, origen:((document.getElementById('ac-origen')||{}).value)||null, notas:g('ac-notas')||null, actualizado_en:new Date().toISOString() };
+  const data={ razon_social:g('ac-razon'), direccion:g('ac-direccion'), cp:g('ac-cp'), poblacion:g('ac-poblacion'), provincia:g('ac-provincia'), email:g('ac-email'), telefono:g('ac-telefono'), origen:((document.getElementById('ac-origen')||{}).value)||'', notas:g('ac-notas') };
   try{
-    const ex=await call('/rest/v1/clientes?select=nif&nif=eq.'+encodeURIComponent(nif));
-    if(ex && ex.length){ await call('/rest/v1/clientes?nif=eq.'+encodeURIComponent(nif),{method:'PATCH',body:data}); }
-    else { await call('/rest/v1/clientes',{method:'POST',body:Object.assign({nif:nif},data)}); }
+    await clienteUpsert(nif, data, true);
     if(ov) ov.remove();
-    arClientes();
+    if(typeof onSaved==='function') onSaved(); else arClientes();
   }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); }
 }
-async function arBorrarCliente(nif, ov){
+async function arBorrarCliente(nif, ov, onSaved){
   if(!nif) return;
   if(!await appConfirm('¿Borrar la ficha guardada de este cliente? Si viene de un presupuesto, seguirá apareciendo con los datos del presupuesto (sin tus cambios).')) return;
-  try{ await call('/rest/v1/clientes?nif=eq.'+encodeURIComponent(nif),{method:'DELETE'}); if(ov) ov.remove(); arClientes(); }
+  try{ await call('/rest/v1/clientes?nif=eq.'+encodeURIComponent(nif),{method:'DELETE'}); if(ov) ov.remove(); if(typeof onSaved==='function') onSaved(); else arClientes(); }
   catch(e){ appAlert('No se pudo borrar: '+(e.message||'')); }
 }
 
@@ -5014,7 +5022,7 @@ function pxPintar(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b style="font-size:.9rem;color:var(--navy)">${escHtml(p.numero||'—')}</b>
           <span style="font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px;color:${e.col};background:${e.bg}">${e.lab}</span><br>
-          <span style="font-size:.76rem;color:var(--ink-soft)">${escHtml(cli)} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}${p.facturado_en?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ Facturado</span>`:''}</div>
+          <span style="font-size:.76rem;color:var(--ink-soft)">${verArch?escHtml(cli):`<a onclick="event.stopPropagation();pxEditarCliente('${p.id}')" style="color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline">${escHtml(cli)} ✏️</a>`} · ${escHtml(p.fecha||'')} · válido hasta ${escHtml(pxCaducidad(p))}</span>${(()=>{const al=pxAltaLabel(p);return al?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ ${escHtml(al)}</span>`:'';})()}${p.facturado_en?`<br><span style="font-size:.7rem;color:#15803d;font-weight:700">✅ Facturado</span>`:''}</div>
         <b style="font-size:.95rem;color:var(--navy);white-space:nowrap">${gxEur(p.total)}</b>
       </div>
       <div style="display:flex;gap:6px;margin-top:9px;align-items:center">
@@ -5374,9 +5382,18 @@ async function pxGuardar(silencio){
   try{
     if(p.id){ await call('/rest/v1/presupuestos?id=eq.'+p.id,{method:'PATCH',body}); }
     else{ await call('/rest/v1/presupuestos',{method:'POST',body}); }
+    // La ficha del cliente (por NIF) es la fuente única: se alimenta desde aquí.
+    try{ const c=p.cliente||{}; await clienteUpsert(c.nif, {razon_social:c.razon_social, direccion:c.direccion, cp:c.cp, poblacion:c.poblacion, provincia:c.provincia, email:c.email, telefono:c.telefono, origen:c.origen}, false); }catch(e){ console.warn('sync cliente',e); }
     if(!silencio){ pxEdit=null; await pxRender(); }
     return true;
   }catch(e){ appAlert('No se pudo guardar: '+(e.message||'')); return null; }
+}
+// Editar la ficha del cliente desde la tarjeta del presupuesto (guarda en 'clientes' por NIF).
+function pxEditarCliente(id){
+  const p=(pxLista||[]).find(x=>String(x.id)===String(id)); if(!p) return;
+  const c=p.cliente||{}; const nif=(c.nif||'').trim();
+  if(!nif){ appAlert('Este presupuesto no tiene NIF de cliente. Añádeselo con «Editar».'); return; }
+  arClienteModal({num:'', razon:c.razon_social||'', nif:nif, direccion:c.direccion||'', cp:c.cp||'', poblacion:c.poblacion||'', provincia:c.provincia||'', email:c.email||'', telefono:c.telefono||'', origen:c.origen||'', notas:c.notas||''}, false, ()=>{ pxRender(); });
 }
 
 async function pxGuardarYPDF(){
