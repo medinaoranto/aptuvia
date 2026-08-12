@@ -10299,7 +10299,7 @@ async function openGrupo(){
     const pct=al?Math.round(act/al*100):0;
     const ancho=m!=null?Math.max(3,Math.round(m/maxMedia*100)):0;
     const color=(m==null)?'#c9ccd6':(m<5?'#b4232a':(m<7?'#a5620a':'#1c7a44'));
-    h+=`<div class="t-card" style="margin-bottom:9px">
+    h+=`<button class="t-card gr-centro" onclick="grEntrarAcademia(${num(r.academia_id)})" style="margin-bottom:9px;width:100%;text-align:left;border:none;font-family:inherit;cursor:pointer;display:block">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
         <b style="font-size:.92rem">${escHtml(r.academia||('Academia '+r.academia_id))}</b>
         <span style="font-size:.95rem;font-weight:800;color:${color}">${m!=null?m.toFixed(1):'—'}</span>
@@ -10311,14 +10311,25 @@ async function openGrupo(){
         ${num(r.n_profesores)} profesor${num(r.n_profesores)===1?'':'es'} · ${al} alumno${al===1?'':'s'} · ${act} con actividad (${pct} %)<br>
         ${num(r.n_intentos)} examen${num(r.n_intentos)===1?'':'es'} realizado${num(r.n_intentos)===1?'':'s'}
       </div>
-    </div>`;
+      <div style="font-size:.74rem;font-weight:700;color:var(--honey-deep);margin-top:8px">Ver este centro ›</div>
+    </button>`;
   });
   h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0;line-height:1.6">La media es la del mejor intento de cada examen, promediada por alumno y luego por centro. Solo cuenta el alumnado con actividad: quien no ha hecho ningún examen no baja la media, aparece en el recuento de inactivos.</p>`;
   h+=manualPill('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
 }
-
-// ---- Facturación del centro (rol academia · Premium) ----
+// Fase 2: la dirección de grupo entra en un centro concreto (solo lectura) y
+// vuelve al grupo. Reutiliza el mismo flujo que usa Soporte para ver una academia.
+function grEntrarAcademia(id){
+  if(!id) return;
+  window._acadDesdeGrupo=true;
+  openAcademiaCentro(null, id);
+}
+async function grVolver(){
+  window._acadDesdeGrupo=false; window._acadVista=null; window._acadProf=null; window._acadProfes=[];
+  teacherRows=[]; resumenRows=null; teacherAl=null;
+  openGrupo();
+}
 // La dirección ve y descarga sus propias facturas sin tener que pedirlas.
 async function acFacturacion(){
   showView('teacher'); window.scrollTo(0,0);
@@ -10524,14 +10535,22 @@ async function openAcademiaCentro(msg, academiaId){
   let profes=[];
   try{ profes=await call('/rest/v1/rpc/ac_profesores',{method:'POST',body:prev?{p_academia:prev}:{}})||[]; }
   catch(err){
-    $('teacher').innerHTML=`${prev?`<button class="backbtn" onclick="acSalirVista()" style="margin-bottom:10px">← Volver a Soporte</button>`:''}<div class="center-msg">No se pudo cargar el listado del profesorado.<br><small>${escHtml(err.message||'')}</small><br><br><button class="btn btn-ghost" onclick="openAcademiaCentro()">🔄 Reintentar</button></div>`;
+    const volver = prev ? (window._acadDesdeGrupo?`<button class="backbtn" onclick="grVolver()" style="margin-bottom:10px">← Vista de grupo</button>`:`<button class="backbtn" onclick="acSalirVista()" style="margin-bottom:10px">← Volver a Soporte</button>`) : '';
+    $('teacher').innerHTML=`${volver}<div class="center-msg">No se pudo cargar el listado del profesorado.<br><small>${escHtml(err.message||'')}</small><br><br><button class="btn btn-ghost" onclick="openAcademiaCentro()">🔄 Reintentar</button></div>`;
     return;
   }
   window._acadProfes=profes;
   window._acadNombre=(profes[0]&&profes[0].academia_nombre)?profes[0].academia_nombre:'';
   let h='';
-  if(prev) h+=`<button class="backbtn" onclick="acSalirVista()" style="margin-bottom:10px;background:var(--honey-tint);border-color:var(--honey)">← Volver a Soporte</button>
-    <div class="t-note" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:8px 11px;font-size:.73rem;margin-bottom:10px">👁 Estás viendo la pantalla tal y como la ve la dirección de esta academia. Todo es de solo lectura.</div>`;
+  if(prev){
+    if(window._acadDesdeGrupo){
+      h+=`<button class="backbtn" onclick="grVolver()" style="margin-bottom:10px">← Vista de grupo</button>
+      <div class="t-note" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:8px 11px;font-size:.73rem;margin-bottom:10px">👁 Estás viendo este centro tal y como lo ve su dirección. Todo es de solo lectura.</div>`;
+    }else{
+      h+=`<button class="backbtn" onclick="acSalirVista()" style="margin-bottom:10px;background:var(--honey-tint);border-color:var(--honey)">← Volver a Soporte</button>
+      <div class="t-note" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:8px 11px;font-size:.73rem;margin-bottom:10px">👁 Estás viendo la pantalla tal y como la ve la dirección de esta academia. Todo es de solo lectura.</div>`;
+    }
+  }
   if(msg) h+=`<div class="t-note ok">${escHtml(msg)}</div>`;
   h+=`<div class="t-welcome"><span class="t-course">${escHtml(window._acadNombre||'Mi academia')}</span></div>
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 12px">Consulta de resultados. Elige un profesor para ver las notas de su alumnado.</p>`;
