@@ -3297,20 +3297,29 @@ function saRenderLista(okMsg,errMsg){
       <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:1.02rem;color:var(--navy)">${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id}</span></div>
     </div>`;
   };
-  const _grupos={}, _sueltas=[];
-  saAcademias.forEach(a=>{ const g=_ga[a.academia_id]; if(g){ (_grupos[g]=_grupos[g]||[]).push(a); } else _sueltas.push(a); });
-  _sueltas.forEach(a=>{ h+=_cardAcad(a,false); });
-  Object.keys(_grupos).forEach(gid=>{
-    const nom=_gn[gid]||('Grupo #'+gid); const n=_grupos[gid].length;
-    h+=`<div class="sa-grupo-head" data-grpnom="${escAttr(('direccion '+nom).toLowerCase())}" style="margin:12px 0 5px;font-weight:800;color:var(--navy);font-size:.9rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap">👑 Dirección ${escHtml(nom)}<span style="font-weight:700;color:var(--ink-soft);font-size:.72rem">· ${n} academia${n===1?'':'s'}</span></div>`;
-    _grupos[gid].forEach(a=>{ h+=_cardAcad(a,true); });
-  });
+  const _grupos={}, _norm=[];
+  saAcademias.forEach(a=>{ const g=_ga[a.academia_id]; if(g){ (_grupos[g]=_grupos[g]||[]).push(a); } });
+  // Un grupo cuenta como "cliente Premium" solo si tiene 2+ academias.
+  const _premGids=Object.keys(_grupos).filter(g=>_grupos[g].length>=2);
+  const _premSet=new Set(); _premGids.forEach(g=>_grupos[g].forEach(a=>_premSet.add(a.academia_id)));
+  saAcademias.forEach(a=>{ if(!_premSet.has(a.academia_id)) _norm.push(a); });
+  _norm.forEach(a=>{ h+=_cardAcad(a,false); });
+  if(_premGids.length){
+    h+=`<div style="margin:14px 0 6px;font-weight:800;color:var(--navy);font-size:.82rem;letter-spacing:.3px">CLIENTES PREMIUM</div>`;
+    _premGids.forEach(gid=>{
+      const nom=_gn[gid]||('Grupo #'+gid); const n=_grupos[gid].length;
+      h+=`<div class="sa-card sa-grupo" data-grp="${gid}" data-nom="${escAttr(('direccion premium '+nom).toLowerCase())}" style="background:#fff;padding:9px 12px;margin-bottom:7px;cursor:pointer;border-left:3px solid #15803d">
+        <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:1.02rem;color:var(--navy)">👑 ${escHtml(nom)} <span style="color:#15803d;font-size:.6rem;font-weight:800;background:#dcfce7;border-radius:8px;padding:2px 7px;vertical-align:middle">PREMIUM</span></b><span class="sa-id">${n} ac. ›</span></div>
+      </div>`;
+    });
+  }
   h+=`</div></div>`;
   $('teacher').innerHTML=saShell(h);
+  $('teacher').querySelectorAll('.sa-card[data-grp]').forEach(c=> c.onclick=()=>saGrupoPanel(+c.dataset.grp));
   if($('sa-nueva')) $('sa-nueva').onclick=saCrearAcademiaUI;
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=()=>saAltaDesdePresu('ev');
   const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-wrap'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); if(abre){ const q=$('sa-acad-q'); if(q) q.focus(); } } };
-  const acq=$('sa-acad-q'); if(acq) acq.oninput=()=>{ const v=acq.value.toLowerCase().trim(); $('teacher').querySelectorAll('#sa-acad-list .sa-card[data-acad]').forEach(c=>{ c.style.display=(!v||(c.dataset.nom||'').includes(v))?'':'none'; }); $('teacher').querySelectorAll('#sa-acad-list .sa-grupo-head').forEach(hd=>{ hd.style.display=v?'none':'flex'; }); };
+  const acq=$('sa-acad-q'); if(acq) acq.oninput=()=>{ const v=acq.value.toLowerCase().trim(); $('teacher').querySelectorAll('#sa-acad-list .sa-card[data-nom]').forEach(c=>{ c.style.display=(!v||(c.dataset.nom||'').includes(v))?'':'none'; }); };
   $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
   call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento').then(m=>{ const on=(m&&m[0]&&m[0].valor==='on'); window._mantOn=on; const p=$('sa-mant-pill'); if(p){ p.textContent='🛠️ '+(on?'Mantenimiento':'Operativo'); p.style.borderColor=on?'#b4232a':'#15803d'; p.style.background=on?'#fdeaea':'#dcfce7'; p.style.color=on?'#b4232a':'#15803d'; } }).catch(()=>{});
 }
@@ -3402,7 +3411,7 @@ function saDetalle(msg){
       ${esAA?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn btn-honey" id="sa-aa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
         <button class="btn btn-ghost" id="sa-nuevo-prof" style="flex:1;margin:0;min-width:130px">Crear usuario · sin presupuesto</button>
-      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor · sin presupuesto</button>${a._grupo_id?`<button class="btn btn-ghost" id="sa-add-acad-grupo" style="width:100%;margin-top:8px">👑 Grupo #${a._grupo_id} · ➕ Añadir academia al grupo</button>`:''}`}
+      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor · sin presupuesto</button>`}
     </div>
     ${esAA?'':saPremiumCard(a)}
     ${esAA
@@ -4327,6 +4336,76 @@ function abrirFuera(url){
    funciona igual; solo hay que volver a Comercial al pulsar "← atrás". */
 function rsAbrirPresu(){ window._enPresu=true; pxRender(); }
 
+function saGrupoPanel(gid){
+  const nom=(window._grNom||{})[gid]||('Grupo #'+gid);
+  const acs=saAcademias.filter(a=>(window._grAcad||{})[a.academia_id]===gid);
+  let tp=0,tal=0,tex=0; acs.forEach(a=>{ tp+=(+a.n_profes||0); tal+=(+a.n_alumnos||0); tex+=(+a.n_examenes||0); });
+  const revisar=acs.filter(a=>(+a.n_profes||0)===0 || (+a.n_examenes||0)===0);
+  const maxAl=Math.max(1,...acs.map(a=>+a.n_alumnos||0));
+  let h=`<button class="backbtn" onclick="saSetMain('ev')" style="margin-bottom:12px">← Academias</button>`;
+  h+=`<div class="sa-head-acad">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div><b style="font-size:1.05rem;color:var(--navy)">👑 Dirección ${escHtml(nom)} <span style="color:#15803d;font-size:.6rem;font-weight:800;background:#dcfce7;border-radius:8px;padding:2px 7px;vertical-align:middle">PREMIUM</span></b>
+        <div class="sa-counts" style="margin-top:6px"><span>${acs.length} academias</span></div></div>
+      <button id="grp-ren" title="Renombrar grupo" style="background:#eef4fa;border:1.5px solid var(--paper-edge);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:.85rem">✏️</button>
+    </div>
+  </div>`;
+  h+=`<button class="btn btn-honey" id="grp-add" style="width:100%;margin:10px 0 6px">➕ Añadir academia al grupo</button>`;
+  h+=`<button class="btn btn-ghost" id="grp-key" style="width:100%;margin:0 0 6px">🔑 Crear cuenta de dirección del grupo</button>`;
+  h+=`<div style="font-size:.72rem;color:var(--ink-soft);margin:0 2px 10px;line-height:1.5">🔑 <b>Dirección del grupo</b>: una clave que ve TODAS las academias del grupo (solo lectura). 🏫 Cada <b>academia</b> tiene además su propia clave (créala dentro de cada academia): esa solo ve a sus profesores.</div>`;
+  // Resumen del grupo
+  h+=`<div class="sa-card" style="background:#fff;padding:11px 13px;margin-bottom:10px">
+    <div style="font-weight:800;color:var(--navy);font-size:.82rem;margin-bottom:6px">📊 Resumen del grupo</div>
+    <div style="font-size:.8rem;color:var(--ink-soft);line-height:1.9">🏫 ${acs.length} academias · 👩‍🏫 ${tp} profesores<br>🎓 ${tal} alumnos · 📝 ${tex} exámenes realizados</div>
+  </div>`;
+  // Academias a revisar (sin profesorado o sin actividad)
+  if(revisar.length){
+    h+=`<div class="sa-card" style="background:#fffaf0;border:1px solid var(--honey);padding:11px 13px;margin-bottom:10px">
+      <div style="font-weight:800;color:var(--honey-deep);font-size:.82rem;margin-bottom:5px">⚠️ Academias a revisar (${revisar.length})</div>
+      <div style="font-size:.78rem;color:var(--ink-soft);line-height:1.8">${revisar.map(a=>`• ${escHtml(a.nombre)} — ${(+a.n_profes||0)===0?'sin profesorado':'sin exámenes aún'}`).join('<br>')}</div>
+    </div>`;
+  }
+  // Reparto de alumnos por academia (comparativa)
+  if(acs.length){
+    h+=`<div class="sa-card" style="background:#fff;padding:11px 13px;margin-bottom:10px">
+      <div style="font-weight:800;color:var(--navy);font-size:.82rem;margin-bottom:8px">👥 Alumnado por academia</div>
+      ${acs.map(a=>{ const al=+a.n_alumnos||0; const w=Math.round(al/maxAl*100); return `<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:.74rem;color:var(--ink-soft);margin-bottom:2px"><span>${escHtml(a.nombre)}</span><span style="font-weight:700">${al}</span></div><div style="height:6px;background:#eef0f4;border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.max(3,w)}%;background:#15803d;border-radius:99px"></div></div></div>`; }).join('')}
+    </div>`;
+  }
+  h+=`<div style="font-weight:800;color:var(--navy);font-size:.85rem;margin:10px 2px 6px">🏫 Academias del grupo</div>`;
+  h+=`<div class="sa-cards-grid">`;
+  if(!acs.length) h+=`<div class="t-note">Este grupo aún no tiene academias.</div>`;
+  acs.forEach(a=>{
+    const rev=a.activa===false;
+    h+=`<div class="sa-card${rev?' rev':''}" data-acad="${a.academia_id}" style="background:#fff;padding:9px 12px;margin-bottom:7px;cursor:pointer;${rev?'opacity:.72':''}">
+      <div class="sa-card-top" style="margin-bottom:0"><b style="font-size:1.02rem;color:var(--navy)">${escHtml(a.nombre)}${rev?' <span style=\"color:#b4232a;font-size:.7rem;font-weight:800\">🔒 REVOCADA</span>':''}</b><span class="sa-id">#${a.academia_id} <span style="color:#15803d;font-size:.58rem;font-weight:800">premium</span></span></div>
+      <div style="font-size:.72rem;color:var(--ink-soft);margin-top:3px">${a.n_profes||0} profes · ${a.n_alumnos||0} alumnos</div>
+    </div>`;
+  });
+  h+=`</div>`;
+  $('teacher').innerHTML=saShell(h);
+  if($('grp-add')) $('grp-add').onclick=()=>saAddAcademiaGrupo(gid);
+  if($('grp-key')) $('grp-key').onclick=()=>saCrearDireccionGrupo(gid);
+  if($('grp-ren')) $('grp-ren').onclick=()=>saRenombrarGrupoUI(gid);
+  $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
+}
+async function saCrearDireccionGrupo(gid){
+  const acs=saAcademias.filter(a=>(window._grAcad||{})[a.academia_id]===gid);
+  if(!acs.length){ appAlert('Este grupo aún no tiene academias.'); return; }
+  const ok=await saPremiumCrearCuenta(acs[0].academia_id, null, true, gid);
+  if(ok){ appAlert('🔑 Cuenta de dirección del grupo creada.\nVe todas las academias del grupo en solo lectura desde su «Vista de grupo».'); saGrupoPanel(gid); }
+}
+async function saRenombrarGrupoUI(gid){
+  const actual=(window._grNom||{})[gid]||'';
+  const n=await appPrompt('Nuevo nombre del grupo (dirección):', actual);
+  if(n===null) return;
+  if(n.trim().length<2){ appAlert('Nombre demasiado corto.'); return; }
+  try{
+    await call('/rest/v1/rpc/sa_renombrar_grupo',{method:'POST',body:{p_grupo:gid,p_nombre:n.trim()}});
+    window._grNom=window._grNom||{}; window._grNom[gid]=n.trim();
+    saGrupoPanel(gid);
+  }catch(e){ appAlert('No se pudo renombrar el grupo.\n¿Ejecutaste el SQL de sa_renombrar_grupo?\n\n'+(e.message||'')); }
+}
 function saRenderFacturacionLista(){
   // Menú principal de Facturación.
   const sub=window._factSub||null;
@@ -10565,6 +10644,33 @@ async function pdfInformeCentro(){
   docVer(doc,'Aptuvia_informe_centro_'+fmtStamp(fecha)+'.pdf');
 }
 
+// La propia cuenta de academia o dirección gestiona su contraseña (Supabase Auth).
+function acCambiarPass(okMsg, errMsg){
+  showView('teacher'); window.scrollTo(0,0);
+  const h=[`<button class="backbtn" onclick="openAcademiaCentro()" style="margin-bottom:10px">← Volver</button>`];
+  h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">🔑 Cambiar contraseña</h1>`);
+  h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Cuenta: <b>${escHtml(userEmail||'')}</b></p>`);
+  if(okMsg) h.push(`<div class="t-note ok">${escHtml(okMsg)}</div>`);
+  if(errMsg) h.push(`<div class="t-note err">${escHtml(errMsg)}</div>`);
+  h.push(`<div class="t-card">
+    <p style="font-size:.82rem;color:var(--ink-soft);margin:2px 0 10px">Cambia aquí la contraseña con la que entras a la plataforma. Mínimo 6 caracteres.</p>
+    <label style="margin-top:2px">Nueva contraseña</label>
+    <span class="pwwrap"><input id="pw-1" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><button type="button" class="pweye" id="pw1Eye" aria-label="Mostrar contraseña">👁</button></span>
+    <label>Repite la contraseña</label>
+    <span class="pwwrap"><input id="pw-2" type="password" placeholder="Vuelve a escribirla" autocomplete="new-password"><button type="button" class="pweye" id="pw2Eye" aria-label="Mostrar contraseña">👁</button></span>
+    <button class="btn btn-honey" id="pw-btn" style="margin-top:16px">Guardar contraseña</button>
+  </div>`);
+  $('teacher').innerHTML=h.join('');
+  $('pw-btn').onclick=acGuardarPass; wireEye('pw1Eye','pw-1'); wireEye('pw2Eye','pw-2');
+}
+async function acGuardarPass(){
+  const a=$('pw-1').value, b=$('pw-2').value;
+  if(a.length<6){ acCambiarPass(null,'La contraseña debe tener al menos 6 caracteres.'); return; }
+  if(a!==b){ acCambiarPass(null,'Las dos contraseñas no coinciden.'); return; }
+  const btn=$('pw-btn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  try{ await call('/auth/v1/user',{method:'PUT',body:{password:a}}); acCambiarPass('✅ Contraseña actualizada. Úsala la próxima vez que entres.',null); }
+  catch(err){ acCambiarPass(null,'No se pudo cambiar: '+(err.message||'')); }
+}
 async function openAcademiaCentro(msg, academiaId){
   showView('teacher'); window.scrollTo(0,0);
   if(academiaId!==undefined) window._acadVista=academiaId||null;
@@ -10613,7 +10719,9 @@ async function openAcademiaCentro(msg, academiaId){
     });
   }
   if(!profes.length) h+=manualPill('docManualPremium()','Manual del Acceso Premium');
+  if(!prev) h+=`<button class="btn btn-ghost" id="ac-cambiar-pass" style="width:100%;margin-top:10px">🔑 Cambiar mi contraseña</button>`;
   $('teacher').innerHTML=h;
+  if($('ac-cambiar-pass')) $('ac-cambiar-pass').onclick=()=>acCambiarPass();
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
   if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=caCliChat; call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
   // El acceso a la vista de grupo solo se pinta si la cuenta pertenece a uno.
