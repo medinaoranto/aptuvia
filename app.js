@@ -3320,7 +3320,7 @@ function saRenderLista(okMsg,errMsg){
   if($('sa-alta-presu')) $('sa-alta-presu').onclick=()=>saAltaDesdePresu('ev');
   const at=$('sa-acad-toggle'); if(at) at.onclick=()=>{ const l=$('sa-acad-wrap'); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=at.querySelector('span'); if(cap) cap.textContent=saAcademias.length+(abre?' ▴':' ▾'); if(abre){ const q=$('sa-acad-q'); if(q) q.focus(); } } };
   const acq=$('sa-acad-q'); if(acq) acq.oninput=()=>{ const v=acq.value.toLowerCase().trim(); $('teacher').querySelectorAll('#sa-acad-list .sa-card[data-nom]').forEach(c=>{ c.style.display=(!v||(c.dataset.nom||'').includes(v))?'':'none'; }); };
-  $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
+  $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>{ window._saDesdeGrupo=null; saAbrirAcademia(+c.dataset.acad); });
   call('/rest/v1/config_app?select=valor&clave=eq.mantenimiento').then(m=>{ const on=(m&&m[0]&&m[0].valor==='on'); window._mantOn=on; const p=$('sa-mant-pill'); if(p){ p.textContent='🛠️ '+(on?'Mantenimiento':'Operativo'); p.style.borderColor=on?'#b4232a':'#15803d'; p.style.background=on?'#fdeaea':'#dcfce7'; p.style.color=on?'#b4232a':'#15803d'; } }).catch(()=>{});
 }
 async function saPintarMantenimiento(){
@@ -3397,7 +3397,7 @@ function saDetalle(msg){
   const uOpen = esAA && (window._saAAUsersOpen || !!saProfExp);
   let h='';
   if(msg) h+=msg;
-  h+=`${esAA?'<button class="backbtn" onclick="saSetMain(\'acadprof\')" style="margin-bottom:12px">← Academias y profesores</button>':'<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:12px">← Todas las academias</button>'}
+  h+=`${esAA?'<button class="backbtn" onclick="saSetMain(\'acadprof\')" style="margin-bottom:12px">← Academias y profesores</button>':(window._saDesdeGrupo?'<button class="backbtn" onclick="saGrupoPanel('+window._saDesdeGrupo+')" style="margin-bottom:12px">← Dirección del grupo</button>':'<button class="backbtn" onclick="openSuperadmin()" style="margin-bottom:12px">← Todas las academias</button>')}
     <div class="sa-head-acad">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div><b id="sa-nombre">${escHtml(a.nombre)}</b>${(!esAA && a.activa===false)?' <span style="color:#b4232a;font-size:.72rem;font-weight:800">🔒 REVOCADA</span>':''}
@@ -3411,7 +3411,7 @@ function saDetalle(msg){
       ${esAA?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn btn-honey" id="sa-aa-alta-presu" style="flex:1;margin:0;min-width:130px">📝 Alta desde presupuesto</button>
         <button class="btn btn-ghost" id="sa-nuevo-prof" style="flex:1;margin:0;min-width:130px">Crear usuario · sin presupuesto</button>
-      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">Crear profesor · sin presupuesto</button>`}
+      </div>`:`<button class="btn btn-honey" id="sa-nuevo-prof" style="width:100%;margin-top:6px">${a._grupo_id?'➕ Crear profesor':'Crear profesor · sin presupuesto'}</button>${a._grupo_id?'<div style="font-size:.7rem;color:#15803d;font-weight:700;text-align:center;margin-top:5px">✅ Incluido en el Premium del grupo · se factura una sola vez al grupo</div>':''}`}
     </div>
     ${esAA?'':saPremiumCard(a)}
     ${esAA
@@ -4353,6 +4353,7 @@ function saGrupoPanel(gid){
   h+=`<button class="btn btn-honey" id="grp-add" style="width:100%;margin:10px 0 6px">➕ Añadir academia al grupo</button>`;
   h+=`<button class="btn btn-ghost" id="grp-key" style="width:100%;margin:0 0 6px">🔑 Crear cuenta de dirección del grupo</button>`;
   h+=`<div style="font-size:.72rem;color:var(--ink-soft);margin:0 2px 10px;line-height:1.5">🔑 <b>Dirección del grupo</b>: una clave que ve TODAS las academias del grupo (solo lectura). 🏫 Cada <b>academia</b> tiene además su propia clave (créala dentro de cada academia): esa solo ve a sus profesores.</div>`;
+  h+=`<div id="grp-cuentas"></div>`;
   // Resumen del grupo
   h+=`<div class="sa-card" style="background:#fff;padding:11px 13px;margin-bottom:10px">
     <div style="font-weight:800;color:var(--navy);font-size:.82rem;margin-bottom:6px">📊 Resumen del grupo</div>
@@ -4387,7 +4388,27 @@ function saGrupoPanel(gid){
   if($('grp-add')) $('grp-add').onclick=()=>saAddAcademiaGrupo(gid);
   if($('grp-key')) $('grp-key').onclick=()=>saCrearDireccionGrupo(gid);
   if($('grp-ren')) $('grp-ren').onclick=()=>saRenombrarGrupoUI(gid);
-  $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>saAbrirAcademia(+c.dataset.acad));
+  $('teacher').querySelectorAll('.sa-card[data-acad]').forEach(c=> c.onclick=()=>{ window._saDesdeGrupo=gid; saAbrirAcademia(+c.dataset.acad); });
+  if(acs.length){
+    call('/rest/v1/rpc/sa_acceso_estado',{method:'POST',body:{p_academia:acs[0].academia_id}}).then(st=>{
+      const el=$('grp-cuentas'); if(!el) return;
+      let cuentas=((st&&st.cuentas)||[]);
+      cuentas=cuentas.filter(c=> (c.grupo_id!=null) ? String(c.grupo_id)===String(gid) : true);
+      if(!cuentas.length){ el.innerHTML=`<div class="sa-card" style="background:#fff;padding:11px 13px;margin-bottom:10px"><div style="font-size:.78rem;color:var(--ink-soft)">Aún no has creado la cuenta de dirección del grupo. Pulsa «🔑 Crear cuenta de dirección del grupo».</div></div>`; return; }
+      let hh=`<div class="sa-card" style="background:#fff;padding:11px 13px;margin-bottom:10px"><div style="font-weight:800;color:var(--navy);font-size:.82rem;margin-bottom:8px">🔑 Cuenta de dirección del grupo</div>`;
+      cuentas.forEach(c=>{ hh+=`<div class="sa-urow"><div class="sa-uinfo"><b>${escHtml(c.nombre||'Dirección')}</b><span>${escHtml(c.email||'')}</span></div><div class="sa-uacts"><button class="reg-pass" data-gpass="${escAttr(c.id)}" data-email="${escAttr(c.email||'')}" title="Cambiar contraseña">🔑</button><button class="reg-del" data-gdel="${escAttr(c.id)}" data-email="${escAttr(c.email||'')}" title="Borrar cuenta">🗑</button></div></div>`; });
+      hh+=`</div>`;
+      el.innerHTML=hh;
+      el.querySelectorAll('[data-gpass]').forEach(b=> b.onclick=()=>saResetPassUI(b.dataset.gpass,b.dataset.email));
+      el.querySelectorAll('[data-gdel]').forEach(b=> b.onclick=()=>grBorrarCuenta(b.dataset.gdel,b.dataset.email,gid));
+    }).catch(()=>{});
+  }
+}
+async function grBorrarCuenta(userId, email, gid){
+  if(!await appConfirm('BORRADO DEFINITIVO de la cuenta de dirección\n'+email+'\nSe elimina la cuenta. Irreversible.')) return;
+  if(!await appConfirm('Confirma otra vez: borrar '+email)) return;
+  try{ await call('/rest/v1/rpc/sa_borrar_usuario',{method:'POST',body:{p_user_id:userId}}); appAlert('✅ Cuenta borrada.'); saGrupoPanel(gid); }
+  catch(e){ appAlert('No se pudo: '+(e.message||'')); }
 }
 async function saCrearDireccionGrupo(gid){
   const acs=saAcademias.filter(a=>(window._grAcad||{})[a.academia_id]===gid);
@@ -10645,9 +10666,20 @@ async function pdfInformeCentro(){
 }
 
 // La propia cuenta de academia o dirección gestiona su contraseña (Supabase Auth).
+// Menú de cuenta de la academia/dirección: manual + cambio de contraseña.
+function acCuenta(){
+  showView('teacher'); window.scrollTo(0,0);
+  const card=(onclick,tit,sub)=>`<button onclick="${onclick}" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">${tit}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub}</div></button>`;
+  let h=`<button class="backbtn" onclick="openAcademiaCentro()" style="margin-bottom:10px">← Volver</button>`;
+  h+=`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📘 Manual y contraseña</h1>`;
+  h+=`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:6px">Cuenta: <b>${escHtml(userEmail||'')}</b></p>`;
+  h+=card('docManualPremium()','📘 Manual del Acceso Premium','Guía de tu área paso a paso');
+  h+=card('acCambiarPass()','🔑 Cambiar contraseña','Tu clave de acceso');
+  $('teacher').innerHTML=h;
+}
 function acCambiarPass(okMsg, errMsg){
   showView('teacher'); window.scrollTo(0,0);
-  const h=[`<button class="backbtn" onclick="openAcademiaCentro()" style="margin-bottom:10px">← Volver</button>`];
+  const h=[`<button class="backbtn" onclick="acCuenta()" style="margin-bottom:10px">← Manual y contraseña</button>`];
   h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">🔑 Cambiar contraseña</h1>`);
   h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:12px">Cuenta: <b>${escHtml(userEmail||'')}</b></p>`);
   if(okMsg) h.push(`<div class="t-note ok">${escHtml(okMsg)}</div>`);
@@ -10700,12 +10732,11 @@ async function openAcademiaCentro(msg, academiaId){
   if(msg) h+=`<div class="t-note ok">${escHtml(msg)}</div>`;
   h+=`<div class="t-welcome"><span class="t-course">${escHtml(window._acadNombre||'Mi academia')}</span></div>
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 12px">Consulta de resultados. Elige un profesor para ver las notas de su alumnado.</p>`;
-  if(!prev) h+=`<button class="btn btn-honey" id="ca-cli-chat" style="width:100%;margin-bottom:12px">💬 Chat con Aptuvia <span id="ca-cli-badge"></span></button>`;
+  if(!prev) h+=`<button class="btn btn-verde" id="ca-cli-chat" style="width:100%;margin-bottom:12px">💬 Chat con Aptuvia <span id="ca-cli-badge"></span></button>`;
   if(profes.length) h+=`<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <button class="btn btn-ghost" id="ac-riesgo" style="flex:1;min-width:150px">⚠️ Alumnado en riesgo</button>
     <button class="btn btn-ghost" id="ac-actividad" style="flex:1;min-width:150px">📊 Actividad del profesorado</button>
-    <button class="btn btn-ghost" id="ac-informe" style="flex:1;min-width:150px">📄 Informe del centro</button>
-    <button class="btn btn-ghost" id="ac-manual" style="flex:1;min-width:150px">📘 Manual del Acceso Premium</button></div>`;
+    <button class="btn btn-ghost" id="ac-informe" style="flex:1;min-width:150px">📄 Informe del centro</button></div>`;
   if(!profes.length){
     h+=`<div class="center-msg">Tu academia todavía no tiene profesores dados de alta.</div>`;
   }else{
@@ -10718,10 +10749,10 @@ async function openAcademiaCentro(msg, academiaId){
       </button>`;
     });
   }
-  if(!profes.length) h+=manualPill('docManualPremium()','Manual del Acceso Premium');
-  if(!prev) h+=`<button class="btn btn-ghost" id="ac-cambiar-pass" style="width:100%;margin-top:10px">🔑 Cambiar mi contraseña</button>`;
+  if(!prev) h+=`<button class="btn btn-ghost" id="ac-cuenta" style="width:100%;margin-top:10px">📘 Manual y contraseña</button>`;
+  else h+=manualPill('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
-  if($('ac-cambiar-pass')) $('ac-cambiar-pass').onclick=()=>acCambiarPass();
+  if($('ac-cuenta')) $('ac-cuenta').onclick=()=>acCuenta();
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
   if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=caCliChat; call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
   // El acceso a la vista de grupo solo se pinta si la cuenta pertenece a uno.
@@ -10729,7 +10760,7 @@ async function openAcademiaCentro(msg, academiaId){
     if(!rows||!rows.length) return;
     const cont=$('teacher'); if(!cont) return;
     const b=document.createElement('button');
-    b.className='btn btn-honey'; b.style.cssText='width:100%;margin-bottom:14px';
+    b.className='btn btn-verde'; b.style.cssText='width:100%;margin-bottom:14px';
     b.innerHTML='🏫 Vista de grupo · '+rows.length+' centros';
     b.onclick=openGrupo;
     const ref=cont.querySelector('.t-welcome');

@@ -1596,3 +1596,18 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 /* Ca7/Ca1: "Aceptación" del mismo grosor que "Aceptado" (un label, hay que
    anular el estilo global de <label>: mayúsculas, margen y color) */
 .px-acep{ white-space:nowrap!important; font-size:.72rem!important; line-height:1.25!important; text-transform:none!important; letter-spacing:normal!important; margin:0!important; }
+
+/* Ca3: botones del panel de dirección/academia (usuario) en verde corporativo */
+.btn-verde{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
+
+/* ═══════ Ca8 ═══════ */
+/* Cabecera del certificado (cursos formativos): fondo verde, código naranja, nombre blanco */
+body:not(.tema-aula-abierta) .t-welcome .t-course-pill{ background:linear-gradient(135deg,#22c55e,#15803d)!important; border-color:#15803d!important; box-shadow:0 3px 10px -4px rgba(21,128,61,.45), inset 0 1px 0 rgba(255,255,255,.35)!important; }
+body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-course{ color:#fff!important; }
+body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-code-inline{ color:#ffb020!important; }
+
+/* AA (profe y alumno): todo lo naranja pasa a verde corporativo (se remapea la
+   paleta "honey" a verde), EXCEPTO la píldora Terminado y el nivel de módulos terminados. */
+body.tema-aula-abierta{ --honey:#15803d; --honey-2:#22c55e; --honey-deep:#166534; --honey-tint:#dcfce7; }
+body.tema-aula-abierta .chip.state.done{ background:#fbe9c8!important; color:#b26a00!important; border:2px solid #e0a45a!important; }
+body.tema-aula-abierta .chip.eye{ background:#fbe9c8!important; color:#b26a00!important; border-color:#e0a45a!important; }
