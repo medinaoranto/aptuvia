@@ -1339,7 +1339,16 @@ async function logout(){
 // ============ CARGA ============
 async function loadData(){
   // Cuenta de dirección de academia: pantalla propia de solo lectura.
-  if(window._acadModo){ return openAcademiaCentro(); }
+  // Si la cuenta pertenece a un grupo (Premium multicentro), arranca en la
+  // Vista de grupo (tareas de grupo + academias); si no, en su academia.
+  if(window._acadModo){
+    try{
+      const gr=await grCargarResumen();
+      if(gr && gr.length>1){ window._acadEsGrupo=true; return openGrupo(); }
+    }catch(_){}
+    window._acadEsGrupo=false;
+    return openAcademiaCentro();
+  }
   showView('home');
   $('home').innerHTML='<div class="loader"><span class="spin"></span></div>';
   // Modo mantenimiento: si está 'on' y NO eres admin, bloqueo total.
@@ -10405,9 +10414,11 @@ async function grCargarResumen(){
 }
 async function openGrupo(){
   showView('teacher'); window.scrollTo(0,0);
-  $('teacher').innerHTML='<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button><div class="loader"><span class="spin"></span></div>';
+  // En la cuenta raíz de grupo esta ES la pantalla inicial: sin botón de volver.
+  const volver = window._acadEsGrupo ? '' : `<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button>`;
+  $('teacher').innerHTML=volver+'<div class="loader"><span class="spin"></span></div>';
   const rows=await grCargarResumen();
-  let h=`<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button>`;
+  let h=volver;
   h+=`<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:8px 0 2px;color:var(--navy)">Vista de grupo</h1>`;
   if(!rows.length){
     h+=`<div class="soon-screen"><div class="soon-emoji">🏫</div><div class="soon-title">Sin academias en el grupo</div>
@@ -10425,6 +10436,7 @@ async function openGrupo(){
   const mediaGrupo = nMedias? (sumaMedias/nMedias) : null;
   const pctAct = tot.al? Math.round(tot.act/tot.al*100) : 0;
   h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${rows.length} centro${rows.length===1?'':'s'} · datos consolidados de todo el grupo.</p>`;
+  if(window._acadEsGrupo) h+=`<button class="btn btn-verde" id="gr-cli-chat" style="width:100%;margin-bottom:14px">💬 Chat con Aptuvia <span id="gr-cli-badge"></span></button>`;
   h+=`<div class="t-card" style="margin-bottom:14px;font-size:.86rem;line-height:1.9">
     Centros: <b>${rows.length}</b> · Profesorado: <b>${tot.prof}</b><br>
     Alumnado: <b>${tot.al}</b> · con actividad: <b>${tot.act}</b> (${pctAct} %)<br>
@@ -10457,6 +10469,10 @@ async function openGrupo(){
   h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0;line-height:1.6">La media es la del mejor intento de cada examen, promediada por alumno y luego por centro. Solo cuenta el alumnado con actividad: quien no ha hecho ningún examen no baja la media, aparece en el recuento de inactivos.</p>`;
   h+=manualPill('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
+  if($('gr-cli-chat')){
+    $('gr-cli-chat').onclick=caCliChat;
+    call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('gr-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+  }
 }
 // Fase 2: la dirección de grupo entra en un centro concreto (solo lectura) y
 // vuelve al grupo. Reutiliza el mismo flujo que usa Soporte para ver una academia.
@@ -10773,7 +10789,7 @@ async function openAcademiaCentro(msg, academiaId){
 }
 // Vista previa desde Soporte: el superadmin ve exactamente la pantalla de la dirección.
 function acVerComoAcademia(academiaId){
-  window._acadModo=true;
+  window._acadModo=true; window._acadEsGrupo=false;
   openAcademiaCentro(null, academiaId);
 }
 async function acSalirVista(){
