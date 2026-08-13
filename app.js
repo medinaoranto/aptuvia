@@ -1342,12 +1342,17 @@ async function loadData(){
   // Si la cuenta pertenece a un grupo (Premium multicentro), arranca en la
   // Vista de grupo (tareas de grupo + academias); si no, en su academia.
   if(window._acadModo){
+    let esGrupo=false;
     try{
-      const gr=await grCargarResumen();
-      if(gr && gr.length>1){ window._acadEsGrupo=true; return openGrupo(); }
+      const uid=_authUid();
+      const pr=uid ? await call('/rest/v1/perfiles?select=grupo_id&id=eq.'+encodeURIComponent(uid)) : null;
+      if(pr && pr[0] && pr[0].grupo_id!=null) esGrupo=true;
     }catch(_){}
-    window._acadEsGrupo=false;
-    return openAcademiaCentro();
+    if(!esGrupo){
+      try{ const gr=await grCargarResumen(); if(gr && gr.length>1) esGrupo=true; }catch(_){}
+    }
+    window._acadEsGrupo=esGrupo;
+    return esGrupo ? openGrupo() : openAcademiaCentro();
   }
   showView('home');
   $('home').innerHTML='<div class="loader"><span class="spin"></span></div>';
