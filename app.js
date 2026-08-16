@@ -9839,6 +9839,7 @@ async function openCorrecciones(okMsg){
   renderCorrecciones(rows, err, okMsg);
 }
 function fmtFecha(ts){ try{ return new Date(ts).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }catch(_){ return ''; } }
+function fmtShort(d){ try{ const x=(d instanceof Date)?d:new Date(d); if(isNaN(x)) return ''; const p=n=>String(n).padStart(2,'0'); return p(x.getDate())+'/'+p(x.getMonth()+1)+'/'+x.getFullYear(); }catch(_){ return ''; } }
 function renderCorrecciones(rows, errMsg, okMsg){
   const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
   h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Correcciones</h1>`);
