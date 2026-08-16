@@ -1668,7 +1668,7 @@ function renderHomeAlumno(headerHtml){
   const tab = window._alumTab || 'aula';
   const d = alumHomeData();
   const on='background:#fff;border-color:#15803d;border-width:2px;color:var(--honey-deep)';
-  const base='background:#fff;border:1.5px solid var(--line);color:var(--navy)';
+  const base='background:#fff;border:1.5px solid #15803d;color:var(--navy)';
   const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;box-shadow:0 4px 10px -5px rgba(70,95,125,.4);display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
   let h=headerHtml;
   h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
@@ -2378,6 +2378,10 @@ function manualPill(fn, texto, extra){
     ${extra||''}
     <button onclick="${fn}" title="Guía en PDF, paso a paso" style="${est}">📘 ${texto||'Manual'}</button>
   </div>`;
+}
+// Pestaña full-width para el manual (mismo aire que las tarjetas t-card).
+function manualTab(fn, texto, sub){
+  return `<button onclick="${fn}" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:12px"><b style="font-size:.95rem;color:var(--navy)">📘 ${texto||'Manual'}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub||'Guía de tu área paso a paso'}</div></button>`;
 }
 
 function manualAlumnoSecciones(esAula){
@@ -3685,6 +3689,14 @@ async function avisarAdmin(texto){
     }});
   }catch(e){ /* nunca debe tumbar la operación */ }
 }
+// ¿La academia pertenece a un grupo Premium?
+async function saAcadEsPremium(academiaId){
+  if(academiaId==null) return false;
+  const ga=window._grAcad;
+  if(ga && typeof ga==='object') return !!ga[academiaId];
+  try{ const r=await call('/rest/v1/academia?select=grupo_id&id=eq.'+academiaId); return !!(r&&r[0]&&r[0].grupo_id); }
+  catch(e){ return false; }
+}
 // Elegir un presupuesto aceptado del que cuelga esta alta.
 // Devuelve el presupuesto, null (sin presupuesto) o false (cancelado).
 async function saElegirPresupuesto(academiaId){
@@ -3724,8 +3736,10 @@ async function saCrearProfesorUI(academiaId, aaMode, sinPresu){
     const quien=(nombre||'').trim()||email.trim();
     if(presu){
       await avisarAdmin('👤 Profesor de alta: "'+quien+'" ('+cod+'), del presupuesto '+(presu.numero||'')+'. Comprueba si su cuota ya está incluida en esa factura antes de emitir nada nuevo.');
+    }else if(!aaMode && await saAcadEsPremium(academiaId)){
+      await avisarAdmin('👤 Profesor de alta en cuenta PREMIUM: "'+quien+'" ('+cod+'). Cubierto por la suscripción del grupo. NO facturar individualmente (0 €).');
     }else{
-      await avisarAdmin('👤 Profesor de alta SIN presupuesto: "'+quien+'" ('+cod+'). NO facturar por defecto (alta interna/cortesía). Si es cliente de pago, crea su presupuesto y factura desde ahí (0 € si es cortesía).');
+      await avisarAdmin('👤 Profesor de alta por CORTESÍA / alta interna: "'+quien+'" ('+cod+'). NO facturar (0 €). Si fuera cliente de pago, crea su presupuesto y factura desde ahí.');
     }
     if(aaMode){ await saAbrirAula(); } else { await saAbrirAcademia(academiaId); }
   }catch(e){ appAlert('No se pudo: '+(e.message||'')); }
@@ -10486,7 +10500,7 @@ async function openGrupo(){
     </button>`;
   });
   h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0;line-height:1.6">La media es la del mejor intento de cada examen, promediada por alumno y luego por centro. Solo cuenta el alumnado con actividad: quien no ha hecho ningún examen no baja la media, aparece en el recuento de inactivos.</p>`;
-  h+=manualPill('docManualPremium()','Manual del Acceso Premium');
+  h+=manualTab('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
   if($('gr-cli-chat')){
     $('gr-cli-chat').onclick=caCliChat;
@@ -10785,7 +10799,7 @@ async function openAcademiaCentro(msg, academiaId){
     });
   }
   if(!prev) h+=`<button class="btn btn-ghost" id="ac-cuenta" style="width:100%;margin-top:10px">📘 Manual y contraseña</button>`;
-  else h+=manualPill('docManualPremium()','Manual del Acceso Premium');
+  else h+=manualTab('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
   if($('ac-cuenta')) $('ac-cuenta').onclick=()=>acCuenta();
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
