@@ -1667,9 +1667,9 @@ function alumFmtFecha(d){ if(!d) return '—'; try{ const x=new Date(d); const p
 function renderHomeAlumno(headerHtml){
   const tab = window._alumTab || 'aula';
   const d = alumHomeData();
-  const on='background:linear-gradient(135deg,#22c55e,#15803d);border:2px solid #0a3d1f;color:#fff';
-  const base='background:linear-gradient(135deg,#22c55e,#15803d);border:1.5px solid #15803d;color:#fff';
-  const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;box-shadow:0 4px 10px -5px rgba(70,95,125,.4);display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
+  const on='background:#fff;border:2px solid #15803d;color:#15803d;box-shadow:0 6px 14px -6px rgba(21,128,61,.55), inset 2px 2px 4px rgba(255,255,255,.9), inset -2px -2px 5px rgba(21,128,61,.12)';
+  const base='background:#fff;border:1.5px solid #15803d;color:#15803d;box-shadow:inset 3px 3px 7px rgba(21,128,61,.22), inset -2px -2px 6px rgba(255,255,255,.85)';
+  const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
   let h=headerHtml;
   h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
     ${tbtn('aula','📚 Mi aula')}
