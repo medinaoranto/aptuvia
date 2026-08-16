@@ -1600,9 +1600,9 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 /* Ca3: botones del panel de dirección/academia (usuario) en verde corporativo */
 .btn-verde{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
 
-/* ═══════ Ca8 ═══════ */
-/* Cabecera del certificado (cursos formativos): fondo verde, código naranja, nombre blanco */
-body:not(.tema-aula-abierta) .t-welcome .t-course-pill{ background:linear-gradient(135deg,#22c55e,#15803d)!important; border-color:#15803d!important; box-shadow:0 3px 10px -4px rgba(21,128,61,.45), inset 0 1px 0 rgba(255,255,255,.35)!important; }
+/* ═══════ Ca8 / Ca5 ═══════ */
+/* Cabecera del certificado (cursos formativos): verde oscuro plano, código naranja, nombre blanco */
+body:not(.tema-aula-abierta) .t-welcome .t-course-pill{ background:#15803d!important; border-color:#15803d!important; box-shadow:0 3px 10px -4px rgba(21,128,61,.45), inset 0 1px 0 rgba(255,255,255,.18)!important; }
 body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-course{ color:#fff!important; }
 body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-code-inline{ color:#ffb020!important; }
 

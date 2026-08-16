@@ -1667,7 +1667,7 @@ function alumFmtFecha(d){ if(!d) return '—'; try{ const x=new Date(d); const p
 function renderHomeAlumno(headerHtml){
   const tab = window._alumTab || 'aula';
   const d = alumHomeData();
-  const on='background:var(--honey-tint);border-color:var(--honey);color:var(--honey-deep)';
+  const on='background:#fff;border-color:#15803d;border-width:2px;color:var(--honey-deep)';
   const base='background:#fff;border:1.5px solid var(--line);color:var(--navy)';
   const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;box-shadow:0 4px 10px -5px rgba(70,95,125,.4);display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
   let h=headerHtml;
@@ -1749,6 +1749,7 @@ function alumTabChat(){
     <button onclick="docManualAlumno()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">📖 Manual</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Guía de uso de la plataforma</div></button>`;
 }
 function alumAbrirPendiente(examId, tipo){
+  window._alumRetornoPend=true;
   if(tipo==='red'){ openRedaccion(examId); } else { openExam(examId); }
 }
 function alumVerCorregido(examId, unidad){
@@ -3479,7 +3480,7 @@ async function saAddAcademiaGrupo(grupoId){
 function saPremiumCard(a){
   const st=window._saPremium||{activo:false,cuentas:[],presupuesto:null,candidatos:[],facturado:false};
   const on=!!st.activo;
-  const cuentas=st.cuentas||[];
+  const cuentas=(st.cuentas||[]).filter(c=> c.grupo_id==null);
   const pr=st.presupuesto||null;
   const cand=st.candidatos||[];
   const fact=!!st.facturado;
@@ -4407,7 +4408,7 @@ function saGrupoPanel(gid){
     call('/rest/v1/rpc/sa_acceso_estado',{method:'POST',body:{p_academia:acs[0].academia_id}}).then(st=>{
       const el=$('grp-cuentas'); if(!el) return;
       let cuentas=((st&&st.cuentas)||[]);
-      cuentas=cuentas.filter(c=> (c.grupo_id!=null) ? String(c.grupo_id)===String(gid) : true);
+      cuentas=cuentas.filter(c=> c.grupo_id!=null && String(c.grupo_id)===String(gid));
       if(!cuentas.length){ el.innerHTML=`<div class="sa-card" style="background:#fff;padding:11px 13px;margin-bottom:10px"><div style="font-size:.78rem;color:var(--ink-soft)">Aún no has creado la cuenta de dirección del grupo. Pulsa «🔑 Crear cuenta de dirección del grupo».</div></div>`; return; }
       let hh=`<div class="sa-card" style="background:#fff;padding:11px 13px;margin-bottom:10px"><div style="font-weight:800;color:var(--navy);font-size:.82rem;margin-bottom:8px">🔑 Cuenta de dirección del grupo</div>`;
       cuentas.forEach(c=>{ hh+=`<div class="sa-urow"><div class="sa-uinfo"><b>${escHtml(c.nombre||'Dirección')}</b><span>${escHtml(c.email||'')}</span></div><div class="sa-uacts"><button class="reg-pass" data-gpass="${escAttr(c.id)}" data-email="${escAttr(c.email||'')}" title="Cambiar contraseña">🔑</button><button class="reg-del" data-gdel="${escAttr(c.id)}" data-email="${escAttr(c.email||'')}" title="Borrar cuenta">🗑</button></div></div>`; });
@@ -8435,7 +8436,8 @@ async function caCentrosInbox(canal, verArch, area){
   const live=[], arch=[];
   canalHilos.forEach(t=>{ const e=estMap[String(t.academia_id)]; if(chatVivo(t.ultimo,e)) live.push(t); else if(chatArchivado(t.ultimo,e)) arch.push(t); });
   const lista = verArch?arch:live;
-  const tab=(k,txt)=>`<button onclick="caCentrosInbox('${k}',false,'${area}')" class="px-btn" style="flex:1 1 0;min-width:0;${canal===k?'background:var(--honey-tint)!important;border-color:var(--honey)!important;box-shadow:none!important':''}">${txt}</button>`;
+  const noLeidosCanal=(k)=>(hilos||[]).filter(t=>String(t.canal)===k).reduce((s,t)=>s+(+t.no_leidos||0),0);
+  const tab=(k,txt)=>{ const n=noLeidosCanal(k); const bdg=n>0?` <span class="tile-badge" style="position:static;margin-left:4px">${n}</span>`:''; return `<button onclick="caCentrosInbox('${k}',false,'${area}')" class="px-btn" style="flex:1 1 0;min-width:0;${canal===k?'background:var(--honey-tint)!important;border-color:var(--honey)!important;box-shadow:none!important':''}">${txt}${bdg}</button>`; };
   const h=['<button class="backbtn" onclick="'+(verArch?"caCentrosInbox('"+canal+"',false,'"+area+"')":backRoot)+'">← '+(verArch?'Conversaciones':caBackAreaTxt(area))+'</button>'];
   h.push('<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">🏫 Chat con centros'+(verArch?' · Archivados':'')+'</h1>');
   h.push('<p style="font-size:.75rem;color:var(--ink-soft);margin:0 2px 10px">Consultas dirigidas a <b>'+CA_AREA_LABEL[area]+'</b>.</p>');
@@ -8728,15 +8730,19 @@ async function togglePublicado(btn){
 // Exámenes e intentos de UN alumno
 function openAlumnoDetalle(email){
   showView('teacher'); window.scrollTo(0,0);
-  email=(email||'').toLowerCase().trim();
-  teacherView='alumno'; teacherAl=email; teacherById={};
+  email=(email||'').trim();
+  // Alumnos sin email (algunos de Aula Abierta): la fila envía "nombre:<nombre>".
+  let porNombre='';
+  if(email.toLowerCase().indexOf('nombre:')===0){ porNombre=email.slice(7).trim(); email=''; }
+  email=email.toLowerCase();
+  teacherView='alumno'; teacherAl=email||('nombre:'+porNombre); teacherById={};
   // Datos del alumno en el resumen
-  const meta=(resumenRows||[]).find(x=>(x.alumno||'').toLowerCase()===email)||{};
-  const nombreReal=meta.nombre || meta._nombre || '';
+  const meta=(resumenRows||[]).find(x=> email ? ((x.alumno||'').toLowerCase()===email) : ((x._nombre||x.nombre||'').toLowerCase()===porNombre.toLowerCase()))||{};
+  const nombreReal=meta.nombre || meta._nombre || porNombre || '';
   // Emparejar intentos por email (clave común); nombre como respaldo
   const list=teacherRows.filter(r=>{
     const e=(r.alumno_email||r.alumno||'').toLowerCase();
-    if(e && e===email) return true;
+    if(email && e && e===email) return true;
     if(nombreReal && r._nombre && r._nombre.toLowerCase()===nombreReal.toLowerCase()) return true;
     return false;
   });
@@ -10776,8 +10782,9 @@ async function openAcademiaCentro(msg, academiaId){
   if($('ac-cuenta')) $('ac-cuenta').onclick=()=>acCuenta();
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
   if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=caCliChat; call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
-  // El acceso a la vista de grupo solo se pinta si la cuenta pertenece a uno.
-  grCargarResumen().then(rows=>{
+  // El acceso a la vista de grupo solo se pinta en la cuenta raíz de grupo,
+  // no cuando ya estás viendo un centro concreto (ahí vuelves con el botón gris).
+  if(!prev) grCargarResumen().then(rows=>{
     if(!rows||!rows.length) return;
     const cont=$('teacher'); if(!cont) return;
     const b=document.createElement('button');
@@ -11026,7 +11033,8 @@ function listadoBody(okMsg){
     if(_keyOf(a)!=null){
       if(i===0) pos='🥇 '; else if(i===1) pos='🥈 '; else if(i===2) pos='🥉 ';
     }
-    h.push(`<button class="al-row" data-al="${escAttr(email)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>½ Mejor int.</i><b>${mc}</b></span><span class="al-g"><i>½ todos int.</i><b>${mt}</b></span><span class="al-g"><i>½ Ex. Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
+    const alClave = email || (nombre?('nombre:'+nombre):'');
+    h.push(`<button class="al-row" data-al="${escAttr(alClave)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>½ Mejor int.</i><b>${mc}</b></span><span class="al-g"><i>½ todos int.</i><b>${mt}</b></span><span class="al-g"><i>½ Ex. Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
   });
   return h.join('');
 }
@@ -13344,7 +13352,8 @@ function backToUnit(){
     window._redHideHandler = null;
   }
   window._redVigilando = false;
-  if(window._alumRetornoHist){ window._alumRetornoHist=false; alumVolverHist(); return; }
+  if(window._alumRetornoHist){ window._alumRetornoHist=false; window._alumRetornoPend=false; alumVolverHist(); return; }
+  if(window._alumRetornoPend){ window._alumRetornoPend=false; window._alumTab='pend'; showView('home'); renderHome(); return; }
   if(current.unit){ openUnit(current.unit); } else { goHome(); }
 }
 function alumVolverHist(){ window._alumTab='hist'; showView('home'); renderHome(); }
