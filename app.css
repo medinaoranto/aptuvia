@@ -1601,10 +1601,10 @@ body.tema-aula-abierta .t-welcome .t-course span{ color:#fff!important; }
 .btn-verde{ background:linear-gradient(135deg,#22c55e,#15803d)!important; color:#fff!important; }
 
 /* ═══════ Ca8 / Ca5 ═══════ */
-/* Cabecera del certificado (cursos formativos): verde oscuro plano, código naranja, nombre blanco */
+/* Cabecera del certificado (cursos formativos): verde oscuro plano, SOLO código naranja */
 body:not(.tema-aula-abierta) .t-welcome .t-course-pill{ background:#15803d!important; border-color:#15803d!important; box-shadow:0 3px 10px -4px rgba(21,128,61,.45), inset 0 1px 0 rgba(255,255,255,.18)!important; }
-body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-course{ color:#fff!important; }
-body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-code-inline{ color:#ffb020!important; }
+body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-course{ font-size:0!important; }
+body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-code-inline{ color:#ffb020!important; font-size:1rem!important; }
 
 /* AA (profe y alumno): todo lo naranja pasa a verde corporativo (se remapea la
    paleta "honey" a verde), EXCEPTO la píldora Terminado y el nivel de módulos terminados. */

@@ -11034,7 +11034,7 @@ function listadoBody(okMsg){
       if(i===0) pos='🥇 '; else if(i===1) pos='🥈 '; else if(i===2) pos='🥉 ';
     }
     const alClave = email || (nombre?('nombre:'+nombre):'');
-    h.push(`<button class="al-row" data-al="${escAttr(alClave)}"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>½ Mejor int.</i><b>${mc}</b></span><span class="al-g"><i>½ todos int.</i><b>${mt}</b></span><span class="al-g"><i>½ Ex. Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
+    h.push(`<button class="al-row" data-al="${escAttr(alClave)}" onclick="openAlumnoDetalle('${String(alClave).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"><span class="al-info"><b>${pos}${escHtml(nombre)}</b><span>${ni} intento${ni!==1?'s':''}</span></span><span class="al-grades"><span class="al-g"><i>½ Mejor int.</i><b>${mc}</b></span><span class="al-g"><i>½ todos int.</i><b>${mt}</b></span><span class="al-g"><i>½ Ex. Final</i><b>${mf}</b></span></span><span class="arrow">›</span></button>`);
   });
   return h.join('');
 }
