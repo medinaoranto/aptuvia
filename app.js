@@ -8729,6 +8729,13 @@ async function togglePublicado(btn){
 
 // Exámenes e intentos de UN alumno
 function openAlumnoDetalle(email){
+  try{ _openAlumnoDetalle(email); }
+  catch(err){
+    try{ showView('teacher'); }catch(_){}
+    $('teacher').innerHTML=`<button class="backbtn" onclick="openAlumnos()">← Alumnos</button><div class="t-note err">No se pudo abrir el alumno.<br><small>${escHtml(err&&err.message||String(err))}</small></div>`;
+  }
+}
+function _openAlumnoDetalle(email){
   showView('teacher'); window.scrollTo(0,0);
   email=(email||'').trim();
   // Alumnos sin email (algunos de Aula Abierta): la fila envía "nombre:<nombre>".
