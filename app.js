@@ -10503,6 +10503,7 @@ function grRender(){
     <span style="font-size:.8rem;font-weight:700;color:var(--navy)">Media del grupo</span>
     <span style="font-size:1.35rem;font-weight:800;color:${mediaCol}">${mediaGrupo!=null?mediaGrupo.toFixed(1)+' / 10':'sin datos'}</span>
   </div>`;
+  h+=`<button class="btn btn-ghost" onclick="grDocs()" style="width:100%;margin-bottom:6px">📄 Generar documentos (listados, notas, estados)</button>`;
   h+=`<h2 style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:16px 2px 10px">Comparativa por centro</h2>`;
   const maxMedia=10;
   rows.forEach(r=>{
@@ -10748,6 +10749,251 @@ async function pdfInformeCentro(){
     doc.text('Pagina '+i+' de '+pages,PW-M,PH-8,{align:'right'});
   }
   docVer(doc,'Aptuvia_informe_centro_'+fmtStamp(fecha)+'.pdf');
+}
+
+// ══════════════ GENERADOR DE DOCUMENTOS (Premium · dirección de grupo) ══════════════
+// Fuente única: gr_alumnos (roster) y gr_calif (una fila por alumno×UF). Con esos dos
+// datasets se arman todos los documentos (listado, calificaciones UF/MF, estado, actividad).
+const GD_TIPOS=[
+  {k:'listado',  label:'Listado de alumnado',            sub:'Quién está en cada centro y certificado'},
+  {k:'calif_uf', label:'Hoja de calificaciones (por UF)', sub:'Media por unidad formativa'},
+  {k:'calif_mf', label:'Hoja de calificaciones (por MF)', sub:'Nota consolidada por módulo formativo'},
+  {k:'estado',   label:'Estado del alumnado',            sub:'Activo · en riesgo · inactivo'},
+  {k:'actividad',label:'Control de actividad',           sub:'Nº de exámenes por alumno'},
+  {k:'evolucion',label:'Evolución temporal (por centro)', sub:'Media mes a mes'}
+];
+const GD_BASE={mejor:'Mejor intento', todos:'Todos los intentos', final:'Pruebas finales'};
+
+function gdMedia(o,base){
+  if(base==='todos') return o.media_todos!=null?Number(o.media_todos):null;
+  if(base==='final') return o.media_final!=null?Number(o.media_final):null;
+  return o.media_mejor!=null?Number(o.media_mejor):null;
+}
+function gdEstado(a,base,U){
+  if((Number(a.n_examenes)||0)===0) return {t:'Inactivo',tono:'ambar'};
+  const m=gdMedia(a,base);
+  if(m!=null && m<U) return {t:'En riesgo',tono:'rojo'};
+  return {t:'Activo',tono:null};
+}
+function gdDef(){ return {tipo:'listado',centro:'all',cert:'all',base:'mejor',umbral:(parseFloat(localStorage.getItem('apt_umbral_grupo'))||5)}; }
+
+async function grDocs(){
+  showView('teacher'); window.scrollTo(0,0);
+  $('teacher').innerHTML='<button class="backbtn" onclick="openGrupo()">← Vista de grupo</button><div class="loader"><span class="spin"></span></div>';
+  try{
+    const [al,cal,evo]=await Promise.all([
+      call('/rest/v1/rpc/gr_alumnos',{method:'POST',body:{}}).catch(()=>[]),
+      call('/rest/v1/rpc/gr_calif',{method:'POST',body:{}}).catch(()=>[]),
+      call('/rest/v1/rpc/gr_evolucion',{method:'POST',body:{}}).catch(()=>[])
+    ]);
+    window._grDocAl=al||[]; window._grDocCal=cal||[]; window._grDocEvol=evo||[];
+  }catch(e){ window._grDocAl=[]; window._grDocCal=[]; window._grDocEvol=[]; }
+  if(!window._gd) window._gd=gdDef();
+  grDocRender();
+}
+
+async function grDocPick(camp){
+  let opts=[], titulo='';
+  if(camp==='tipo'){ titulo='Tipo de documento'; opts=GD_TIPOS.map(t=>({label:t.label,sub:t.sub,value:t.k})); }
+  else if(camp==='centro'){ titulo='Centro'; const seen={}; opts=[{label:'Todos los centros',value:'all'}]; (window._grDocAl||[]).forEach(a=>{ if(!seen[a.academia_id]){ seen[a.academia_id]=1; opts.push({label:a.academia||('Academia '+a.academia_id),value:String(a.academia_id)}); } }); }
+  else if(camp==='cert'){ titulo='Certificado'; const seen={}; opts=[{label:'Todos los certificados',value:'all'}]; (window._grDocAl||[]).forEach(a=>{ const c=a.cert_codigo; if(c&&!seen[c]){ seen[c]=1; opts.push({label:c+(a.cert_nombre?' · '+a.cert_nombre:''),value:c}); } }); }
+  else if(camp==='base'){ titulo='Base de la media'; opts=[{label:'🥇 Mejor intento',value:'mejor'},{label:'📚 Todos los intentos',value:'todos'},{label:'🎓 Pruebas finales',value:'final'}]; }
+  const v=await appPicker(titulo,opts);
+  if(v==null) return;
+  window._gd[camp==='tipo'?'tipo':camp==='centro'?'centro':camp==='cert'?'cert':'base']=v;
+  grDocRender();
+}
+async function grDocUmbral(){
+  const cur=window._gd.umbral||5;
+  const v=await appPrompt('Umbral de riesgo: nota mínima (0-10) para NO marcar a un alumno en riesgo.', String(cur));
+  if(v==null) return;
+  const n=parseFloat(String(v).replace(',','.'));
+  if(isNaN(n)||n<0||n>10){ appAlert('Introduce un número entre 0 y 10.'); return; }
+  window._gd.umbral=n; try{ localStorage.setItem('apt_umbral_grupo',String(n)); }catch(e){}
+  grDocRender();
+}
+
+function grDocEvolPivot(){
+  const st=window._gd, base=st.base;
+  const rows=(window._grDocEvol||[]).filter(r=> st.centro==='all'||String(r.academia_id)===String(st.centro));
+  const mset={}; rows.forEach(r=>{ if(r.mes) mset[r.mes]=1; });
+  let months=Object.keys(mset).sort();
+  if(months.length>12) months=months.slice(months.length-12);
+  const cset={}; rows.forEach(r=>{ if(!cset[r.academia_id]) cset[r.academia_id]={academia_id:r.academia_id, academia:r.academia, m:{}}; const v=(base==='final'? r.media_final : r.media); cset[r.academia_id].m[r.mes]=(v!=null?Number(v):null); });
+  const centros=Object.values(cset).sort((x,y)=> String(x.academia||'').localeCompare(String(y.academia||''),'es'));
+  return {months, centros};
+}
+
+function grDocDataset(){
+  const st=window._gd, base=st.base, U=st.umbral||5;
+  const flt=r=> (st.centro==='all'||String(r.academia_id)===String(st.centro)) && (st.cert==='all'||r.cert_codigo===st.cert);
+  const al=(window._grDocAl||[]).filter(flt).slice().sort((x,y)=> String(x.academia||'').localeCompare(String(y.academia||''),'es')||String(x.alumno||'').localeCompare(String(y.alumno||''),'es'));
+  const cal=(window._grDocCal||[]).filter(flt);
+  const mf=m=> m!=null?Number(m).toFixed(1):'—';
+  const centroNom=(st.centro==='all')?'Todos los centros':((al[0]&&al[0].academia)||'Centro');
+  const sub=[centroNom, st.cert==='all'?'Todos los certificados':st.cert, 'Media: '+GD_BASE[base]].join(' · ');
+  let titulo='Documento', file='documento', cols=[], filas=[];
+
+  if(st.tipo==='listado'){
+    titulo='Listado de alumnado'; file='listado_alumnado';
+    cols=[{h:'Alumno',w:32,a:'l'},{h:'Centro',w:26,a:'l'},{h:'Profesor',w:24,a:'l'},{h:'Certificado',w:16,a:'l'},{h:'Exám.',w:8,a:'r'}];
+    al.forEach(a=> filas.push({c:[a.alumno||'—', a.academia||'—', a.profesor||'—', a.cert_codigo||'—', Number(a.n_examenes)||0]}));
+  }
+  else if(st.tipo==='calif_uf'){
+    titulo='Hoja de calificaciones · por unidad formativa'; file='calificaciones_UF';
+    cols=[{h:'Alumno',w:28,a:'l'},{h:'Centro',w:22,a:'l'},{h:'Unidad formativa',w:34,a:'l'},{h:'Módulo',w:20,a:'l'},{h:'Exám.',w:8,a:'r'},{h:'Media',w:10,a:'r'}];
+    cal.slice().sort((x,y)=> String(x.academia||'').localeCompare(String(y.academia||''),'es')||String(x.alumno||'').localeCompare(String(y.alumno||''),'es')||String(x.unidad_codigo||'').localeCompare(String(y.unidad_codigo||''),'es'))
+      .forEach(r=>{ const uf=[r.unidad_codigo,r.unidad_titulo].filter(Boolean).join(' · ')||'—'; filas.push({c:[r.alumno||'—', r.academia||'—', uf, r.modulo||'—', Number(r.n_examenes)||0, mf(gdMedia(r,base))]}); });
+  }
+  else if(st.tipo==='calif_mf'){
+    titulo='Hoja de calificaciones · por módulo formativo'; file='calificaciones_MF';
+    cols=[{h:'Alumno',w:30,a:'l'},{h:'Centro',w:24,a:'l'},{h:'Módulo formativo',w:34,a:'l'},{h:'UF',w:6,a:'r'},{h:'Media MF',w:12,a:'r'}];
+    const g={};
+    cal.forEach(r=>{ const k=r.alumno_id+'|'+(r.modulo||''); const m=gdMedia(r,base); (g[k]=g[k]||{alumno:r.alumno,academia:r.academia,modulo:r.modulo,notas:[]}); if(m!=null) g[k].notas.push(m); });
+    Object.values(g).sort((x,y)=> String(x.academia||'').localeCompare(String(y.academia||''),'es')||String(x.alumno||'').localeCompare(String(y.alumno||''),'es')||String(x.modulo||'').localeCompare(String(y.modulo||''),'es'))
+      .forEach(o=>{ const med=o.notas.length?(o.notas.reduce((a,b)=>a+b,0)/o.notas.length):null; filas.push({c:[o.alumno||'—', o.academia||'—', o.modulo||'Sin módulo', o.notas.length, mf(med)]}); });
+  }
+  else if(st.tipo==='estado'){
+    titulo='Estado del alumnado'; file='estado_alumnado';
+    cols=[{h:'Alumno',w:32,a:'l'},{h:'Centro',w:26,a:'l'},{h:'Media',w:10,a:'r'},{h:'Exám.',w:8,a:'r'},{h:'Estado',w:14,a:'l'}];
+    al.forEach(a=>{ const e=gdEstado(a,base,U); filas.push({c:[a.alumno||'—', a.academia||'—', mf(gdMedia(a,base)), Number(a.n_examenes)||0, e.t], tono:e.tono}); });
+  }
+  else if(st.tipo==='actividad'){
+    titulo='Control de actividad'; file='control_actividad';
+    cols=[{h:'Alumno',w:28,a:'l'},{h:'Centro',w:22,a:'l'},{h:'Profesor',w:22,a:'l'},{h:'Exám.',w:7,a:'r'},{h:'Intentos',w:9,a:'r'},{h:'Últ. actividad',w:14,a:'l'}];
+    al.forEach(a=> filas.push({c:[a.alumno||'—', a.academia||'—', a.profesor||'—', Number(a.n_examenes)||0, Number(a.n_intentos)||0, a.ult_actividad?fmtShort(a.ult_actividad):'—']}));
+  }
+  else if(st.tipo==='evolucion'){
+    titulo='Evolución temporal · media mes a mes'; file='evolucion_centros';
+    const piv=grDocEvolPivot();
+    const fmM=k=>{ const p=String(k).split('-'); const nm=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; return (nm[(parseInt(p[1],10)||1)-1]||'')+' '+(p[0]||''); };
+    cols=[{h:'Centro',w:26,a:'l'}].concat(piv.months.map(m=>({h:fmM(m),w:12,a:'r'})));
+    const mf=m=> m!=null?Number(m).toFixed(1):'—';
+    piv.centros.forEach(c=> filas.push({c:[c.academia||'—'].concat(piv.months.map(m=> mf(c.m[m])))}));
+  }
+  return {tipo:st.tipo, titulo, sub, file, cols, filas};
+}
+
+function grDocRender(){
+  const st=window._gd;
+  const ds=grDocDataset();
+  const tipoLbl=(GD_TIPOS.find(t=>t.k===st.tipo)||{}).label||'Documento';
+  const centroLbl=(st.centro==='all')?'Todos los centros':((window._grDocAl||[]).find(a=>String(a.academia_id)===String(st.centro))||{}).academia||'Centro';
+  const certLbl=(st.cert==='all')?'Todos':st.cert;
+  let h=`<button class="backbtn" onclick="openGrupo()">← Vista de grupo</button>`;
+  h+=`<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:8px 0 2px;color:var(--navy)">📄 Documentos</h1>`;
+  h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Genera listados y hojas de calificaciones del grupo para archivar en los expedientes. Documentos de apoyo interno; no son actas ni certificaciones oficiales del SEPE.</p>`;
+  const chip=(camp,etq,val)=>`<button onclick="grDocPick('${camp}')" style="flex:1;min-width:140px;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer"><div style="font-size:.62rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px">${etq}</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">${escHtml(val)} ▾</div></button>`;
+  h+=`<div style="margin-bottom:9px">${chip('tipo','Documento',tipoLbl)}</div>`;
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">${chip('centro','Centro',centroLbl)}${chip('cert','Certificado',certLbl)}${chip('base','Base de la media',GD_BASE[st.base])}</div>`;
+  if(st.tipo==='estado'){
+    h+=`<button onclick="grDocUmbral()" style="width:100%;text-align:left;background:var(--honey-tint,#fff7e6);border:1.5px solid var(--honey,#e6b866);border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer;margin-bottom:9px"><div style="font-size:.62rem;font-weight:800;color:#a5620a;text-transform:uppercase;letter-spacing:.5px">Umbral de riesgo</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">Por debajo de ${Number(st.umbral).toFixed(1)} = en riesgo ✎</div></button>`;
+  }
+  // Exportar
+  h+=`<div style="display:flex;gap:8px;margin:4px 0 14px">
+    <button onclick="grDocPDF()" class="btn btn-verde" style="flex:1">⬇️ PDF</button>
+    <button onclick="grDocCSV()" class="btn btn-ghost" style="flex:1">⬇️ CSV</button>
+  </div>`;
+  // Vista previa
+  h+=`<div style="font-size:.68rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.6px;margin:2px 2px 6px">Vista previa · ${ds.filas.length} fila${ds.filas.length===1?'':'s'}</div>`;
+  if(st.tipo==='evolucion'){ h+=grDocEvolChart(); }
+  
+  if(!ds.filas.length){
+    h+=`<div class="soon-screen"><div class="soon-emoji">🗂️</div><div class="soon-title">Sin datos para este filtro</div><div class="soon-text">No hay alumnado que cumpla los filtros seleccionados, o todavía no hay actividad.</div></div>`;
+  }else{
+    const tonoCol=t=> t==='rojo'?'#b4232a':(t==='ambar'?'#a5620a':'inherit');
+    h+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;background:#fff">
+      <table style="border-collapse:collapse;width:100%;font-size:.76rem;white-space:nowrap">
+      <thead><tr>${ds.cols.map(c=>`<th style="text-align:${c.a==='r'?'right':'left'};padding:9px 11px;color:var(--ink-soft);font-weight:800;border-bottom:1px solid var(--line);font-size:.66rem;text-transform:uppercase;letter-spacing:.4px">${escHtml(c.h)}</th>`).join('')}</tr></thead>
+      <tbody>${ds.filas.slice(0,300).map(f=>`<tr>${f.c.map((v,i)=>`<td style="text-align:${ds.cols[i].a==='r'?'right':'left'};padding:8px 11px;border-bottom:1px solid #f1f3f7;${i===f.c.length-1&&ds.tipo==='estado'?'font-weight:700;color:'+tonoCol(f.tono):'color:var(--navy)'}">${escHtml(String(v))}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>`;
+    if(ds.filas.length>300) h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:8px 2px 0">Se muestran las primeras 300 filas. El PDF y el CSV incluyen todas (${ds.filas.length}).</p>`;
+  }
+  $('teacher').innerHTML=h;
+}
+
+function grDocEvolChart(){
+  const piv=grDocEvolPivot();
+  if(!piv.months.length || !piv.centros.length) return '';
+  const W=320,H=170,PL=30,PR=10,PT=12,PB=26, iw=W-PL-PR, ih=H-PT-PB;
+  const n=piv.months.length, stepX=n>1?iw/(n-1):0;
+  const cols=['#2e3163','#b45905','#1c7a44','#0077b6','#7c3aed','#b4232a'];
+  const x=i=> PL+(n>1?i*stepX:iw/2);
+  const y=v=> PT+ih-(Math.max(0,Math.min(10,v))/10*ih);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">`;
+  for(let g=0;g<=10;g+=2){ const yy=y(g); svg+=`<line x1="${PL}" y1="${yy.toFixed(1)}" x2="${W-PR}" y2="${yy.toFixed(1)}" stroke="#eef0f4" stroke-width="1"/><text x="${PL-4}" y="${(yy+3).toFixed(1)}" text-anchor="end" font-size="8" fill="#94a3b8">${g}</text>`; }
+  const fmM=k=>{ const p=String(k).split('-'); const nm=['E','F','M','A','My','Jn','Jl','Ag','S','O','N','D']; return (nm[(parseInt(p[1],10)||1)-1]||''); };
+  piv.months.forEach((m,i)=>{ svg+=`<text x="${x(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="8" fill="#94a3b8">${fmM(m)}</text>`; });
+  piv.centros.forEach((c,ci)=>{ const col=cols[ci%cols.length]; let d='',prev=false;
+    piv.months.forEach((m,i)=>{ const v=c.m[m]; if(v==null){ prev=false; return; } const px=x(i),py=y(v); d+=(prev?'L':'M')+px.toFixed(1)+' '+py.toFixed(1)+' '; prev=true; svg+=`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="2.4" fill="${col}"/>`; });
+    if(d) svg+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  svg+='</svg>';
+  const leg=piv.centros.map((c,ci)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin:0 10px 4px 0;font-size:.72rem;color:var(--navy)"><span style="width:11px;height:3px;border-radius:2px;background:${cols[ci%cols.length]};display:inline-block"></span>${escHtml(c.academia||'')}</span>`).join('');
+  return `<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 12px 8px;margin-bottom:10px">${svg}<div style="margin-top:8px">${leg}</div></div>`;
+}
+
+function grDocPDF(){
+  if(!window.jspdf){ appAlert('No se pudo cargar el generador de PDF. Comprueba tu conexión.'); return; }
+  const ds=grDocDataset();
+  if(!ds.filas.length){ appAlert('No hay filas que exportar con los filtros actuales.'); return; }
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4',orientation:'l'});
+  const PW=297,PH=210,M=14, usable=PW-M*2;
+  const NAVY=[46,49,99],DARK=[30,26,16],MUTED=[110,100,86],LIGHT=[225,225,220],RED=[180,35,42],AMBER=[165,98,10],HONEY=[180,89,5];
+  const fecha=new Date();
+  const totW=ds.cols.reduce((s,c)=>s+c.w,0);
+  const cols=ds.cols.map(c=>({...c, mm:c.w/totW*usable}));
+  let y=M;
+  function header(primera){
+    if(!primera){ doc.addPage(); y=M; }
+    doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
+    doc.text(pdfSafe(ds.titulo),M,y+1); y+=6;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+    doc.text(pdfSafe('Datos consolidados del grupo · '+ds.sub),M,y); y+=4.2;
+    doc.text(pdfSafe('Generado el '+fmtFechaES(fecha)+' a las '+fmtHoraES(fecha)+' · Documento de apoyo interno (no oficial SEPE)'),M,y); y+=4;
+    doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=5;
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+    let x=M; cols.forEach(c=>{ doc.text(pdfSafe(c.h),c.a==='r'?x+c.mm-1.5:x,y,{align:c.a==='r'?'right':'left'}); x+=c.mm; });
+    y+=2; doc.setDrawColor(LIGHT[0],LIGHT[1],LIGHT[2]);doc.setLineWidth(0.3);doc.line(M,y,PW-M,y); y+=3.6;
+  }
+  header(true);
+  doc.setFontSize(8.5);
+  ds.filas.forEach(f=>{
+    if(y+6>PH-14) header(false);
+    let x=M;
+    f.c.forEach((val,i)=>{
+      const c=cols[i];
+      if(i===f.c.length-1 && ds.tipo==='estado' && f.tono){ const col=f.tono==='rojo'?RED:AMBER; doc.setFont('helvetica','bold'); doc.setTextColor(col[0],col[1],col[2]); }
+      else { doc.setFont('helvetica','normal'); doc.setTextColor(DARK[0],DARK[1],DARK[2]); }
+      const txt=doc.splitTextToSize(pdfSafe(val==null?'':String(val)),c.mm-2)[0]||'';
+      doc.text(txt,c.a==='r'?x+c.mm-1.5:x,y,{align:c.a==='r'?'right':'left'});
+      x+=c.mm;
+    });
+    y+=4.6; doc.setDrawColor(245,243,236);doc.setLineWidth(0.2);doc.line(M,y-1.6,PW-M,y-1.6);
+  });
+  const pages=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){ doc.setPage(i);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(150,150,150);
+    doc.text(pdfSafe('Aptuvia · '+ds.titulo),M,PH-7);
+    doc.text('Pág. '+i+' de '+pages,PW-M,PH-7,{align:'right'});
+  }
+  docVer(doc,'Aptuvia_'+ds.file+'_'+fmtStamp(fecha)+'.pdf');
+}
+
+function grDocCSV(){
+  const ds=grDocDataset();
+  if(!ds.filas.length){ appAlert('No hay filas que exportar con los filtros actuales.'); return; }
+  const esc=v=>{ v=(v==null?'':String(v)); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const lines=[ds.cols.map(c=>esc(c.h)).join(';')];
+  ds.filas.forEach(f=> lines.push(f.c.map(esc).join(';')));
+  const csv=lines.join('\r\n');
+  try{
+    const bl=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+    const u=URL.createObjectURL(bl); const a=document.createElement('a');
+    a.href=u; a.download='Aptuvia_'+ds.file+'_'+fmtStamp(new Date())+'.csv'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(u),1500);
+  }catch(e){ appAlert('No se pudo generar el CSV.'); }
 }
 
 // La propia cuenta de academia o dirección gestiona su contraseña (Supabase Auth).
@@ -13881,6 +14127,34 @@ const DEMO_GR_PROFES = {
 };
 // Alumnado ficticio con notas, para el panel de un profesor demo.
 const DEMO_GR_NOMBRES=['Ana','Carlos','Marta','Javier','Lucía','Hugo','Elena','Marco','Clara','Raúl','Nora','Pau','Iris','Bruno','Alba'];
+
+// Demo del generador de documentos (grupo de demostración).
+const DEMO_GR_ALUMNOS = [
+  { academia_id:901, academia:'Academia Demo Norte', alumno_id:'da-1', alumno:'Ana Ruiz (demo)',    profesor:'Nuria Salas (demo)', cert_codigo:'ADGG0508', cert_nombre:'Operaciones de grabación y tratamiento de datos', n_examenes:8, n_intentos:14, media_mejor:7.4, media_todos:6.6, media_final:7.1, ult_actividad:'2026-08-14T10:20:00Z' },
+  { academia_id:901, academia:'Academia Demo Norte', alumno_id:'da-2', alumno:'Luis Gómez (demo)',   profesor:'Nuria Salas (demo)', cert_codigo:'ADGG0508', cert_nombre:'Operaciones de grabación y tratamiento de datos', n_examenes:6, n_intentos:9,  media_mejor:4.2, media_todos:3.8, media_final:4.0, ult_actividad:'2026-08-13T17:05:00Z' },
+  { academia_id:901, academia:'Academia Demo Norte', alumno_id:'da-3', alumno:'María Sanz (demo)',   profesor:'Iván Prieto (demo)', cert_codigo:'COMT0411', cert_nombre:'Gestión comercial de ventas', n_examenes:0, n_intentos:0,  media_mejor:null, media_todos:null, media_final:null, ult_actividad:null },
+  { academia_id:902, academia:'Academia Demo Sur',   alumno_id:'da-4', alumno:'Carlos Vera (demo)',  profesor:'Rosa Molina (demo)', cert_codigo:'ADGG0508', cert_nombre:'Operaciones de grabación y tratamiento de datos', n_examenes:7, n_intentos:11, media_mejor:6.1, media_todos:5.7, media_final:5.9, ult_actividad:'2026-08-15T09:40:00Z' },
+  { academia_id:902, academia:'Academia Demo Sur',   alumno_id:'da-5', alumno:'Sara Díaz (demo)',    profesor:'Rosa Molina (demo)', cert_codigo:'ADGG0508', cert_nombre:'Operaciones de grabación y tratamiento de datos', n_examenes:9, n_intentos:16, media_mejor:8.3, media_todos:7.9, media_final:8.5, ult_actividad:'2026-08-16T12:10:00Z' }
+];
+const DEMO_GR_CALIF = [
+  { academia_id:901, academia:'Academia Demo Norte', alumno_id:'da-1', alumno:'Ana Ruiz (demo)',   profesor:'Nuria Salas (demo)', cert_codigo:'ADGG0508', unidad_id:'d-uf0319', unidad_codigo:'UF0319', unidad_titulo:'Sistema operativo, búsqueda de información', modulo:'MF0233_2', n_examenes:4, media_mejor:7.8, media_todos:7.0, media_final:7.5 },
+  { academia_id:901, academia:'Academia Demo Norte', alumno_id:'da-1', alumno:'Ana Ruiz (demo)',   profesor:'Nuria Salas (demo)', cert_codigo:'ADGG0508', unidad_id:'d-uf0320', unidad_codigo:'UF0320', unidad_titulo:'Aplicaciones informáticas de tratamiento de textos', modulo:'MF0233_2', n_examenes:4, media_mejor:7.0, media_todos:6.2, media_final:6.7 },
+  { academia_id:901, academia:'Academia Demo Norte', alumno_id:'da-2', alumno:'Luis Gómez (demo)',  profesor:'Nuria Salas (demo)', cert_codigo:'ADGG0508', unidad_id:'d-uf0319', unidad_codigo:'UF0319', unidad_titulo:'Sistema operativo, búsqueda de información', modulo:'MF0233_2', n_examenes:6, media_mejor:4.2, media_todos:3.8, media_final:4.0 },
+  { academia_id:902, academia:'Academia Demo Sur',   alumno_id:'da-4', alumno:'Carlos Vera (demo)', profesor:'Rosa Molina (demo)', cert_codigo:'ADGG0508', unidad_id:'d-uf0319', unidad_codigo:'UF0319', unidad_titulo:'Sistema operativo, búsqueda de información', modulo:'MF0233_2', n_examenes:3, media_mejor:6.5, media_todos:6.0, media_final:6.3 },
+  { academia_id:902, academia:'Academia Demo Sur',   alumno_id:'da-4', alumno:'Carlos Vera (demo)', profesor:'Rosa Molina (demo)', cert_codigo:'ADGG0508', unidad_id:'d-uf0321', unidad_codigo:'UF0321', unidad_titulo:'Aplicaciones informáticas de hojas de cálculo', modulo:'MF0233_2', n_examenes:4, media_mejor:5.7, media_todos:5.4, media_final:5.5 },
+  { academia_id:902, academia:'Academia Demo Sur',   alumno_id:'da-5', alumno:'Sara Díaz (demo)',   profesor:'Rosa Molina (demo)', cert_codigo:'ADGG0508', unidad_id:'d-uf0319', unidad_codigo:'UF0319', unidad_titulo:'Sistema operativo, búsqueda de información', modulo:'MF0233_2', n_examenes:5, media_mejor:8.3, media_todos:7.9, media_final:8.5 }
+];
+
+const DEMO_GR_EVOL = [
+  { academia_id:901, academia:'Academia Demo Norte', mes:'2026-05', media:5.9, media_final:5.6, n_intentos:22 },
+  { academia_id:901, academia:'Academia Demo Norte', mes:'2026-06', media:6.3, media_final:6.0, n_intentos:31 },
+  { academia_id:901, academia:'Academia Demo Norte', mes:'2026-07', media:6.7, media_final:6.4, n_intentos:28 },
+  { academia_id:901, academia:'Academia Demo Norte', mes:'2026-08', media:7.0, media_final:6.9, n_intentos:19 },
+  { academia_id:902, academia:'Academia Demo Sur',   mes:'2026-05', media:5.1, media_final:4.8, n_intentos:15 },
+  { academia_id:902, academia:'Academia Demo Sur',   mes:'2026-06', media:5.4, media_final:5.2, n_intentos:20 },
+  { academia_id:902, academia:'Academia Demo Sur',   mes:'2026-07', media:5.2, media_final:5.0, n_intentos:18 },
+  { academia_id:902, academia:'Academia Demo Sur',   mes:'2026-08', media:5.8, media_final:5.7, n_intentos:12 }
+];
 function demoGrAlumnos(seed, n){
   const out=[]; let x=seed*97+13;
   for(let i=0;i<n;i++){
@@ -14058,6 +14332,9 @@ function demoResponder(path, opts){
   // --- Premium demo: grupo, centro y facturación ---
   if(p.indexOf('/rest/v1/rpc/gr_resumen')===0)
     return DEMO_GRUPO.map(x=>({...x}));
+  if(p.indexOf('/rest/v1/rpc/gr_alumnos')===0) return DEMO_GR_ALUMNOS.map(x=>({...x}));
+  if(p.indexOf('/rest/v1/rpc/gr_calif')===0) return DEMO_GR_CALIF.map(x=>({...x}));
+  if(p.indexOf('/rest/v1/rpc/gr_evolucion')===0) return DEMO_GR_EVOL.map(x=>({...x}));
   if(p.indexOf('/rest/v1/rpc/ac_profesores')===0){
     const aid=(window._demoAcadVista===902)?902:901;
     return (DEMO_GR_PROFES[aid]||[]).map(x=>({...x, id:x.id, academia_nombre:x.academia_nombre}));
