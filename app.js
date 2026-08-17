@@ -10455,7 +10455,7 @@ function grVal(r,m){
   const v=(r.media_mejor!=null?r.media_mejor:r.media);
   return v!=null?Number(v):null;
 }
-function grMedia(m){ window._grMediaModo=m; grRender(); }
+function grMedia(m){ window._grMediaModo=m; grAcademias(); }
 async function openGrupo(){
   showView('teacher'); window.scrollTo(0,0);
   const volver = window._acadEsGrupo ? '' : `<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button>`;
@@ -10466,7 +10466,6 @@ async function openGrupo(){
 }
 function grRender(){
   const rows=window._grRows||[];
-  const modo=window._grMediaModo||'mejor';
   const volver = window._acadEsGrupo ? '' : `<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button>`;
   let h=volver;
   h+=`<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:8px 0 2px;color:var(--navy)">Vista de grupo</h1>`;
@@ -10475,6 +10474,26 @@ function grRender(){
       <div class="soon-text">Esta cuenta no tiene ningún grupo asignado, o el grupo todavía no tiene centros.</div></div>`;
     $('teacher').innerHTML=h; return;
   }
+  const num=v=>Number(v)||0;
+  let nprof=0,nal=0; rows.forEach(r=>{ nprof+=num(r.n_profesores); nal+=num(r.n_alumnos); });
+  h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${rows.length} centro${rows.length===1?'':'s'} · ${nprof} profesor${nprof===1?'':'es'} · ${nal} alumno${nal===1?'':'s'}</p>`;
+  const card=(fn,emoji,tit,sub,extra)=>`<button onclick="${fn}" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:12px"><b style="font-size:.95rem;color:var(--navy)">${emoji} ${tit}${extra||''}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub}</div></button>`;
+  h+=card("grAcademias()",'🏫','Academias','Medias por centro y base de la media');
+  h+=card("grDocs()",'📄','Generar documentos','Listados, calificaciones y estados');
+  h+=card("caCliChat('openGrupo()')",'💬','Chat con Aptuvia','Soporte, administración y comercial',' <span id="gr-cli-badge"></span>');
+  h+=card("docManualPremium()",'📘','Manual del Acceso Premium','Guía del área paso a paso');
+  $('teacher').innerHTML=h;
+  call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('gr-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+}
+
+// Pestaña "Academias": medias consolidadas por centro + selector de base de la media.
+function grAcademias(){
+  showView('teacher'); window.scrollTo(0,0);
+  const rows=window._grRows||[];
+  const modo=window._grMediaModo||'mejor';
+  let h=`<button class="backbtn" onclick="openGrupo()">← Vista de grupo</button>`;
+  h+=`<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:8px 0 2px;color:var(--navy)">Academias</h1>`;
+  if(!rows.length){ h+=`<div class="soon-screen"><div class="soon-emoji">🏫</div><div class="soon-title">Sin academias en el grupo</div></div>`; $('teacher').innerHTML=h; return; }
   const num=v=>Number(v)||0;
   const tot={prof:0,al:0,act:0,int:0};
   let sm=0,nm=0;
@@ -10487,7 +10506,6 @@ function grRender(){
   const mediaGrupo=nm?sm/nm:null;
   const pctAct=tot.al?Math.round(tot.act/tot.al*100):0;
   h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${rows.length} centro${rows.length===1?'':'s'} · datos consolidados de todo el grupo.</p>`;
-  if(window._acadEsGrupo) h+=`<button class="btn btn-verde" id="gr-cli-chat" style="width:100%;margin-bottom:14px">💬 Chat con Aptuvia <span id="gr-cli-badge"></span></button>`;
   const seg=(k,t)=>`<button onclick="grMedia('${k}')" style="flex:1;padding:9px 5px;border-radius:11px;font-family:inherit;font-weight:800;font-size:.75rem;line-height:1.15;cursor:pointer;border:1.5px solid var(--navy);${modo===k?'background:var(--navy);color:#fff;box-shadow:0 5px 12px -5px rgba(20,30,70,.55)':'background:#fff;color:var(--navy)'}">${t}</button>`;
   h+=`<div style="font-size:.68rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.6px;margin:2px 2px 6px">Base de la media</div>
     <div style="display:flex;gap:7px;margin-bottom:12px">${seg('mejor','🥇 Mejor<br>intento')}${seg('todos','📚 Todos los<br>intentos')}${seg('final','🎓 Pruebas<br>finales')}</div>`;
@@ -10503,7 +10521,6 @@ function grRender(){
     <span style="font-size:.8rem;font-weight:700;color:var(--navy)">Media del grupo</span>
     <span style="font-size:1.35rem;font-weight:800;color:${mediaCol}">${mediaGrupo!=null?mediaGrupo.toFixed(1)+' / 10':'sin datos'}</span>
   </div>`;
-  h+=`<button class="btn btn-ghost" onclick="grDocs()" style="width:100%;margin-bottom:6px">📄 Generar documentos (listados, notas, estados)</button>`;
   h+=`<h2 style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:16px 2px 10px">Comparativa por centro</h2>`;
   const maxMedia=10;
   rows.forEach(r=>{
@@ -10533,15 +10550,7 @@ function grRender(){
     final:'La media de las <b>pruebas o exámenes finales</b> (los marcados como «cuenta para nota final»), promediada por alumno y luego por centro.'
   };
   h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0;line-height:1.6">${MODO_TXT[modo]} Solo cuenta el alumnado con actividad: quien no ha hecho ningún examen no baja la media, aparece en el recuento de inactivos.</p>`;
-  h+=manualTab('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
-  const cb=$('gr-cli-chat');
-  if(cb){
-    cb.onclick=()=>caCliChat('openGrupo()');
-    if(!window._grBadgeHecho){ window._grBadgeHecho=true;
-      call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('gr-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
-    }
-  }
 }
 
 // Fase 2: la dirección de grupo entra en un centro concreto (solo lectura) y
