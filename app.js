@@ -10781,12 +10781,15 @@ async function grDocs(){
   showView('teacher'); window.scrollTo(0,0);
   $('teacher').innerHTML='<button class="backbtn" onclick="openGrupo()">← Vista de grupo</button><div class="loader"><span class="spin"></span></div>';
   try{
-    const [al,cal,evo]=await Promise.all([
+    const [al,cal,evo,cen,cer]=await Promise.all([
       call('/rest/v1/rpc/gr_alumnos',{method:'POST',body:{}}).catch(()=>[]),
       call('/rest/v1/rpc/gr_calif',{method:'POST',body:{}}).catch(()=>[]),
-      call('/rest/v1/rpc/gr_evolucion',{method:'POST',body:{}}).catch(()=>[])
+      call('/rest/v1/rpc/gr_evolucion',{method:'POST',body:{}}).catch(()=>[]),
+      call('/rest/v1/rpc/gr_resumen',{method:'POST',body:{}}).catch(()=>[]),
+      call('/rest/v1/rpc/gr_certificados',{method:'POST',body:{}}).catch(()=>[])
     ]);
     window._grDocAl=al||[]; window._grDocCal=cal||[]; window._grDocEvol=evo||[];
+    window._grDocCentros=cen||[]; window._grDocCerts=cer||[];
   }catch(e){ window._grDocAl=[]; window._grDocCal=[]; window._grDocEvol=[]; }
   if(!window._gd) window._gd=gdDef();
   grDocRender();
@@ -10795,8 +10798,8 @@ async function grDocs(){
 async function grDocPick(camp){
   let opts=[], titulo='';
   if(camp==='tipo'){ titulo='Tipo de documento'; opts=GD_TIPOS.map(t=>({label:t.label,sub:t.sub,value:t.k})); }
-  else if(camp==='centro'){ titulo='Centro'; const seen={}; opts=[{label:'Todos los centros',value:'all'}]; (window._grDocAl||[]).forEach(a=>{ if(!seen[a.academia_id]){ seen[a.academia_id]=1; opts.push({label:a.academia||('Academia '+a.academia_id),value:String(a.academia_id)}); } }); }
-  else if(camp==='cert'){ titulo='Certificado'; const seen={}; opts=[{label:'Todos los certificados',value:'all'}]; (window._grDocAl||[]).forEach(a=>{ const c=a.cert_codigo; if(c&&!seen[c]){ seen[c]=1; opts.push({label:c+(a.cert_nombre?' · '+a.cert_nombre:''),value:c}); } }); }
+  else if(camp==='centro'){ titulo='Centro'; const seen={}; opts=[{label:'Todos los centros',value:'all'}]; (window._grDocCentros||[]).forEach(a=>{ if(!seen[a.academia_id]){ seen[a.academia_id]=1; opts.push({label:a.academia||('Academia '+a.academia_id),value:String(a.academia_id)}); } }); }
+  else if(camp==='cert'){ titulo='Certificado'; const seen={}; opts=[{label:'Todos los certificados',value:'all'}]; (window._grDocCerts||[]).forEach(a=>{ const c=a.cert_codigo; if(c&&!seen[c]){ seen[c]=1; opts.push({label:c+(a.cert_nombre?' · '+a.cert_nombre:''),value:c}); } }); }
   else if(camp==='base'){ titulo='Base de la media'; opts=[{label:'🥇 Mejor intento',value:'mejor'},{label:'📚 Todos los intentos',value:'todos'},{label:'🎓 Pruebas finales',value:'final'}]; }
   const v=await appPicker(titulo,opts);
   if(v==null) return;
@@ -10878,7 +10881,7 @@ function grDocRender(){
   const st=window._gd;
   const ds=grDocDataset();
   const tipoLbl=(GD_TIPOS.find(t=>t.k===st.tipo)||{}).label||'Documento';
-  const centroLbl=(st.centro==='all')?'Todos los centros':((window._grDocAl||[]).find(a=>String(a.academia_id)===String(st.centro))||{}).academia||'Centro';
+  const centroLbl=(st.centro==='all')?'Todos los centros':((window._grDocCentros||[]).find(a=>String(a.academia_id)===String(st.centro))||{}).academia||'Centro';
   const certLbl=(st.cert==='all')?'Todos':st.cert;
   let h=`<button class="backbtn" onclick="openGrupo()">← Vista de grupo</button>`;
   h+=`<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:8px 0 2px;color:var(--navy)">📄 Documentos</h1>`;
@@ -14335,6 +14338,7 @@ function demoResponder(path, opts){
   if(p.indexOf('/rest/v1/rpc/gr_alumnos')===0) return DEMO_GR_ALUMNOS.map(x=>({...x}));
   if(p.indexOf('/rest/v1/rpc/gr_calif')===0) return DEMO_GR_CALIF.map(x=>({...x}));
   if(p.indexOf('/rest/v1/rpc/gr_evolucion')===0) return DEMO_GR_EVOL.map(x=>({...x}));
+  if(p.indexOf('/rest/v1/rpc/gr_certificados')===0) return [{cert_codigo:'ADGG0508',cert_nombre:'Operaciones de grabación y tratamiento de datos'},{cert_codigo:'COMT0411',cert_nombre:'Gestión comercial de ventas'}];
   if(p.indexOf('/rest/v1/rpc/ac_profesores')===0){
     const aid=(window._demoAcadVista===902)?902:901;
     return (DEMO_GR_PROFES[aid]||[]).map(x=>({...x, id:x.id, academia_nombre:x.academia_nombre}));
