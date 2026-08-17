@@ -8516,10 +8516,12 @@ async function caSopResponder(aid, canal, nombre, verArch, area){
     await caCentrosHilo(aid,canal,nombre,verArch,area);
   }catch(e){ if(b){ b.disabled=false; b.textContent='Responder'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
-async function caCliChat(){
+async function caCliChat(volver){
+  if(typeof volver==='string' && volver) window._caChatVolver=volver;
+  const back = window._caChatVolver || 'openAcademiaCentro()';
   showView('teacher'); window.scrollTo(0,0);
   const card=(area,tit,sub)=>`<button onclick="caCliArea('${area}')" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">${tit}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub}</div></button>`;
-  $('teacher').innerHTML=`<button class="backbtn" onclick="openAcademiaCentro()">← Volver</button>
+  $('teacher').innerHTML=`<button class="backbtn" onclick="${back}">← Volver</button>
     <h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">💬 Chat con Aptuvia</h1>
     <p style="font-size:.8rem;color:var(--ink-soft);margin:0 0 8px">Elige a quién diriges tu consulta:</p>
     ${card('soporte','💬 Soporte','Dudas técnicas o incidencias de la plataforma')}
@@ -10442,18 +10444,30 @@ async function acAlertasRiesgo(){
 }
 
 // ---- Vista de grupo (Premium · varias academias bajo una misma dirección) ----
-// Fase 1: consolidada. Se calcula entera en la RPC gr_resumen, así que da igual
-// que el grupo tenga tres academias o treinta: una sola llamada.
+// Media seleccionable: mejor intento / todos los intentos / pruebas finales (gr_resumen).
 async function grCargarResumen(){
-  try{ return await call('/rest/v1/rpc/gr_resumen',{method:'POST',body:window._acadVista?{}: {}})||[]; }
+  try{ return await call('/rest/v1/rpc/gr_resumen',{method:'POST',body:{}})||[]; }
   catch(e){ return []; }
 }
+function grVal(r,m){
+  if(m==='todos') return r.media_todos!=null?Number(r.media_todos):null;
+  if(m==='final') return r.media_final!=null?Number(r.media_final):null;
+  const v=(r.media_mejor!=null?r.media_mejor:r.media);
+  return v!=null?Number(v):null;
+}
+function grMedia(m){ window._grMediaModo=m; grRender(); }
 async function openGrupo(){
   showView('teacher'); window.scrollTo(0,0);
-  // En la cuenta raíz de grupo esta ES la pantalla inicial: sin botón de volver.
   const volver = window._acadEsGrupo ? '' : `<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button>`;
   $('teacher').innerHTML=volver+'<div class="loader"><span class="spin"></span></div>';
-  const rows=await grCargarResumen();
+  window._grRows = await grCargarResumen();
+  window._grBadgeHecho=false;
+  grRender();
+}
+function grRender(){
+  const rows=window._grRows||[];
+  const modo=window._grMediaModo||'mejor';
+  const volver = window._acadEsGrupo ? '' : `<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button>`;
   let h=volver;
   h+=`<h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.4px;margin:8px 0 2px;color:var(--navy)">Vista de grupo</h1>`;
   if(!rows.length){
@@ -10462,28 +10476,38 @@ async function openGrupo(){
     $('teacher').innerHTML=h; return;
   }
   const num=v=>Number(v)||0;
-  const tot={prof:0, al:0, act:0, int:0};
-  let sumaMedias=0, nMedias=0;
+  const tot={prof:0,al:0,act:0,int:0};
+  let sm=0,nm=0;
   rows.forEach(r=>{
     tot.prof+=num(r.n_profesores); tot.al+=num(r.n_alumnos);
     tot.act+=num(r.n_activos); tot.int+=num(r.n_intentos);
-    if(r.media!=null){ sumaMedias+=num(r.media)*num(r.n_activos); nMedias+=num(r.n_activos); }
+    const v=grVal(r,modo);
+    if(v!=null){ sm+=v*num(r.n_activos); nm+=num(r.n_activos); }
   });
-  const mediaGrupo = nMedias? (sumaMedias/nMedias) : null;
-  const pctAct = tot.al? Math.round(tot.act/tot.al*100) : 0;
+  const mediaGrupo=nm?sm/nm:null;
+  const pctAct=tot.al?Math.round(tot.act/tot.al*100):0;
   h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${rows.length} centro${rows.length===1?'':'s'} · datos consolidados de todo el grupo.</p>`;
   if(window._acadEsGrupo) h+=`<button class="btn btn-verde" id="gr-cli-chat" style="width:100%;margin-bottom:14px">💬 Chat con Aptuvia <span id="gr-cli-badge"></span></button>`;
-  h+=`<div class="t-card" style="margin-bottom:14px;font-size:.86rem;line-height:1.9">
-    Centros: <b>${rows.length}</b> · Profesorado: <b>${tot.prof}</b><br>
-    Alumnado: <b>${tot.al}</b> · con actividad: <b>${tot.act}</b> (${pctAct} %)<br>
-    Exámenes realizados: <b>${tot.int}</b><br>
-    Media del grupo: <b>${mediaGrupo!=null?mediaGrupo.toFixed(1)+' / 10':'sin datos'}</b>
+  const seg=(k,t)=>`<button onclick="grMedia('${k}')" style="flex:1;padding:9px 5px;border-radius:11px;font-family:inherit;font-weight:800;font-size:.75rem;line-height:1.15;cursor:pointer;border:1.5px solid var(--navy);${modo===k?'background:var(--navy);color:#fff;box-shadow:0 5px 12px -5px rgba(20,30,70,.55)':'background:#fff;color:var(--navy)'}">${t}</button>`;
+  h+=`<div style="font-size:.68rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.6px;margin:2px 2px 6px">Base de la media</div>
+    <div style="display:flex;gap:7px;margin-bottom:12px">${seg('mejor','🥇 Mejor<br>intento')}${seg('todos','📚 Todos los<br>intentos')}${seg('final','🎓 Pruebas<br>finales')}</div>`;
+  const kpi=(lab,val)=>`<div style="flex:1;min-width:118px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:11px 12px"><div style="font-size:.66rem;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.4px">${lab}</div><div style="font-size:1.12rem;font-weight:800;color:var(--navy);margin-top:2px">${val}</div></div>`;
+  const mediaCol = mediaGrupo==null?'#8890a6':(mediaGrupo<5?'#b4232a':(mediaGrupo<7?'#a5620a':'#1c7a44'));
+  h+=`<div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:9px">
+    ${kpi('Centros',rows.length)}
+    ${kpi('Profesorado',tot.prof)}
+    ${kpi('Alumnado',tot.al+' · '+pctAct+'% act.')}
+    ${kpi('Exámenes',tot.int)}
   </div>`;
-  h+=`<h2 style="font-size:.78rem;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:16px 2px 10px">Comparativa por centro</h2>`;
+  h+=`<div style="background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:.8rem;font-weight:700;color:var(--navy)">Media del grupo</span>
+    <span style="font-size:1.35rem;font-weight:800;color:${mediaCol}">${mediaGrupo!=null?mediaGrupo.toFixed(1)+' / 10':'sin datos'}</span>
+  </div>`;
+  h+=`<h2 style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:16px 2px 10px">Comparativa por centro</h2>`;
   const maxMedia=10;
   rows.forEach(r=>{
-    const m=(r.media!=null)?num(r.media):null;
-    const act=num(r.n_activos), al=num(r.n_alumnos);
+    const m=grVal(r,modo);
+    const act=num(r.n_activos),al=num(r.n_alumnos);
     const pct=al?Math.round(act/al*100):0;
     const ancho=m!=null?Math.max(3,Math.round(m/maxMedia*100)):0;
     const color=(m==null)?'#c9ccd6':(m<5?'#b4232a':(m<7?'#a5620a':'#1c7a44'));
@@ -10502,14 +10526,23 @@ async function openGrupo(){
       <div style="font-size:.74rem;font-weight:700;color:var(--honey-deep);margin-top:8px">Ver este centro ›</div>
     </button>`;
   });
-  h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0;line-height:1.6">La media es la del mejor intento de cada examen, promediada por alumno y luego por centro. Solo cuenta el alumnado con actividad: quien no ha hecho ningún examen no baja la media, aparece en el recuento de inactivos.</p>`;
+  const MODO_TXT={
+    mejor:'La media del <b>mejor intento</b> de cada examen, promediada por alumno y luego por centro.',
+    todos:'La media de <b>todos los intentos</b> realizados, promediada por alumno y luego por centro.',
+    final:'La media de las <b>pruebas o exámenes finales</b> (los marcados como «cuenta para nota final»), promediada por alumno y luego por centro.'
+  };
+  h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0;line-height:1.6">${MODO_TXT[modo]} Solo cuenta el alumnado con actividad: quien no ha hecho ningún examen no baja la media, aparece en el recuento de inactivos.</p>`;
   h+=manualTab('docManualPremium()','Manual del Acceso Premium');
   $('teacher').innerHTML=h;
-  if($('gr-cli-chat')){
-    $('gr-cli-chat').onclick=caCliChat;
-    call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('gr-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+  const cb=$('gr-cli-chat');
+  if(cb){
+    cb.onclick=()=>caCliChat('openGrupo()');
+    if(!window._grBadgeHecho){ window._grBadgeHecho=true;
+      call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('gr-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
+    }
   }
 }
+
 // Fase 2: la dirección de grupo entra en un centro concreto (solo lectura) y
 // vuelve al grupo. Reutiliza el mismo flujo que usa Soporte para ver una academia.
 function grEntrarAcademia(id){
@@ -10806,7 +10839,7 @@ async function openAcademiaCentro(msg, academiaId){
   $('teacher').innerHTML=h;
   if($('ac-cuenta')) $('ac-cuenta').onclick=()=>acCuenta();
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
-  if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=caCliChat; call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
+  if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=()=>caCliChat('openAcademiaCentro()'); call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
   // El acceso a la vista de grupo solo se pinta en la cuenta raíz de grupo,
   // no cuando ya estás viendo un centro concreto (ahí vuelves con el botón gris).
   if(!prev) grCargarResumen().then(rows=>{
@@ -13830,9 +13863,9 @@ function _demoAttempts(al){
 // Dos academias ficticias colgadas de un grupo demo. Nada de esto toca Supabase:
 // lo sirve el interceptor de call() cuando window._demoMode está activo.
 const DEMO_GRUPO = [
-  { academia_id:901, academia:'Academia Demo Norte', n_profesores:3, n_alumnos:30, n_activos:27, n_intentos:118, media:6.8 },
-  { academia_id:902, academia:'Academia Demo Sur',   n_profesores:3, n_alumnos:30, n_activos:22, n_intentos:74,  media:5.4 }
-];
+  { academia_id:901, academia:'Academia Demo Norte', n_profesores:3, n_alumnos:30, n_activos:27, n_intentos:118, media:6.8, media_mejor:6.8, media_todos:6.1, media_final:6.4 },
+  { academia_id:902, academia:'Academia Demo Sur',   n_profesores:3, n_alumnos:30, n_activos:22, n_intentos:74,  media:5.4, media_mejor:5.4, media_todos:4.9, media_final:5.1 }
+]
 // Profesorado ficticio de cada academia demo (lo usa ac_profesores en demo).
 const DEMO_GR_PROFES = {
   901:[
