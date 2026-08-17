@@ -728,18 +728,6 @@ async function gateAccess(){
   if(esAcC==='off'){ token=null; refreshToken=null; throw new Error('El acceso de dirección de tu academia está desactivado. Contacta con Aptuvia.'); }
   if(esAcC==='si' || esAcC===true){ token=null; refreshToken=null; throw new Error('Cuenta de dirección: vuelve atrás y entra por «🔑 Acceso de dirección / administración».'); }
   const certId = certBD();
-  // Red de seguridad sobre puedo_acceder: un profesor solo entra a un certificado
-  // (o a Aula Abierta) para el que tenga fila en acceso_certificado. Los alumnos NO
-  // tienen filas ahí (se vinculan por profesor/invitación): si la lista viene vacía,
-  // no aplicamos el corte. Así un profe de EV-508 no puede colarse en AA.
-  try{
-    const uid=_authUid();
-    const mis=await call('/rest/v1/acceso_certificado?select=certificado_id&user_id=eq.'+encodeURIComponent(uid));
-    if(Array.isArray(mis) && mis.length && !mis.some(r=>r.certificado_id===certId)){
-      token=null; refreshToken=null;
-      throw new Error('Tu cuenta no tiene acceso a este apartado. Vuelve atrás y elige el correcto.');
-    }
-  }catch(e){ if(/no tiene acceso/.test(e.message||'')) throw e; }
   try{
     const ok = await call('/rest/v1/rpc/puedo_acceder',{method:'POST',body:{p_cert:certId}});
     if(ok===false){ token=null; refreshToken=null; throw new Error('Tu cuenta no tiene acceso a este apartado. Selecciona el correcto en la pantalla anterior.'); }
