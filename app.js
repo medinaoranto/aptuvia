@@ -728,6 +728,18 @@ async function gateAccess(){
   if(esAcC==='off'){ token=null; refreshToken=null; throw new Error('El acceso de dirección de tu academia está desactivado. Contacta con Aptuvia.'); }
   if(esAcC==='si' || esAcC===true){ token=null; refreshToken=null; throw new Error('Cuenta de dirección: vuelve atrás y entra por «🔑 Acceso de dirección / administración».'); }
   const certId = certBD();
+  // Red de seguridad sobre puedo_acceder: un profesor solo entra a un certificado
+  // (o a Aula Abierta) para el que tenga fila en acceso_certificado. Los alumnos NO
+  // tienen filas ahí (se vinculan por profesor/invitación): si la lista viene vacía,
+  // no aplicamos el corte. Así un profe de EV-508 no puede colarse en AA.
+  try{
+    const uid=_authUid();
+    const mis=await call('/rest/v1/acceso_certificado?select=certificado_id&user_id=eq.'+encodeURIComponent(uid));
+    if(Array.isArray(mis) && mis.length && !mis.some(r=>r.certificado_id===certId)){
+      token=null; refreshToken=null;
+      throw new Error('Tu cuenta no tiene acceso a este apartado. Vuelve atrás y elige el correcto.');
+    }
+  }catch(e){ if(/no tiene acceso/.test(e.message||'')) throw e; }
   try{
     const ok = await call('/rest/v1/rpc/puedo_acceder',{method:'POST',body:{p_cert:certId}});
     if(ok===false){ token=null; refreshToken=null; throw new Error('Tu cuenta no tiene acceso a este apartado. Selecciona el correcto en la pantalla anterior.'); }
@@ -3488,13 +3500,16 @@ function saPremiumCard(a){
   const pr=st.presupuesto||null;
   const cand=st.candidatos||[];
   const fact=!!st.facturado;
+  const esGrupo=!!a._grupo_id;
   let h=`<div style="border:1.5px solid ${on?'#bfe3cb':'var(--line)'};border-radius:12px;padding:11px 13px;margin:0 0 12px;background:${on?'#f4fbf6':'#fff'}">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <div><b style="font-size:.86rem;color:var(--navy)">🏫 Acceso academia</b>
         <div style="font-size:.7rem;color:var(--ink-soft);margin-top:2px">Premium · consulta de notas en solo lectura</div></div>
       <button id="sa-prem-tog" class="sa-mini" style="${on?'background:#e7f6ec;color:#15803d;border-color:#bfe3cb':'background:#fdecec;color:#b4232a;border-color:#f0c4c4'};font-weight:800;font-size:.7rem;padding:6px 11px;white-space:nowrap">${on?'ACTIVO':'DESACTIVADO'}</button>
     </div>`;
-  if(pr){
+  if(esGrupo){
+    h+=`<div style="font-size:.7rem;margin-top:7px;color:#15803d;font-weight:700">✅ Incluido en el Premium del grupo · se factura una sola vez al grupo</div>`;
+  }else if(pr){
     h+=`<div style="font-size:.68rem;margin-top:7px;color:var(--ink-soft)">Contratado en el presupuesto <b>${escHtml(pr.numero||'—')}</b>${pr.fecha?(' · '+escHtml(pr.fecha)):''}</div>`;
   }else if(cand.length){
     h+=`<div style="font-size:.68rem;margin-top:7px;color:#b26a00">Hay ${cand.length} presupuesto${cand.length===1?'':'s'} aceptado${cand.length===1?'':'s'} con esta partida sin enlazar a la academia.</div>
@@ -3503,7 +3518,7 @@ function saPremiumCard(a){
     h+=`<div style="font-size:.68rem;margin-top:7px;color:#b26a00">Sin presupuesto que respalde este servicio.</div>`;
   }
   if(on){
-    h+=`<label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:.72rem;color:var(--ink);cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px">
+    if(!esGrupo) h+=`<label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:.72rem;color:var(--ink);cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px">
       <input type="checkbox" id="sa-prem-fact" ${fact?'checked':''} style="margin-top:2px;width:16px;height:16px;flex:0 0 auto">
       <span><b>Ya facturada</b><br><span style="color:var(--ink-soft)">Márcala si esta partida va dentro de la factura del presupuesto. Si la dejas sin marcar, Administración recibe aviso para facturarla aparte.</span></span>
     </label>`;
