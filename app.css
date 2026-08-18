@@ -1612,22 +1612,25 @@ body.tema-aula-abierta{ --honey:#15803d; --honey-2:#22c55e; --honey-deep:#166534
 body.tema-aula-abierta .chip.state.done{ background:#fbe9c8!important; color:#b26a00!important; border:2px solid #e0a45a!important; }
 body.tema-aula-abierta .chip.eye{ background:#fbe9c8!important; color:#b26a00!important; border-color:#e0a45a!important; }
 
-/* ===== Ca1 · píldoras estado y curso: relleno sólido, sin borde, texto blanco =====
-   PRÓXIMAMENTE celeste #0EA5E9 · TERMINADO naranja #E67E0E · ACTIVO verde #15803D */
-.chip.state{ background:#0EA5E9 !important; color:#fff !important; border:none !important; }
-.chip.state.done{ background:#E67E0E !important; color:#fff !important; border:none !important; }
-.chip.state.active{ background:#15803D !important; color:#fff !important; border:none !important; }
-body.tema-aula-abierta .chip.state{ background:#0EA5E9 !important; color:#fff !important; border:none !important; }
-body.tema-aula-abierta .chip.state.done{ background:#E67E0E !important; color:#fff !important; border:none !important; }
-body.tema-aula-abierta .chip.state.active{ background:#15803D !important; color:#fff !important; border:none !important; }
-.chip.eye{ border:none !important; }
-.mod .chip.eye{ background:#E67E0E !important; color:#fff !important; border:none !important; }
-.mod.navy .chip.eye{ background:#15803D !important; color:#fff !important; border:none !important; }
-.mod.soon .chip.eye{ background:#0EA5E9 !important; color:#fff !important; border:none !important; }
-body.tema-aula-abierta .chip.eye{ border:none !important; }
-body.tema-aula-abierta .mod .chip.eye{ background:#E67E0E !important; color:#fff !important; border:none !important; }
-body.tema-aula-abierta .mod.navy .chip.eye{ background:#15803D !important; color:#fff !important; border:none !important; }
-body.tema-aula-abierta .mod.soon .chip.eye{ background:#0EA5E9 !important; color:#fff !important; border:none !important; }
-.est-b.terminado.on{ background:#E67E0E !important; color:#fff !important; border-color:#B45905 !important; box-shadow:none !important; }
-.est-b.proximamente.on{ background:#0EA5E9 !important; color:#fff !important; border-color:#0284C7 !important; box-shadow:none !important; }
-.est-b.activo.on{ background:#15803D !important; color:#fff !important; border-color:#0f5c2c !important; box-shadow:none !important; }
+/* ===== Ca1 · píldoras estado y curso: degradado, hundidas (inset), texto blanco =====
+   PRÓXIMAMENTE celeste · TERMINADO naranja · ACTIVO verde */
+.chip.state, .chip.state.done, .chip.state.active,
+body.tema-aula-abierta .chip.state, body.tema-aula-abierta .chip.state.done, body.tema-aula-abierta .chip.state.active,
+.mod .chip.eye, .mod.navy .chip.eye, .mod.soon .chip.eye,
+body.tema-aula-abierta .chip.eye, body.tema-aula-abierta .mod .chip.eye, body.tema-aula-abierta .mod.navy .chip.eye, body.tema-aula-abierta .mod.soon .chip.eye{
+  color:#fff !important; border:none !important; text-shadow:0 1px 1px rgba(0,0,0,.28) !important;
+  box-shadow:inset 0 3px 6px rgba(0,0,0,.32), inset 0 -1px 2px rgba(255,255,255,.22) !important;
+}
+/* PRÓXIMAMENTE (celeste) */
+.chip.state, body.tema-aula-abierta .chip.state,
+.mod.soon .chip.eye, body.tema-aula-abierta .mod.soon .chip.eye{ background:linear-gradient(135deg,#38BDF8,#0284C7) !important; }
+/* TERMINADO (naranja) */
+.chip.state.done, body.tema-aula-abierta .chip.state.done,
+.mod .chip.eye, body.tema-aula-abierta .mod .chip.eye{ background:linear-gradient(135deg,#F7A823,#C2691A) !important; }
+/* ACTIVO (verde) */
+.chip.state.active, body.tema-aula-abierta .chip.state.active,
+.mod.navy .chip.eye, body.tema-aula-abierta .mod.navy .chip.eye{ background:linear-gradient(135deg,#22C55E,#15803D) !important; }
+/* Selector est-b del profesor (hundido con degradado) */
+.est-b.terminado.on{ background:linear-gradient(135deg,#F7A823,#C2691A) !important; color:#fff !important; border-color:#B45905 !important; text-shadow:0 1px 1px rgba(0,0,0,.28) !important; box-shadow:inset 0 3px 6px rgba(0,0,0,.30) !important; }
+.est-b.proximamente.on{ background:linear-gradient(135deg,#38BDF8,#0284C7) !important; color:#fff !important; border-color:#0284C7 !important; text-shadow:0 1px 1px rgba(0,0,0,.28) !important; box-shadow:inset 0 3px 6px rgba(0,0,0,.30) !important; }
+.est-b.activo.on{ background:linear-gradient(135deg,#22C55E,#15803D) !important; color:#fff !important; border-color:#0f5c2c !important; text-shadow:0 1px 1px rgba(0,0,0,.28) !important; box-shadow:inset 0 3px 6px rgba(0,0,0,.30) !important; }
