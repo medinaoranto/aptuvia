@@ -1746,7 +1746,7 @@ function alumTabChat(){
   return `<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">💬 Chat y manual</h2>
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Elige qué quieres abrir.</p>
     <button onclick="caAlumChat()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con tu profesor<span id="alum-chat-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas, entregas y avisos con tu profesor</div></button>
-    <button onclick="docManualAlumno()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">📖 Manual</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Guía de uso de la plataforma</div></button>`;
+    <button onclick="docManualAlumno()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">📖 Manual de usuario</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Guía de uso de la plataforma</div></button>`;
 }
 function alumAbrirPendiente(examId, tipo){
   window._alumRetornoPend=true;
@@ -2238,7 +2238,7 @@ function docTrazabilidad(){
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
-// ---- Manual del profesorado (se adapta a Aptuvia o a Aula Abierta) ----
+// ---- Manual de usuario (se adapta a Aptuvia o a Aula Abierta) ----
 function manualProfeSecciones(esAula){
   const aa = !!esAula;
   const s = [];
@@ -2368,10 +2368,10 @@ function docManualProfe(){
   try{
     const esAula = (window._activeCertId==='__aula_abierta');
     const doc=docPDFBase(
-      'Manual del profesorado',
+      'Manual de usuario',
       esAula ? 'Aula Abierta · todo lo que puedes hacer, paso a paso' : 'Aptuvia · todo lo que puedes hacer, paso a paso',
       manualProfeSecciones(esAula),
-      'Aptuvia · aptuvia.es · Manual del profesorado'
+      'Aptuvia · aptuvia.es · Manual de usuario'
     );
     docVer(doc,esAula?'Aptuvia-manual-profesorado-aula-abierta.pdf':'Aptuvia-manual-profesorado.pdf');
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
@@ -2549,10 +2549,10 @@ function manualPremiumSecciones(){
 function docManualPremium(){
   try{
     const doc=docPDFBase(
-      'Manual del Acceso Premium',
+      'Manual de usuario',
       'Aptuvia · la cuenta de dirección del centro, paso a paso',
       manualPremiumSecciones(),
-      'Aptuvia · aptuvia.es · Manual del Acceso Premium'
+      'Aptuvia · aptuvia.es · Manual de usuario'
     );
     docVer(doc,'Aptuvia-manual-premium.pdf');
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
@@ -2562,10 +2562,10 @@ function docManualAlumno(){
   try{
     const esAula=(window._activeCertId==='__aula_abierta');
     const doc=docPDFBase(
-      'Manual del alumnado',
+      'Manual de usuario',
       esAula?'Aula Abierta · cómo usar la plataforma, paso a paso':'Aptuvia · cómo usar la plataforma, paso a paso',
       manualAlumnoSecciones(esAula),
-      'Aptuvia · aptuvia.es · Manual del alumnado'
+      'Aptuvia · aptuvia.es · Manual de usuario'
     );
     docVer(doc,'Aptuvia-manual-alumnado.pdf');
   }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
@@ -2782,7 +2782,7 @@ function docMTOpen(area){
   $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="${back}" style="margin-bottom:10px">← Volver</button>
     <h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📘 Manual y trazabilidad</h1>
     <p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:6px">Elige qué quieres abrir.</p>
-    ${area?`<button style="${sub}" onclick="docManualArea('${area}')"><b style="font-size:.95rem">📘 Manual del área</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Paso a paso de todo lo que se hace aquí</div></button>`:''}
+    ${area?`<button style="${sub}" onclick="docManualArea('${area}')"><b style="font-size:.95rem">📘 Manual de usuario</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Paso a paso de todo lo que se hace aquí</div></button>`:''}
     <button style="${sub}" onclick="docTrazabilidad()"><b style="font-size:.95rem">📄 Trazabilidad</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Del presupuesto a la baja del cliente · quién hace qué en cada paso</div></button>`,{noChat:true});
 }
 async function presLoad(){
@@ -7580,7 +7580,7 @@ function pintarTeacher(){
       <button class="t-tile" id="t-soporte-tile" onclick="openSoporteProfe()">
         <span class="ic" style="background:var(--navy-tint)">💬</span><span class="tt">Chat y reporte</span><span class="ts">Soporte, alumnos y reportes</span><span id="t-soporte-badge"></span></button>
       <button class="t-tile" onclick="openPassword()">
-        <span class="ic" style="background:var(--navy-tint)">📖</span><span class="tt">Manual del usuario</span><span class="ts">Manual, temario y contraseña</span></button>
+        <span class="ic" style="background:var(--navy-tint)">📖</span><span class="tt">Manual de usuario</span><span class="ts">Manual, temario y contraseña</span></button>
       ${userEmail==='admin@evaluatest.com'?`<button class="t-tile t-tile-slim" style="grid-column:span 2;border-color:var(--honey);background:var(--honey-tint)" onclick="openSuperadmin()">
         <span class="ic" style="background:var(--navy-tint)">🛰️</span><span class="tt">Torre de control</span><span class="ts">Panel superadmin — todas las academias</span></button>`:''}
     </div>`;
@@ -8586,28 +8586,28 @@ async function caCliEnviar(area){
   }catch(e){ if(b){ b.disabled=false; b.textContent='Enviar'; } appAlert('No se pudo enviar: '+(e.message||'')); }
 }
 
-// ---- Manual del usuario (manual · temario · contraseña) ----
+// ---- Manual de usuario (manual · temario · contraseña) ----
 function openPassword(okMsg, errMsg, sub){
   showView('teacher'); window.scrollTo(0,0);
   sub = sub || ((okMsg||errMsg)?'pass':'');
   const h=[];
   if(!sub){
     h.push(`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`);
-    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📖 Manual del usuario</h1>`);
+    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📖 Manual de usuario</h1>`);
     h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Tu manual de uso, la descarga de tu temario y el cambio de contraseña, todo en un sitio.</p>`);
     const card=(k,tit,sub2)=>`<button onclick="openPassword(null,null,'${k}')" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">${tit}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub2}</div></button>`;
-    h.push(card('manual','📖 Manual del profesorado','Guía paso a paso de tu área'));
+    h.push(card('manual','📖 Manual de usuario','Guía paso a paso de tu área'));
     h.push(card('temario','⬇️ Descargar mi temario','Llévate tu materia en un ZIP'));
     h.push(card('pass','🔑 Cambiar contraseña','Tu clave de acceso'));
     $('teacher').innerHTML=h.join('');
     return;
   }
-  h.push(`<button class="backbtn" onclick="openPassword()">← Manual del usuario</button>`);
+  h.push(`<button class="backbtn" onclick="openPassword()">← Manual de usuario</button>`);
   if(sub==='manual'){
-    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">📖 Manual del profesorado</h1>`);
+    h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">📖 Manual de usuario</h1>`);
     h.push(`<div class="t-card">
       <p style="font-size:.82rem;color:var(--ink-soft);margin:2px 0 12px">Guía paso a paso de todo lo que puedes hacer en tu área: crear y gestionar exámenes, temario, correcciones, alumnos, chat y avisos. Ábrelo cuando tengas una duda.</p>
-      <button class="btn btn-ghost" onclick="docManualProfe()" style="width:100%">📖 Abrir el manual del profesorado</button>
+      <button class="btn btn-ghost" onclick="docManualProfe()" style="width:100%">📖 Abrir el manual de usuario</button>
     </div>`);
   }else if(sub==='temario'){
     h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 10px;color:var(--navy)">⬇️ Descargar mi temario</h1>`);
@@ -10542,11 +10542,12 @@ function grRender(){
   const num=v=>Number(v)||0;
   let nprof=0,nal=0; rows.forEach(r=>{ nprof+=num(r.n_profesores); nal+=num(r.n_alumnos); });
   h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${rows.length} centro${rows.length===1?'':'s'} · ${nprof} profesor${nprof===1?'':'es'} · ${nal} alumno${nal===1?'':'s'}</p>`;
+  h+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:-8px 2px 14px;line-height:1.5">ℹ️ Desde aquí gestionas todo el grupo: entra en <b>Academias</b> para las medias por centro, en <b>Documentos</b> para listados y notas, o en <b>Chat</b> para hablar con Aptuvia.</p>`;
   const card=(fn,emoji,tit,sub,extra)=>`<button onclick="${fn}" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:12px"><b style="font-size:.95rem;color:var(--navy)">${emoji} ${tit}${extra||''}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub}</div></button>`;
   h+=card("grAcademias()",'🏫','Academias','Medias por centro y base de la media');
   h+=card("grDocs()",'📄','Generar documentos','Listados, calificaciones y estados');
   h+=card("caCliChat('openGrupo()')",'💬','Chat con Aptuvia','Soporte, administración y comercial',' <span id="gr-cli-badge"></span>');
-  h+=card("docManualPremium()",'📘','Manual del Acceso Premium','Guía del área paso a paso');
+  h+=card("docManualPremium()",'📘','Manual de usuario','Guía del área paso a paso');
   $('teacher').innerHTML=h;
   call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('gr-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
 }
@@ -10571,6 +10572,7 @@ function grAcademias(){
   const mediaGrupo=nm?sm/nm:null;
   const pctAct=tot.al?Math.round(tot.act/tot.al*100):0;
   h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${rows.length} centro${rows.length===1?'':'s'} · datos consolidados de todo el grupo.</p>`;
+  h+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:-8px 2px 14px;line-height:1.5">ℹ️ Elige la <b>base de la media</b> (mejor intento, todos o solo las pruebas finales) y toca un centro para ver el detalle de su profesorado.</p>`;
   const seg=(k,t)=>`<button onclick="grMedia('${k}')" style="flex:1;padding:9px 5px;border-radius:11px;font-family:inherit;font-weight:800;font-size:.75rem;line-height:1.15;cursor:pointer;border:1.5px solid var(--navy);${modo===k?'background:var(--navy);color:#fff;box-shadow:0 5px 12px -5px rgba(20,30,70,.55)':'background:#fff;color:var(--navy)'}">${t}</button>`;
   h+=`<div style="font-size:.68rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.6px;margin:2px 2px 6px">Base de la media</div>
     <div style="display:flex;gap:7px;margin-bottom:12px">${seg('mejor','🥇 Mejor<br>intento')}${seg('todos','📚 Todos los<br>intentos')}${seg('final','🎓 Pruebas<br>finales')}</div>`;
@@ -10851,7 +10853,7 @@ function gdEstado(a,base,U){
   if(m!=null && m<U) return {t:'En riesgo',tono:'rojo'};
   return {t:'Activo',tono:null};
 }
-function gdDef(){ return {tipo:'listado',centro:'all',cert:'all',base:'mejor',umbral:(parseFloat(localStorage.getItem('apt_umbral_grupo'))||5)}; }
+function gdDef(){ return {tipo:'listado',centro:'all',cert:'all',base:'mejor',estadof:'todos',umbral:(parseFloat(localStorage.getItem('apt_umbral_grupo'))||5)}; }
 
 async function grDocs(){
   showView('teacher'); window.scrollTo(0,0);
@@ -10877,9 +10879,10 @@ async function grDocPick(camp){
   else if(camp==='centro'){ titulo='Centro'; const seen={}; opts=[{label:'Todos los centros',value:'all'}]; (window._grDocCentros||[]).forEach(a=>{ if(!seen[a.academia_id]){ seen[a.academia_id]=1; opts.push({label:a.academia||('Academia '+a.academia_id),value:String(a.academia_id)}); } }); }
   else if(camp==='cert'){ titulo='Certificado'; const seen={}; opts=[{label:'Todos los certificados',value:'all'}]; (window._grDocCerts||[]).forEach(a=>{ const c=a.cert_codigo; if(c&&!seen[c]){ seen[c]=1; opts.push({label:c+(a.cert_nombre?' · '+a.cert_nombre:''),value:c}); } }); }
   else if(camp==='base'){ titulo='Base de la media'; opts=[{label:'🥇 Mejor intento',value:'mejor'},{label:'📚 Todos los intentos',value:'todos'},{label:'🎓 Pruebas finales',value:'final'}]; }
+  else if(camp==='estadof'){ titulo='Mostrar por estado'; opts=[{label:'Todos los estados',value:'todos'},{label:'✅ Solo activos',value:'activo'},{label:'⚠️ Solo en riesgo',value:'riesgo'},{label:'⛔ Solo inactivos',value:'inactivo'}]; }
   const v=await appPicker(titulo,opts);
   if(v==null) return;
-  window._gd[camp==='tipo'?'tipo':camp==='centro'?'centro':camp==='cert'?'cert':'base']=v;
+  window._gd[camp]=v;
   grDocRender();
 }
 async function grDocUmbral(){
@@ -10935,7 +10938,8 @@ function grDocDataset(){
   else if(st.tipo==='estado'){
     titulo='Estado del alumnado'; file='estado_alumnado';
     cols=[{h:'Alumno',w:32,a:'l'},{h:'Centro',w:26,a:'l'},{h:'Media',w:10,a:'r'},{h:'Exám.',w:8,a:'r'},{h:'Estado',w:14,a:'l'}];
-    al.forEach(a=>{ const e=gdEstado(a,base,U); filas.push({c:[a.alumno||'—', a.academia||'—', mf(gdMedia(a,base)), Number(a.n_examenes)||0, e.t], tono:e.tono}); });
+    const ef=st.estadof||'todos'; const efMap={activo:'Activo',riesgo:'En riesgo',inactivo:'Inactivo'};
+    al.forEach(a=>{ const e=gdEstado(a,base,U); if(ef!=='todos' && e.t!==efMap[ef]) return; filas.push({c:[a.alumno||'—', a.academia||'—', mf(gdMedia(a,base)), Number(a.n_examenes)||0, e.t], tono:e.tono}); });
   }
   else if(st.tipo==='actividad'){
     titulo='Control de actividad'; file='control_actividad';
@@ -10964,9 +10968,13 @@ function grDocRender(){
   h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Genera listados y hojas de calificaciones del grupo para archivar en los expedientes. Documentos de apoyo interno; no son actas ni certificaciones oficiales del SEPE.</p>`;
   const chip=(camp,etq,val)=>`<button onclick="grDocPick('${camp}')" style="flex:1;min-width:140px;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer"><div style="font-size:.62rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px">${etq}</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">${escHtml(val)} ▾</div></button>`;
   h+=`<div style="margin-bottom:9px">${chip('tipo','Documento',tipoLbl)}</div>`;
+  const tipoSub=(GD_TIPOS.find(t=>t.k===st.tipo)||{}).sub||'';
+  if(tipoSub) h+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:-3px 2px 10px;line-height:1.5">ℹ️ ${escHtml(tipoSub)}. Filtra por centro o certificado, elige la base de la media y descárgalo en PDF o CSV.</p>`;
   h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">${chip('centro','Centro',centroLbl)}${chip('cert','Certificado',certLbl)}${chip('base','Base de la media',GD_BASE[st.base])}</div>`;
   if(st.tipo==='estado'){
     h+=`<button onclick="grDocUmbral()" style="width:100%;text-align:left;background:var(--honey-tint,#fff7e6);border:1.5px solid var(--honey,#e6b866);border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer;margin-bottom:9px"><div style="font-size:.62rem;font-weight:800;color:#a5620a;text-transform:uppercase;letter-spacing:.5px">Umbral de riesgo</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">Por debajo de ${Number(st.umbral).toFixed(1)} = en riesgo ✎</div></button>`;
+    const efLbl={todos:'Todos los estados',activo:'Solo activos',riesgo:'Solo en riesgo',inactivo:'Solo inactivos'}[st.estadof||'todos'];
+    h+=`<button onclick="grDocPick('estadof')" style="width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer;margin-bottom:9px"><div style="font-size:.62rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px">Mostrar</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">${efLbl} ▾</div></button>`;
   }
   // Exportar
   h+=`<div style="display:flex;gap:8px;margin:4px 0 14px">
@@ -11083,7 +11091,7 @@ function acCuenta(){
   let h=`<button class="backbtn" onclick="openAcademiaCentro()" style="margin-bottom:10px">← Volver</button>`;
   h+=`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📘 Manual y contraseña</h1>`;
   h+=`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:6px">Cuenta: <b>${escHtml(userEmail||'')}</b></p>`;
-  h+=card('docManualPremium()','📘 Manual del Acceso Premium','Guía de tu área paso a paso');
+  h+=card('docManualPremium()','📘 Manual de usuario','Guía de tu área paso a paso');
   h+=card('acCambiarPass()','🔑 Cambiar contraseña','Tu clave de acceso');
   $('teacher').innerHTML=h;
 }
@@ -11160,7 +11168,7 @@ async function openAcademiaCentro(msg, academiaId){
     });
   }
   if(!prev) h+=`<button class="btn btn-ghost" id="ac-cuenta" style="width:100%;margin-top:10px">📘 Manual y contraseña</button>`;
-  else h+=manualTab('docManualPremium()','Manual del Acceso Premium');
+  else h+=manualTab('docManualPremium()','Manual de usuario');
   $('teacher').innerHTML=h;
   if($('ac-cuenta')) $('ac-cuenta').onclick=()=>acCuenta();
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
