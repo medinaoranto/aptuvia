@@ -1611,3 +1611,10 @@ body:not(.tema-aula-abierta) .t-welcome .t-course-pill .t-code-inline{ color:#ff
 body.tema-aula-abierta{ --honey:#15803d; --honey-2:#22c55e; --honey-deep:#166534; --honey-tint:#dcfce7; }
 body.tema-aula-abierta .chip.state.done{ background:#fbe9c8!important; color:#b26a00!important; border:2px solid #e0a45a!important; }
 body.tema-aula-abierta .chip.eye{ background:#fbe9c8!important; color:#b26a00!important; border-color:#e0a45a!important; }
+
+/* ===== Ca1a · estados: TERMINADO naranja / PRÓXIMAMENTE celeste, texto blanco ===== */
+.chip.state{ background:#0EA5E9 !important; color:#fff !important; }               /* PRÓXIMAMENTE */
+.chip.state.done{ background:#E67E0E !important; color:#fff !important; }          /* TERMINADO */
+.chip.state.active{ background:var(--navy-tint) !important; color:var(--navy) !important; } /* ACTIVO (igual) */
+.est-b.terminado.on{ background:#E67E0E !important; color:#fff !important; border-color:#B45905 !important; box-shadow:none !important; }
+.est-b.proximamente.on{ background:#0EA5E9 !important; color:#fff !important; border-color:#0284C7 !important; box-shadow:none !important; }

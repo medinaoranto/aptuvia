@@ -1752,12 +1752,18 @@ function alumAbrirPendiente(examId, tipo){
   window._alumRetornoPend=true;
   if(tipo==='red'){ openRedaccion(examId); } else { openExam(examId); }
 }
-function alumVerCorregido(examId, unidad){
+async function alumVerCorregido(examId, unidad){
   window._alumRetornoHist=true;
   const en=entregasByExam[examId];
   if(en){ openRedaccion(examId); return; }           // redacción: openRedaccion muestra el corregido en solo lectura
   const at=attemptsByExam[examId];
   if(at && at.id){ abrirIntentoAlumno(at.id, unidad, ''); return; }  // test: intento corregido, solo lectura
+  // Fallback: el intento existe en servidor pero el caché no tiene su id (p.ej. exámenes entregados al abandonar).
+  try{
+    const uid=(typeof _authUid==='function')?_authUid():null;
+    const rows=await call('/rest/v1/intentos?examen_id=eq.'+encodeURIComponent(examId)+(uid?'&user_id=eq.'+uid:'')+'&order=creado_en.desc&limit=1&select=id,detalle');
+    if(rows && rows[0] && rows[0].id && Array.isArray(rows[0].detalle) && rows[0].detalle.length){ abrirIntentoAlumno(rows[0].id, unidad, ''); return; }
+  }catch(e){}
   window._alumRetornoHist=false;
   appAlert('Este ejercicio no tiene detalle para revisar.');
 }
@@ -3221,13 +3227,21 @@ function saShell(inner,opts){
   if(enSoporte) setTimeout(scWireInbox,0);
   window._avAbierta=false; window._aiAbierta=false;
   setTimeout(()=>{ try{avCargar();}catch(e){} try{aiCargar();}catch(e){} try{avPintarBarra();}catch(e){} try{aiPintarBarra();}catch(e){} },0);
+  const barCC='flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:11px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.88rem;white-space:nowrap;overflow:hidden';
+  let chatCards='';
+  if(saMainTab==='rs') chatCards=`<button id="ca-com-card" style="${barCC}" onclick="caCentrosInbox('academia',false,'comercial')">🏫 Chat con centros<span id="ca-com-badge"></span></button>`;
+  else if(saMainTab==='fact') chatCards=`<button id="ca-adm-card" style="${barCC}" onclick="caCentrosInbox('academia',false,'administracion')">🏫 Chat con centros<span id="ca-adm-badge"></span></button>`;
+  else if(saMainTab==='sop') chatCards=`<button id="sc-inbox-card" style="${barCC}"><span>💬 Profesorado</span><span id="sc-inbox-badge"></span></button><button id="ca-inbox-card" style="${barCC}"><span>🏫 Centros</span><span id="ca-inbox-badge"></span></button>`;
+  else if(enSoporte && !opts.noChat) chatCards=`<button id="sc-inbox-card" style="${barCC}"><span>💬 Profesorado</span><span id="sc-inbox-badge"></span></button>`;
+  const cal=`<button onclick="openCalendario('adm')" title="Calendario" style="flex:0 0 auto;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;font-size:1.05rem;cursor:pointer;line-height:1">📅</button>`;
+  const chatRow=`<div style="display:flex;gap:8px;align-items:stretch;margin:8px 0 8px">${chatCards||'<div style="flex:1"></div>'}${cal}</div>`;
   return `<div class="t-toggle" style="margin:8px 0 8px;display:flex;gap:5px;flex-wrap:nowrap">
       <button style="${st('rs')}" onclick="saSetMain('rs')">Comercial</button>
       <button style="${st('fact')}" onclick="saSetMain('fact')">Administración</button>
       <button style="${enSoporte?on:base}" onclick="saSetMain('sop')">Soporte</button>
     </div>
-    <div style="display:flex;gap:8px;align-items:flex-start;margin:0 0 ${enSoporte?'8px':'12px'}"><div class="av-row" id="av-row" style="flex:1;min-width:0;margin:0"><div id="av-bar"></div><div id="ai-bar"></div></div><button onclick="openCalendario('adm')" title="Calendario" style="flex:0 0 auto;align-self:flex-start;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 11px;font-size:1.05rem;cursor:pointer;line-height:1">📅</button></div>
-    ${(enSoporte && !opts.noChat)?scInboxCardHtml(false):''}
+    ${chatRow}
+    <div class="av-row" id="av-row" style="margin:0 0 ${enSoporte?'8px':'12px'}"><div id="av-bar"></div><div id="ai-bar"></div></div>
     ${inner}`;
 }
 function scWireInbox(){
@@ -3259,14 +3273,9 @@ function saRenderLista(okMsg,errMsg){
     return;
   }
   if(saMainTab==='sop'){
-    const barSop='width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:9px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden';
-    h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <button id="sc-inbox-card" style="${barSop}"><span>💬 Profesorado</span><span id="sc-inbox-badge"></span></button>
-      <button id="ca-inbox-card" style="${barSop}"><span>🏫 Centros</span><span id="ca-inbox-badge"></span></button>
-    </div>`;
     h+=`<button class="fact-menu" style="position:relative" onclick="saSetMain('acadprof')"><b>🏫 Academias y profesores <span class="alta-badge" style="display:none;background:var(--honey);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;font-weight:800;align-items:center;justify-content:center;vertical-align:middle">0</span></b><span>Alta y gestión de academias (Aptuvia) y de usuarios de Aula Abierta</span></button>`;
     h+=docsBar('soporte');
-    $('teacher').innerHTML=saShell(h,{noChat:true});
+    $('teacher').innerHTML=saShell(h);
     setTimeout(refrescarAltasBadge,0);
     return;
   }
@@ -4338,7 +4347,6 @@ function rsRender(){
   const sub=window._rsSub||null;
   if(sub){ rsCargar(); return; }
   let h='';
-  h+=`<button id="ca-com-card" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:11px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.9rem;margin-bottom:14px" onclick="caCentrosInbox('academia',false,'comercial')">🏫 Chat con centros<span id="ca-com-badge"></span></button>`;
   h+=`<div class="sa-cards-grid">`;
   h+=`<button class="fact-menu" onclick="rsAbrirPresu()" style="background:#eef8fe"><b>📝 Presupuestos</b><span>Preparar, enviar y aceptar presupuestos. El aceptado y firmado es el contrato</span></button>`;
   h+=`</div>`;
@@ -4464,7 +4472,6 @@ function saRenderFacturacionLista(){
   const sub=window._factSub||null;
   if(!sub){
     let h='';
-    h+=`<button id="ca-adm-card" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--honey-tint);border:1.5px solid var(--line);border-radius:11px;padding:11px 10px;cursor:pointer;font-family:inherit;color:var(--navy);font-weight:700;font-size:.9rem;margin-bottom:14px" onclick="caCentrosInbox('academia',false,'administracion')">🏫 Chat con centros<span id="ca-adm-badge"></span></button>`;
     h+=`<div class="sa-cards-grid">`;
     h+=`<button class="fact-menu" onclick="saFactSub('presuacep')" style="background:#eef8fe"><b>📝 Presupuestos aceptados</b><span>Emitir la primera factura de un presupuesto aceptado. Se bloquea al facturar para no duplicarlo</span></button>`;
     h+=`<button class="fact-menu" onclick="saFactSub('emitidas')"><b>Facturas emitidas</b><span>Ver, filtrar y sumar todas las facturas</span></button>`;
