@@ -1660,15 +1660,15 @@ function alumHomeData(){
 }
 function alumFechaHecho(e){
   const at=attemptsByExam[e.id]; if(at && at.creado_en){ const t=Date.parse(at.creado_en); if(!isNaN(t)) return t; }
-  const en=entregasByExam[e.id]; if(en && en.creado_en){ const t=Date.parse(en.creado_en); if(!isNaN(t)) return t; }
+  const en=entregasByExam[e.id]; if(en){ const c=en.creado_en||en.corregido_en; if(c){ const t=Date.parse(c); if(!isNaN(t)) return t; } }
   return 0;
 }
 function alumFmtFecha(d){ if(!d) return '—'; try{ const x=new Date(d); const p=n=>String(n).padStart(2,'0'); return p(x.getDate())+'/'+p(x.getMonth()+1)+'/'+x.getFullYear(); }catch(e){ return '—'; } }
 function renderHomeAlumno(headerHtml){
   const tab = window._alumTab || 'aula';
   const d = alumHomeData();
-  const on='background:#fff;border:2px solid #15803d;color:#15803d;box-shadow:0 6px 14px -6px rgba(21,128,61,.55), inset 2px 2px 4px rgba(255,255,255,.9), inset -2px -2px 5px rgba(21,128,61,.12)';
-  const base='background:#fff;border:1.5px solid #15803d;color:#15803d;box-shadow:inset 3px 3px 7px rgba(21,128,61,.22), inset -2px -2px 6px rgba(255,255,255,.85)';
+  const on='background:#fff;border:2px solid #15803d;color:#15803d';
+  const base='background:#fff;border:1.5px solid #9ecbb0;color:#15803d';
   const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
   let h=headerHtml;
   h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
@@ -8844,6 +8844,7 @@ async function abrirIntento(id){
   }
 }
 function renderIntentoDetalle(meta,it){
+  window._intentoActual={meta:meta,it:it};
   const back = meta.alumno_email ? `openAlumnoDetalle('${meta.alumno_email}')` : (meta.alumno ? `openAlumnoDetalle('${meta.alumno}')` : 'pintarTeacher()');
   const pct=(meta.porcentaje!=null)?meta.porcentaje:(it.total?Math.round(it.correctas/it.total*100):0);
   const pass=(meta.apto!=null)?meta.apto:(it.total&&it.correctas/it.total>=0.5);
@@ -8857,6 +8858,7 @@ function renderIntentoDetalle(meta,it){
       </div>
       <div style="font-size:.74rem;color:var(--ink-soft);margin-top:9px">Aciertos: ${it.correctas} · Fallos: ${it.incorrectas} · En blanco: ${it.en_blanco}${it.codigo?' · Código: '+it.codigo:''}</div>
     </div>`;
+  html+=`<div class="bar" style="margin:6px 0 14px"><button class="btn btn-verde" onclick="pdfIntentoAlumno()">⬇️ Descargar examen (PDF)</button></div>`;
   (it.detalle||[]).forEach((q,i)=>{
     html+=`<div class="qcard"><div class="qnum">Pregunta ${i+1}</div><div class="qtext">${q.enunciado}</div>`;
     (q.opciones||[]).forEach((op,idx)=>{
@@ -8873,6 +8875,62 @@ function renderIntentoDetalle(meta,it){
   }
   html+=`<div class="bar"><button class="btn btn-ghost" onclick="${back}">← Volver</button></div>`;
   $('teacher').innerHTML=html;
+}
+
+function pdfIntentoAlumno(){
+  const cur=window._intentoActual; if(!cur||!cur.it){ appAlert('No hay ningún examen abierto.'); return; }
+  if(!window.jspdf){ appAlert('No se pudo cargar el generador de PDF. Comprueba tu conexión.'); return; }
+  const meta=cur.meta||{}, it=cur.it||{};
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const PW=210,PH=297,M=16, W=PW-M*2;
+  const DARK=[30,26,16],MUTED=[96,84,70],NAVY=[46,49,99],GREEN=[21,128,61],RED=[180,35,42];
+  const fecha=it.creado_en?new Date(it.creado_en):new Date();
+  const pct=(meta.porcentaje!=null)?meta.porcentaje:(it.total?Math.round(it.correctas/it.total*100):0);
+  const pass=(meta.apto!=null)?meta.apto:(it.total&&it.correctas/it.total>=0.5);
+  let y=M;
+  function pagina(primera){ if(!primera){ doc.addPage(); y=M; } y=pdfCabeceraMarca(doc,y,{hueco:5}); }
+  function ensure(sp){ if(y+sp>PH-16){ pagina(false); } }
+  pagina(true);
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+  doc.text('Examen del alumno',M,y); y+=6.5;
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
+  doc.text(pdfSafe(meta.nombre||meta.alumno||'Alumno'),M,y); y+=5;
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text(pdfSafe([meta.label||'', fmtFechaES(fecha)].filter(Boolean).join('  ·  ')),M,y); y+=5.5;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(pass?GREEN[0]:RED[0],pass?GREEN[1]:RED[1],pass?GREEN[2]:RED[2]);
+  doc.text(pdfSafe((it.correctas)+'/'+(it.total)+'    '+(pass?'Apto':'No apto')+'  ·  '+pct+'%'),M,y); y+=5.5;
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text(pdfSafe('Aciertos: '+it.correctas+'  ·  Fallos: '+it.incorrectas+'  ·  En blanco: '+it.en_blanco+(it.codigo?'  ·  Codigo: '+it.codigo:'')),M,y); y+=4;
+  doc.setDrawColor(180,89,5);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=7;
+  (it.detalle||[]).forEach((q,i)=>{
+    ensure(22);
+    doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
+    doc.text('Pregunta '+(i+1),M,y); y+=5;
+    doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
+    doc.splitTextToSize(pdfSafe(q.enunciado||''),W).forEach(ln=>{ ensure(5); doc.text(ln,M,y); y+=4.6; });
+    y+=1.5;
+    (q.opciones||[]).forEach((op,idx)=>{
+      const esCorr=(idx===q.correcta), esEleg=(idx===q.elegida);
+      let tag=''; if(esCorr&&esEleg) tag=' (correcta · marcada)'; else if(esCorr) tag=' (correcta)'; else if(esEleg) tag=' (marcada)';
+      const col=esCorr?GREEN:(esEleg?RED:MUTED);
+      doc.setTextColor(col[0],col[1],col[2]);
+      doc.setFont('helvetica',(esCorr||esEleg)?'bold':'normal');
+      doc.splitTextToSize(pdfSafe(LETTERS[idx]+'. '+op+tag),W-3).forEach((ln,k)=>{ ensure(5); doc.text(ln,M+(k===0?0:4),y); y+=4.4; });
+    });
+    if(q.elegida<0){ ensure(5); doc.setFont('helvetica','italic');doc.setTextColor(RED[0],RED[1],RED[2]);doc.text('Sin responder.',M,y); y+=4.6; }
+    if(q.explicacion){ ensure(6); doc.setFont('helvetica','italic');doc.setFontSize(8.8);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+      doc.splitTextToSize(pdfSafe('Explicación: '+q.explicacion),W).forEach(ln=>{ ensure(4.4); doc.text(ln,M,y); y+=4.2; }); }
+    y+=4; doc.setDrawColor(238,240,244);doc.setLineWidth(0.3); ensure(2); doc.line(M,y-2,PW-M,y-2); y+=2;
+  });
+  const pages=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){ doc.setPage(i);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(150,150,150);
+    doc.text(pdfSafe('Aptuvia · Examen del alumno · '+(meta.nombre||meta.alumno||'')),M,PH-8);
+    doc.text('Pág. '+i+' de '+pages,PW-M,PH-8,{align:'right'});
+  }
+  const nom=String(meta.nombre||meta.alumno||'alumno').replace(/[^a-z0-9]+/gi,'_').slice(0,30);
+  docVer(doc,'Aptuvia_examen_'+nom+'_'+fmtStamp(fecha)+'.pdf');
 }
 
 // ---- Gestión de exámenes (profesor) ----
@@ -10640,23 +10698,25 @@ async function acActividadProfesorado(){
       return;
     }
     const ocultos=f.nEx-f.nPub;
-    h+=`<div class="t-card" style="margin-bottom:10px">
-      <b style="font-size:.92rem">${escHtml(f.p.nombre||f.p.email||'Profesor')}</b>
-      <div style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 9px">${escHtml([f.p.cert_codigo,f.p.cert_nombre].filter(Boolean).join(' · ')||'Sin certificado')}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:7px">
-        <span class="rbadge" style="background:#eef2ff;color:#3730a3">${f.nEx} examen${f.nEx===1?'':'es'}</span>
-        <span class="rbadge" style="background:#e9f7ee;color:#1c7a44">${f.nPub} visible${f.nPub===1?'':'s'}</span>
-        ${ocultos>0?`<span class="rbadge" style="background:#ececec;color:#7a7a7a">${ocultos} oculto${ocultos===1?'':'s'}</span>`:''}
-        <span class="rbadge" style="background:#fff5e6;color:#a5620a">${f.nUn} unidad${f.nUn===1?'':'es'}</span>
+    const stat=(lab,val)=>`<div style="flex:1;min-width:90px;background:#fbfbfc;border:1px solid var(--line);border-radius:10px;padding:8px 11px"><div style="font-size:.62rem;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.4px">${lab}</div><div style="font-size:1.05rem;font-weight:800;color:var(--navy);margin-top:1px">${val}</div></div>`;
+    let nota='';
+    if(f.nEx===0) nota='Todavía no tiene exámenes disponibles.';
+    else if(f.nPub===0) nota='Tiene exámenes, pero ninguno visible para el alumnado.';
+    else if(f.act===0&&f.nAl>0) nota='Su alumnado aún no ha hecho ningún examen.';
+    h+=`<div class="t-card" style="margin-bottom:12px">
+      <b style="font-size:.95rem;color:var(--navy)">${escHtml(f.p.nombre||f.p.email||'Profesor')}</b>
+      <div style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 11px">${escHtml([f.p.cert_codigo,f.p.cert_nombre].filter(Boolean).join(' · ')||'Sin certificado')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${stat('Exámenes',f.nEx)}
+        ${stat('Visibles',f.nPub)}
+        ${stat('Alumnado',f.nAl)}
       </div>
-      <div style="font-size:.8rem;color:var(--ink-soft);margin-top:9px;line-height:1.7">
-        Alumnado: <b>${f.nAl}</b> · con actividad: <b>${f.act}</b><br>
-        Exámenes realizados: <b>${f.intentos}</b> · media del grupo: <b>${f.media!=null?f.media.toFixed(1)+' / 10':'sin datos'}</b>
+      <div style="font-size:.78rem;color:var(--ink-soft);margin-top:11px;line-height:1.8">
+        Con actividad: <b style="color:var(--navy)">${f.act}</b> de ${f.nAl}${ocultos>0?' · Ocultos: <b style="color:var(--navy)">'+ocultos+'</b>':''}<br>
+        Exámenes realizados: <b style="color:var(--navy)">${f.intentos}</b> · Media del grupo: <b style="color:var(--navy)">${f.media!=null?f.media.toFixed(1)+' / 10':'sin datos'}</b>
       </div>
-      ${f.nEx===0?`<div style="font-size:.74rem;color:#b4232a;font-weight:700;margin-top:8px">Todavía no ha creado ningún examen.</div>`
-        :(f.nPub===0?`<div style="font-size:.74rem;color:#a5620a;font-weight:700;margin-top:8px">Tiene exámenes creados pero ninguno visible para el alumnado.</div>`
-        :(f.act===0&&f.nAl>0?`<div style="font-size:.74rem;color:#a5620a;font-weight:700;margin-top:8px">Su alumnado aún no ha hecho ningún examen.</div>`:''))}
-    </div>`;
+      ${nota?`<div style="font-size:.74rem;color:var(--ink-soft);margin-top:9px;padding-top:9px;border-top:1px solid var(--line)">${nota}</div>`:''}
+        </div>`;
   });
   $('teacher').innerHTML=h;
 }
@@ -13619,7 +13679,15 @@ function generarPDF(){
 }
 
 // ============ NAV ============
+function limpiarGuardiasExamen(){
+  if(window._examPopHandler){ window.removeEventListener('popstate', window._examPopHandler); window._examPopHandler=null; }
+  if(window._redPopHandler){ window.removeEventListener('popstate', window._redPopHandler); window._redPopHandler=null; }
+  if(window._examVisHandler){ document.removeEventListener('visibilitychange', window._examVisHandler); window._examVisHandler=null; }
+  if(window._redVisHandler){ document.removeEventListener('visibilitychange', window._redVisHandler); window._redVisHandler=null; }
+  if(window._redHideHandler){ window.removeEventListener('pagehide', window._redHideHandler); window._redHideHandler=null; }
+}
 function showView(v){
+  if(v!=='exam') limpiarGuardiasExamen();
   ['home','module','unit','exam','result','teacher'].forEach(id=>$(id).classList.toggle('hidden',id!==v));
   document.body.classList.toggle('teacherview', v==='teacher');
   sbUpdateActive(v);
