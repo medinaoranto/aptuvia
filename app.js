@@ -1451,7 +1451,7 @@ async function loadData(){
       call('/rest/v1/rpc/estados_de_certificado',{method:'POST',body:impProf({p_certificado_id:certBD()})}).catch(()=>null),
       call('/rest/v1/examenes?select=id,tipo').catch(()=>null),
       call('/rest/v1/rpc/examenes_publicados_academia',{method:'POST',body:impProf({})}).catch(()=>[]),
-      call('/rest/v1/entregas?select=examen_id,estado,nota,user_id').catch(()=>null),
+      call('/rest/v1/entregas?select=examen_id,estado,nota,user_id,creado_en,corregido_en').catch(()=>null),
     ]);
 
     estadosLocales={};
@@ -1466,7 +1466,7 @@ async function loadData(){
     // Si un examen no tiene fila para esta academia => oculto por defecto.
     if(pubAcad) pubAcad.forEach(r=>{ pubMap[r.examen_id]=!!r.publicado; });
     examenes.forEach(e=>{ e.tipo=tipoMap[e.id]||'test'; e.publicado=(pubMap[e.id]===true); });
-    entregasByExam={}; if(entregas) entregas.forEach(en=>{ if(!userId||en.user_id===userId) entregasByExam[en.examen_id]={estado:en.estado,nota:en.nota}; });
+    entregasByExam={}; if(entregas) entregas.forEach(en=>{ if(!userId||en.user_id===userId) entregasByExam[en.examen_id]={estado:en.estado,nota:en.nota,creado_en:en.creado_en,corregido_en:en.corregido_en}; });
     attemptsByExam={}; (intentos||[]).forEach(a=>registrarIntento(a.examen_id,a.correctas,a.total,a.id,a.creado_en));
     window._misIntentos=(intentos||[]).filter(a=>!/^(repaso-|falladas-)/.test(String(a.examen_id)));
     falladasByUnit={}; (falladas||[]).forEach(r=>{ falladasByUnit[r.unidad]=r.n; });
