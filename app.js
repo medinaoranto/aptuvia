@@ -2397,11 +2397,11 @@ function manualAlumnoSecciones(esAula){
     'Si pierdes la contraseña, pídesela a tu profesor: él puede generarte una nueva.'
   ]});
   s.push({ t:'2. Tu pantalla de inicio', p:[
-    'Tu inicio tiene cuatro pestañas: MI AULA, PENDIENTES, HISTORIAL y CHAT Y MANUAL.',
+    'Tu inicio tiene cuatro pestañas verdes: MI AULA, CHAT, PENDIENTES e HISTORIAL. Arriba del todo están la campanita de avisos (🔔) y el calendario (📅), y el manual de usuario está en su propio botón, más abajo.',
     'MI AULA: aquí tienes todo tu temario, exámenes y material para practicar a tu ritmo. Arriba hay una BARRA VERDE DE PROGRESO con el porcentaje de ejercicios que has hecho sobre el total que ha colgado tu profesor. El objetivo es llegar al 100 %.',
     'PENDIENTES: la lista de exámenes y ejercicios que tu profesor ha subido y aún no has hecho. Cada uno indica el tipo, el tema, cuándo se colgó y su fecha de entrega, y si cuenta o no para la nota final. Toca la flecha verde para empezarlo directamente; al completarlo desaparece de esta lista.',
     'HISTORIAL Y CALIFICACIONES: lo que ya has realizado, con tu nota (verde si es 5 o más, roja si es menos). Tócalo para ver tu examen corregido; es solo de lectura.',
-    'CHAT Y MANUAL: el chat con tu profesor y este manual.',
+    'CHAT: la conversación con tu profesor, si la ha activado.',
     'IMPORTANTE — hazlo con honestidad: nadie te vigila cuando haces un examen; podrías copiar y sacar buena nota, pero solo te engañarías a ti. Si haces los ejercicios de verdad verás tu evolución real y sabrás si llegas preparado al examen final. Cada ejercicio que completas suma y tu profesor valora tu esfuerzo.'
   ]});
   s.push({ t:esAula?'2. Tus materias':'2. Módulos y unidades formativas', p:[
@@ -2446,101 +2446,93 @@ function manualAlumnoSecciones(esAula){
 function manualPremiumSecciones(){
   const s=[];
   s.push({ t:'1. Qué es el Acceso Premium', p:[
-    'Es la cuenta de dirección del centro: un acceso propio, distinto del de cada profesor, pensado para quien dirige la academia y necesita ver el conjunto sin entrar en el trabajo diario de nadie.',
-    'TODO ES DE SOLO LECTURA. Desde esta cuenta no se crean ni se borran exámenes, no se cambian notas, no se dan de alta alumnos ni se modifica nada del trabajo del profesorado. Se consulta.',
-    'Qué incluye: consulta de resultados de todo el centro, alumnado en riesgo, actividad del profesorado, informe del centro en PDF, exportación a Excel y la facturación del centro.',
-    'Se activa desde Aptuvia a petición del centro. La dirección recibe su correo y su contraseña; puede cambiarla cuando quiera.'
+    'Es la cuenta de dirección: un acceso propio, distinto del de cada profesor, pensado para quien dirige y necesita ver el conjunto sin entrar en el trabajo diario de nadie.',
+    'Hay dos modalidades. DIRECCIÓN DE ACADEMIA: ves tu centro y su profesorado. DIRECCIÓN DE GRUPO: cuando una misma dirección lleva varias academias, ves todas juntas y puedes entrar en cada una.',
+    'TODO ES DE SOLO LECTURA. No se crean ni se borran exámenes, no se cambian notas, no se dan de alta alumnos ni se toca nada del trabajo del profesorado. Se consulta y se generan documentos.',
+    'Se activa desde Aptuvia a petición del centro. Recibes tu correo y tu contraseña; puedes cambiarla cuando quieras.'
   ]});
 
   s.push({ t:'2. Entrar y qué se ve al abrir', p:[
-    'Se entra desde aptuvia.es con el correo y la contraseña de dirección, igual que cualquier otro usuario.',
-    'La pantalla de inicio muestra el nombre del centro y, debajo, la lista del profesorado dado de alta. De cada profesor se ve su nombre, el certificado o materia que imparte y cuántos alumnos tiene.',
-    'Sobre esa lista hay cuatro botones: Alumnado en riesgo, Actividad del profesorado, Informe del centro y Facturación. Son los cuatro apartados de este manual.',
-    'Tocando el nombre de un profesor se entra en sus resultados. Es el mismo detalle que ve él, pero sin poder modificar nada.'
+    'Se entra desde aptuvia.es con el correo y la contraseña de dirección.',
+    'SI DIRIGES UNA SOLA ACADEMIA: entras directo a su panel, con la lista del profesorado y los botones de Alumnado en riesgo, Actividad del profesorado e Informe del centro.',
+    'SI DIRIGES UN GRUPO: entras en la VISTA DE GRUPO, un menú con cuatro apartados en forma de tarjeta: ACADEMIAS (las medias por centro), GENERAR DOCUMENTOS (listados y notas), CHAT (con Aptuvia) y MANUAL DE USUARIO. Arriba se resume cuántos centros, profesores y alumnos tiene el grupo.'
   ]});
 
-  s.push({ t:'3. Resultados de un profesor', p:[
-    'DÓNDE: pantalla de inicio, tocar el nombre del profesor.',
-    'Se abre el listado de su alumnado con dos medias por alumno: MEDIA DE CLASE, que sale de todos los exámenes, y MEDIA FINAL, que solo cuenta los exámenes marcados por el profesor como que cuentan para la nota final.',
-    'Las medias se calculan con el mejor intento de cada examen. Un alumno que repite un examen no queda penalizado por los intentos anteriores.',
-    'Se puede filtrar por unidad o materia para ver cómo va un módulo concreto, y entrar en un alumno para ver examen por examen.',
-    'DESCARGAS: hay un botón de PDF por alumno y otro del listado completo de la clase, y un botón CSV (Excel) para trabajar los datos por tu cuenta.'
+  s.push({ t:'3. Academias · medias por centro (grupo)', p:[
+    'DÓNDE: Vista de grupo → Academias.',
+    'Arriba eliges la BASE DE LA MEDIA con tres pestañas: MEJOR INTENTO (la nota del mejor intento de cada examen), TODOS LOS INTENTOS (promedio de todo lo realizado) o PRUEBAS FINALES (solo los exámenes marcados como que cuentan para la nota final). Todo lo de la pantalla se recalcula con la base elegida.',
+    'Debajo, los totales del grupo (centros, profesorado, alumnado con actividad, exámenes) y la media global.',
+    'COMPARATIVA POR CENTRO: una tarjeta por academia con su media, su barra y sus datos. Toca «Ver este centro» para entrar en él (en solo lectura) y volver cuando quieras.'
   ]});
 
-  s.push({ t:'4. Alumnado en riesgo', p:[
-    'DÓNDE: pantalla de inicio → Alumnado en riesgo.',
-    'Recorre todo el centro y devuelve una sola lista con quien necesita atención, ordenada de más grave a menos. Es lo que de otro modo habría que ir preguntando profesor por profesor.',
-    'SIN ACTIVIDAD: tiene cuenta pero no ha hecho ni un examen. Suele ser el aviso más útil, porque detecta al que se está descolgando antes de que haya notas malas.',
-    'MEDIA MUY BAJA: por debajo de 3 sobre 10.',
-    'POR DEBAJO DEL 5: aprobaría con apoyo, pero hoy no llega.',
-    'SUSPENDE LA NOTA FINAL: la media general aguanta, pero falla en los exámenes que cuentan de verdad.',
-    'Cada ficha indica el motivo, el dato concreto y de qué profesor es. Tocándola se entra en el panel de ese profesor para mirarlo a fondo.',
-    'Si no aparece nadie, sale una pantalla verde: todo el alumnado con actividad supera el 5.'
+  s.push({ t:'4. Dentro de un centro', p:[
+    'Al entrar en una academia ves su profesorado y, tocando un profesor, los resultados de su alumnado, igual que los ve él pero sin poder modificar nada.',
+    'De cada alumno hay dos medias: MEDIA DE CLASE (todos los exámenes) y MEDIA FINAL (solo los que cuentan para la nota final). Puedes filtrar por unidad y entrar en un alumno para ver examen por examen.',
+    'DESCARGAS: PDF por alumno, PDF del listado de la clase y CSV (Excel). Al abrir un examen concreto de un alumno tienes además el botón «Descargar examen (PDF)» con la corrección completa.',
+    'El centro también tiene sus botones de Alumnado en riesgo, Actividad del profesorado e Informe del centro (los tres apartados siguientes).'
   ]});
 
-  s.push({ t:'5. Actividad del profesorado', p:[
-    'DÓNDE: pantalla de inicio → Actividad del profesorado.',
-    'Una ficha por profesor con lo que tiene montado en la plataforma y el uso que está teniendo: exámenes creados, cuántos son visibles para el alumnado, cuántos están ocultos y en cuántas unidades hay contenido.',
-    'Debajo, el uso real: alumnado total, cuántos tienen actividad, cuántos exámenes se han hecho y la media del grupo.',
-    'AVISOS AUTOMÁTICOS: sin exámenes creados; con exámenes pero ninguno visible (error frecuente: se prepara el examen y se olvida encenderlo); y alumnado que aún no ha empezado.',
-    'PARA QUÉ SIRVE: para detectar dónde hace falta apoyo o formación. No está pensado como herramienta de control laboral y no debería usarse así: un dato bajo puede significar simplemente que ese grupo trabaja en papel o que el módulo acaba de empezar.'
+  s.push({ t:'5. Alumnado en riesgo', p:[
+    'DÓNDE: panel del centro → Alumnado en riesgo.',
+    'Recorre el centro y devuelve una sola lista con quien necesita atención, de más grave a menos.',
+    'SIN ACTIVIDAD: tiene cuenta pero no ha hecho ni un examen. MEDIA MUY BAJA: por debajo de 3. POR DEBAJO DEL 5: aprobaría con apoyo. SUSPENDE LA NOTA FINAL: falla en los exámenes que cuentan de verdad.',
+    'Cada ficha indica el motivo, el dato y de qué profesor es; tocándola entras a mirarlo. Si no aparece nadie, sale la pantalla verde: todos superan el 5.'
   ]});
 
-  s.push({ t:'6. Informe del centro en PDF', p:[
-    'DÓNDE: pantalla de inicio → Informe del centro.',
-    'Genera un PDF con todo el centro. Mientras lo prepara, el botón va contando por qué profesor va.',
-    'RESUMEN INICIAL: número de profesores, alumnado total y con actividad, media del centro, cuántos aprueban y cuántos están por debajo o sin empezar.',
-    'DESPUÉS, UN BLOQUE POR PROFESOR: su certificado, cuántos exámenes tiene montados y visibles, y la tabla de su alumnado con media de clase, media final, intentos y estado (Al día, Por debajo o Sin actividad).',
-    'Los números salen de las mismas fórmulas que se ven en pantalla, así que el papel y la aplicación siempre coinciden.',
-    'PARA QUÉ SIRVE: es el documento para llevar a un claustro, a una reunión con la titularidad o a una inspección. Se abre en una pestaña nueva y desde ahí se descarga o se imprime.'
+  s.push({ t:'6. Actividad del profesorado', p:[
+    'DÓNDE: panel del centro → Actividad del profesorado.',
+    'Una ficha por profesor con lo que tiene disponible y su uso: nº de exámenes (incluye tanto los que crea el profesor como los que le vienen montados con el certificado), cuántos son VISIBLES para el alumnado y cuántos hay OCULTOS.',
+    'Debajo, alumnado total, cuántos tienen actividad, exámenes realizados y la media del grupo.',
+    'AVISOS: sin exámenes visibles (error frecuente: se prepara el examen y se olvida encenderlo) o alumnado que aún no ha empezado.',
+    'PARA QUÉ SIRVE: para ver dónde hace falta apoyo, no para comparar a unos con otros. Un dato bajo puede ser simplemente que el módulo acaba de empezar.'
   ]});
 
-  s.push({ t:'7. Facturación del centro', p:[
-    'DÓNDE: pantalla de inicio → Facturación.',
-    'El histórico de facturas del centro: número, fecha, importe y si está pagada o pendiente. Arriba, el total facturado.',
-    'Tocando cualquier factura se abre su PDF, idéntico al que emite Aptuvia, listo para descargar o para pasar a la gestoría.',
-    'Es solo consulta: desde aquí no se emite, no se modifica y no se anula ninguna factura.',
-    'PARA QUÉ SIRVE: para no tener que pedir una copia cada vez que la gestoría reclama una factura traspapelada.'
+  s.push({ t:'7. Informe del centro en PDF', p:[
+    'DÓNDE: panel del centro → Informe del centro.',
+    'Genera un PDF con todo el centro: un resumen inicial (profesorado, alumnado, media, aprobados y en riesgo) y, después, un bloque por profesor con su alumnado, medias, intentos y estado.',
+    'Los números salen de las mismas fórmulas que ves en pantalla, así que papel y aplicación coinciden. Es el documento para un claustro, una reunión con la titularidad o una inspección.'
   ]});
 
-  s.push({ t:'8. Descargas y formatos', p:[
-    'PDF POR ALUMNO: sus exámenes, medias y estado. Sirve como justificante para el propio alumno o para tutoría.',
-    'PDF DEL LISTADO DE CLASE: todo el alumnado de un profesor en una tabla.',
-    'INFORME DEL CENTRO: el conjunto, con el resumen global.',
-    'CSV (EXCEL): los mismos datos en bruto para hacer tus propios cálculos, gráficos o cruces con otros sistemas del centro.',
-    'Todos los PDF llevan el nombre del centro arriba a la derecha, el del profesor junto a los datos, y la fecha de generación. Conviene mirar esa fecha antes de usar un informe guardado hace semanas.'
+  s.push({ t:'8. Generar documentos', p:[
+    'DÓNDE: Vista de grupo → Generar documentos.',
+    'Un generador para preparar los papeles del expediente. Arriba eliges el DOCUMENTO en un desplegable y, debajo, los filtros: CENTRO, CERTIFICADO y BASE DE LA MEDIA. Una línea de ayuda te explica cada documento.',
+    'DOCUMENTOS DISPONIBLES: Listado de alumnado; Hoja de calificaciones por UNIDAD FORMATIVA; Hoja de calificaciones por MÓDULO FORMATIVO (nota consolidada del módulo); Estado del alumnado; Control de actividad (nº de exámenes por alumno); y Evolución temporal por centro (media mes a mes, con gráfico).',
+    'ESTADO DEL ALUMNADO: marca a cada alumno como Activo, En riesgo o Inactivo. Puedes fijar el UMBRAL DE RIESGO (por debajo de qué nota se considera en riesgo) y con «Mostrar» filtrar para ver solo uno de los estados o todos.',
+    'EXPORTAR: cada documento se descarga en PDF (con cabecera, fecha y sello de documento interno) o en CSV para volcarlo a Excel. Son documentos de apoyo interno para los expedientes, no actas ni certificaciones oficiales del SEPE.'
   ]});
 
-  s.push({ t:'9. Qué NO puede hacer esta cuenta', p:[
-    'No puede crear, editar ni borrar exámenes, preguntas ni temario.',
-    'No puede poner ni cambiar notas, ni corregir entregas, ni reabrir intentos.',
-    'No puede dar de alta, autorizar ni dar de baja alumnado, ni cambiar contraseñas ajenas.',
-    'No puede ver otras academias: solo la suya.',
-    'No puede emitir ni modificar facturas.',
-    'Esto es deliberado. La cuenta de dirección da visión de conjunto sin poder alterar el trabajo académico, que es responsabilidad de cada profesor.'
+  s.push({ t:'9. Descargas y formatos', p:[
+    'PDF POR ALUMNO: sus exámenes, medias y estado; sirve de justificante para tutoría.',
+    'PDF DEL LISTADO DE CLASE e INFORME DEL CENTRO: el conjunto, con el resumen global.',
+    'DOCUMENTOS DEL GRUPO: los del generador (listados, calificaciones por UF y por MF, estado, actividad, evolución), en PDF o CSV.',
+    'Todos los PDF llevan la fecha de generación. Conviene mirarla antes de usar un informe guardado hace semanas.'
   ]});
 
-  s.push({ t:'10. Protección de datos', p:[
-    'Esta cuenta accede a datos personales y académicos de menores y de personas adultas. El centro es el responsable del tratamiento de esos datos y Aptuvia actúa como encargado.',
-    'Los informes descargados contienen nombres y resultados: guárdalos en un sitio seguro del centro y no los envíes por canales personales ni los dejes en dispositivos compartidos.',
-    'La cuenta de dirección es nominal. No debe compartirse ni dejarse abierta en un ordenador de uso común.',
-    'Si alguien deja el cargo, avisa a Aptuvia para revocar su acceso.'
+  s.push({ t:'10. Chat con Aptuvia', p:[
+    'DÓNDE: Vista de grupo → Chat (o el botón «Chat con Aptuvia» del panel).',
+    'Eliges a quién diriges la consulta: SOPORTE (dudas técnicas), ADMINISTRACIÓN (facturas y pagos) o COMERCIAL (presupuestos, altas y planes).',
+    'Cada destino es una conversación aparte con su historial. Escribes, puedes adjuntar un PDF o una imagen, y Aptuvia responde por el mismo sitio. Es la vía recomendada para dejar por escrito lo que se acuerda.'
   ]});
 
-  s.push({ t:'11. Dudas frecuentes', p:[
-    'NO VEO A UN PROFESOR: no está dado de alta en tu academia. Se soluciona desde Aptuvia.',
-    'UN PROFESOR APARECE SIN ALUMNOS: aún no ha autorizado a nadie, o su alumnado se registró bajo otro profesor.',
-    'LAS MEDIAS SALEN VACÍAS: ese alumnado todavía no ha hecho ningún examen. Sin intentos no hay media.',
-    'LA MEDIA FINAL ESTÁ VACÍA PERO LA DE CLASE NO: ese profesor aún no ha marcado ningún examen como que cuenta para la nota final.',
-    'LA FACTURACIÓN SALE VACÍA: o todavía no se ha emitido ninguna factura, o la cuenta no está asociada a la academia. Avisa a Aptuvia.',
-    'EL INFORME TARDA: consulta a cada profesor uno por uno. Con muchos profesores tarda unos segundos; el botón va indicando por dónde va.'
+  s.push({ t:'11. Qué NO puede hacer esta cuenta', p:[
+    'No crea, edita ni borra exámenes, preguntas ni temario.',
+    'No pone ni cambia notas, ni corrige entregas, ni reabre intentos.',
+    'No da de alta, autoriza ni da de baja alumnado, ni cambia contraseñas ajenas.',
+    'No ve otros grupos ni otras academias fuera del suyo. No emite ni modifica facturas.',
+    'Es deliberado: la dirección da visión de conjunto sin poder alterar el trabajo académico, que es de cada profesor.'
   ]});
 
-  s.push({ t:'12. Chat con Aptuvia', p:[
-    'DÓNDE: pantalla de inicio → botón "Chat con soporte".',
-    'Al abrirlo eliges a quién diriges la consulta: SOPORTE (dudas técnicas o incidencias de la plataforma), ADMINISTRACIÓN (facturas, pagos y datos de facturación) o COMERCIAL (presupuestos, altas, planes y servicios).',
-    'Cada destino es una conversación aparte, con su propio historial. Escribes, puedes adjuntar un PDF o una imagen, y el equipo de Aptuvia te responde por el mismo sitio.',
-    'Puedes Archivar una conversación (se guarda en Archivados y se recupera con Desarchivar) o Borrarla, que solo la oculta de tu vista; Aptuvia conserva su copia. Es la vía recomendada para dejar por escrito lo que se paga y lo que se acuerda.'
+  s.push({ t:'12. Protección de datos', p:[
+    'Esta cuenta accede a datos personales y académicos. El centro es el responsable del tratamiento y Aptuvia actúa como encargado.',
+    'Los documentos descargados contienen nombres y notas: guárdalos en un sitio seguro y no los envíes por canales personales ni los dejes en dispositivos compartidos.',
+    'La cuenta es nominal: no debe compartirse ni dejarse abierta en un equipo común. Si alguien deja el cargo, avisa a Aptuvia para revocar su acceso.'
+  ]});
+
+  s.push({ t:'13. Dudas frecuentes', p:[
+    'NO VEO UN CENTRO O UN PROFESOR: no está dado de alta en tu grupo. Se soluciona desde Aptuvia.',
+    'LAS MEDIAS O DOCUMENTOS SALEN VACÍOS: ese alumnado todavía no ha hecho exámenes, o los filtros dejan fuera a todos. Sin intentos no hay media.',
+    'LA MEDIA DE PRUEBAS FINALES ESTÁ VACÍA: ese profesor aún no ha marcado ningún examen como que cuenta para la nota final.',
+    'UN DESPLEGABLE DE CENTRO O CERTIFICADO SALE CORTO: solo lista los centros del grupo y los certificados contratados.'
   ]});
 
   return s;
@@ -2600,7 +2592,7 @@ const MANUAL_AREAS = {
         'ACADEMIAS: en Soporte, la pestaña "🏫 Academias" despliega la lista de academias. Tocas una y entras en su ficha.',
         'Desde la ficha de cada academia: renombrarla, ver sus profesores y alumnos, y generar contraseñas nuevas a quien la pierda.',
         'MODO MANTENIMIENTO: la píldora "🛠️ Operativo / Mantenimiento" de la barra inferior. En verde, la app funciona; al pulsarla y confirmar, la cierra a todo el mundo (alumnos y profesores) mientras se hace una intervención, y se pone en rojo. Acuérdate de volver a dejarla en Operativo.',
-        'CALENDARIO: la píldora "📅 Calendario" de la barra inferior abre el calendario del departamento (tareas y fechas comunes).',
+        'CALENDARIO: el botón 📅 de arriba, junto a las tarjetas de chat, abre el calendario del departamento (tareas y fechas comunes).',
         'Los avisos de tu campana son los tuyos. Los de Administración y Comercial los ves en solo lectura, para saber por dónde van.'
       ]},
       { t:'5. Dar de baja un cliente', p:[
