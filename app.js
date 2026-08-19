@@ -10875,6 +10875,7 @@ async function grDocPick(camp){
   const v=await appPicker(titulo,opts);
   if(v==null) return;
   window._gd[camp]=v;
+  if(camp==='tipo') window._gdSort=null;
   grDocRender();
 }
 async function grDocUmbral(){
@@ -10946,7 +10947,24 @@ function grDocDataset(){
     const mf=m=> m!=null?Number(m).toFixed(1):'—';
     piv.centros.forEach(c=> filas.push({c:[c.academia||'—'].concat(piv.months.map(m=> mf(c.m[m])))}));
   }
+  const s=window._gdSort;
+  if(s && s.i!=null && s.i<cols.length){
+    const i=s.i, dir=s.dir, num=cols[i].a==='r';
+    filas=filas.slice().sort((a,b)=>{
+      const A=String(a.c[i]==null?'':a.c[i]).trim(), B=String(b.c[i]==null?'':b.c[i]).trim();
+      const aE=(A===''||A==='—'), bE=(B===''||B==='—');
+      if(aE&&bE) return 0; if(aE) return 1; if(bE) return -1;
+      let r; if(num){ r=(parseFloat(A.replace(',','.'))||0)-(parseFloat(B.replace(',','.'))||0); } else { r=A.localeCompare(B,'es',{numeric:true,sensitivity:'base'}); }
+      return dir<0?-r:r;
+    });
+  }
   return {tipo:st.tipo, titulo, sub, file, cols, filas};
+}
+
+function grDocSort(i){
+  const s=window._gdSort;
+  if(s && s.i===i) s.dir=-s.dir; else window._gdSort={i:i,dir:1};
+  grDocRender();
 }
 
 function grDocRender(){
@@ -10983,7 +11001,7 @@ function grDocRender(){
     const tonoCol=t=> t==='rojo'?'#b4232a':(t==='ambar'?'#a5620a':'inherit');
     h+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;background:#fff">
       <table style="border-collapse:collapse;width:100%;font-size:.76rem;white-space:nowrap">
-      <thead><tr>${ds.cols.map(c=>`<th style="text-align:${c.a==='r'?'right':'left'};padding:9px 11px;color:var(--ink-soft);font-weight:800;border-bottom:1px solid var(--line);font-size:.66rem;text-transform:uppercase;letter-spacing:.4px">${escHtml(c.h)}</th>`).join('')}</tr></thead>
+      <thead><tr>${ds.cols.map((c,i)=>{const act=window._gdSort&&window._gdSort.i===i;const ar=act?(window._gdSort.dir<0?'▼':'▲'):'↕';return `<th onclick="grDocSort(${i})" style="text-align:${c.a==='r'?'right':'left'};padding:9px 11px;color:${act?'var(--navy)':'var(--ink-soft)'};font-weight:800;border-bottom:1px solid var(--line);font-size:.66rem;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none">${escHtml(c.h)} <span style="opacity:${act?'.9':'.35'};font-size:.85em">${ar}</span></th>`;}).join('')}</tr></thead>
       <tbody>${ds.filas.slice(0,300).map(f=>`<tr>${f.c.map((v,i)=>`<td style="text-align:${ds.cols[i].a==='r'?'right':'left'};padding:8px 11px;border-bottom:1px solid #f1f3f7;${i===f.c.length-1&&ds.tipo==='estado'?'font-weight:700;color:'+tonoCol(f.tono):'color:var(--navy)'}">${escHtml(String(v))}</td>`).join('')}</tr>`).join('')}</tbody>
       </table></div>`;
     if(ds.filas.length>300) h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:8px 2px 0">Se muestran las primeras 300 filas. El PDF y el CSV incluyen todas (${ds.filas.length}).</p>`;
