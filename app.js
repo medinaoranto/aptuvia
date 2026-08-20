@@ -2177,8 +2177,11 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
 
   // ---- Portada ----
   doc.setFillColor(...NAVY); doc.rect(0,0,210,62,'F');
-  doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(24);
-  doc.text('Aptuvia', ML, 28);
+  // Logo Aptuvia sobre chip blanco (el logo es navy y no se vería sobre el banner)
+  const _lw=52, _lh=_lw/APTUVIA_LOGO_RATIO;
+  doc.setFillColor(255,255,255); doc.roundedRect(ML, 11, _lw+8, _lh+6, 3, 3, 'F');
+  pdfLogo(doc, ML+4, 14, _lw);
+  doc.setTextColor(255,255,255); doc.setFont(undefined,'bold');
   doc.setFontSize(15); doc.text(pdfSafe(titulo), ML, 42);
   doc.setFont(undefined,'normal'); doc.setFontSize(9.5);
   doc.text(pdfSafe(subtitulo), ML, 51);
@@ -2536,6 +2539,66 @@ function manualPremiumSecciones(){
   ]});
 
   return s;
+}
+
+function manualAcademiaSecciones(){
+  const s=[];
+  s.push({ t:'1. Qué es la cuenta de dirección', p:[
+    'Es la cuenta de dirección de tu academia: un acceso propio, distinto del de cada profesor, para ver el conjunto del centro sin entrar en el trabajo diario de nadie.',
+    'TODO ES DE SOLO LECTURA. No se crean ni se borran exámenes, no se cambian notas, no se dan de alta alumnos ni se toca nada del trabajo del profesorado. Se consulta y se generan informes.',
+    'Se activa desde Aptuvia a petición del centro. Recibes tu correo y tu contraseña; puedes cambiarla cuando quieras desde «Manual y contraseña».'
+  ]});
+  s.push({ t:'2. Entrar y qué se ve al abrir', p:[
+    'Se entra desde aptuvia.es con el correo y la contraseña de dirección.',
+    'Entras directo al panel del centro: la lista del profesorado y los botones de Alumnado en riesgo, Actividad del profesorado e Informe del centro. Cada profesor muestra su certificado y su número de alumnos.',
+    'Tocas un profesor para ver las notas de su alumnado; dentro, tocas un alumno para ver su ficha examen por examen.'
+  ]});
+  s.push({ t:'3. Notas de cada profesor', p:[
+    'Al entrar en un profesor ves su alumnado con tres medias: MEJOR INTENTO de cada examen, TODOS LOS INTENTOS y solo las PRUEBAS FINALES (las que cuentan para la nota final).',
+    'Con «Ordenar por» eliges por cuál de las tres medias se ordena la lista; el primero lleva medallita.',
+    'DESCARGAS: PDF por alumno, PDF del listado de la clase y CSV (Excel). Al abrir un examen concreto de un alumno tienes además «Descargar examen (PDF)» con la corrección completa.'
+  ]});
+  s.push({ t:'4. Alumnado en riesgo', p:[
+    'DÓNDE: panel del centro → Alumnado en riesgo.',
+    'Recorre el centro y devuelve una sola lista con quien necesita atención, ordenada de la nota más baja a la más alta.',
+    'SIN ACTIVIDAD: tiene cuenta pero no ha hecho ni un examen. MEDIA MUY BAJA: por debajo de 3. POR DEBAJO DEL 5: aprobaría con apoyo. SUSPENDE LA NOTA FINAL: falla en los exámenes que cuentan.',
+    'Cada ficha indica el motivo, el dato y de qué profesor es; tocándola entras directamente a la ficha de ese alumno.'
+  ]});
+  s.push({ t:'5. Actividad del profesorado', p:[
+    'DÓNDE: panel del centro → Actividad del profesorado.',
+    'Una ficha por profesor con lo que tiene disponible y su uso: nº de exámenes (incluye los que crea el profesor y los que le vienen montados con el certificado), cuántos son VISIBLES para el alumnado y cuántos hay ocultos. Debajo, alumnado, cuántos tienen actividad y la media.',
+    'PARA QUÉ SIRVE: para ver dónde hace falta apoyo, no para comparar a unos con otros. Un dato bajo puede ser simplemente que el módulo acaba de empezar.'
+  ]});
+  s.push({ t:'6. Informe del centro en PDF', p:[
+    'DÓNDE: panel del centro → Informe del centro.',
+    'Genera un PDF con todo el centro: un resumen inicial (profesorado, alumnado, media, aptos y en riesgo) y, después, un bloque por profesor con su alumnado, medias, intentos y estado (apto / no apto).',
+    'Los números salen de las mismas fórmulas que ves en pantalla, así que papel y aplicación coinciden.'
+  ]});
+  s.push({ t:'7. Chat con Aptuvia', p:[
+    'DÓNDE: botón «Chat con Aptuvia» del panel.',
+    'Eliges a quién diriges la consulta: SOPORTE (dudas técnicas), ADMINISTRACIÓN (facturas y pagos) o COMERCIAL (presupuestos, altas y planes). Cada destino es una conversación aparte con su historial. Puedes adjuntar un PDF o una imagen.'
+  ]});
+  s.push({ t:'8. Qué NO puede hacer esta cuenta', p:[
+    'No crea, edita ni borra exámenes, preguntas ni temario. No pone ni cambia notas, ni corrige entregas, ni reabre intentos.',
+    'No da de alta, autoriza ni da de baja alumnado, ni cambia contraseñas ajenas. No emite ni modifica facturas.',
+    'Es deliberado: la dirección da visión de conjunto sin poder alterar el trabajo académico, que es de cada profesor.'
+  ]});
+  s.push({ t:'9. Protección de datos', p:[
+    'Esta cuenta accede a datos personales y académicos. El centro es el responsable del tratamiento y Aptuvia actúa como encargado.',
+    'Los documentos descargados contienen nombres y notas: guárdalos en un sitio seguro. La cuenta es nominal: no debe compartirse ni dejarse abierta en un equipo común.'
+  ]});
+  return s;
+}
+function docManualAcademia(){
+  try{
+    const doc=docPDFBase(
+      'Manual de usuario',
+      'Aptuvia · la cuenta de dirección de tu academia, paso a paso',
+      manualAcademiaSecciones(),
+      'Aptuvia · aptuvia.es · Manual de usuario'
+    );
+    docVer(doc,'Aptuvia-manual-academia.pdf');
+  }catch(e){ appAlert('No se pudo generar el PDF: '+(e.message||'')); }
 }
 
 function docManualPremium(){
@@ -8549,11 +8612,11 @@ async function caCliArea(area, verArch){
   if(!verArch){
     h.push('<textarea id="sc-txt" rows="3" placeholder="Escribe tu mensaje…" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-family:inherit;resize:vertical"></textarea>');
     h.push('<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label class="btn btn-ghost" style="margin:0;cursor:pointer;flex:0 0 auto">📎 Adjuntar<input type="file" id="sc-file" accept="application/pdf,image/*" style="display:none"></label><span id="sc-file-name" style="font-size:.78rem;color:var(--ink-soft)"></span></div>');
-    h.push('<button class="btn btn-honey" id="sc-send" style="margin-top:10px">Enviar</button>');
+    h.push('<button class="btn btn-verde" id="sc-send" style="margin-top:10px">Enviar</button>');
     if(aid!=null) h.push('<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-ghost" id="sc-arch" style="margin:0;flex:1">🗂 Archivar</button><button class="btn btn-ghost" id="sc-del" style="margin:0;flex:1;color:#b91c1c;border-color:#f3c4c4">🗑 Borrar</button></div>');
     if(nArch>0) h.push('<button class="btn btn-ghost" id="sc-verarch" style="margin-top:8px;font-size:.8rem">🗂 Ver archivados ('+nArch+')</button>');
   }else{
-    h.push('<button class="btn btn-honey" id="sc-desarch" style="margin-top:8px">↩ Desarchivar</button>');
+    h.push('<button class="btn btn-verde" id="sc-desarch" style="margin-top:8px">↩ Desarchivar</button>');
   }
   $('teacher').innerHTML=h.join('');
   const fi=$('sc-file'); if(fi) fi.onchange=()=>{ const n=$('sc-file-name'); if(n) n.textContent=(fi.files&&fi.files[0])?('📎 '+fi.files[0].name):''; };
@@ -10475,7 +10538,8 @@ async function acAlertasRiesgo(){
   if(!datos) return;
   const lista=[];
   datos.forEach(d=>{ (d.alumnos||[]).forEach(a=>{ const m=acMotivoRiesgo(a); if(m) lista.push({a:a, p:d.p, m:m}); }); });
-  lista.sort((x,y)=> x.m.peso-y.m.peso || String(x.a.nombre).localeCompare(String(y.a.nombre),'es'));
+  const notaOrd=a=> (a.intentos===0? -1 : (a.mc!=null? a.mc : (a.mf!=null? a.mf : 99)));
+  lista.sort((x,y)=>{ const va=notaOrd(x.a), vb=notaOrd(y.a); if(va!==vb) return va-vb; return String(x.a.nombre).localeCompare(String(y.a.nombre),'es'); });
   const totAl=datos.reduce((n,d)=>n+d.alumnos.length,0);
   showView('teacher'); window.scrollTo(0,0);
   let h=`<button class="backbtn" onclick="openAcademiaCentro()">← Centro</button>`;
@@ -10487,7 +10551,7 @@ async function acAlertasRiesgo(){
   }else{
     lista.forEach(x=>{
       const rojo=(x.m.peso<=1);
-      h+=`<button class="al-row" data-acprof2="${escAttr(x.p.id)}" style="width:100%;text-align:left">
+      h+=`<button class="al-row" data-acprof2="${escAttr(x.p.id)}" data-al2="${escAttr(x.a.email||'')}" style="width:100%;text-align:left">
         <span class="al-info"><b>${escHtml(x.a.nombre)}</b>
           <span style="color:${rojo?'#b4232a':'#a5620a'};font-weight:700">${escHtml(x.m.txt)}</span>
           <span>${escHtml(x.m.det)}</span>
@@ -10497,7 +10561,7 @@ async function acAlertasRiesgo(){
     });
   }
   $('teacher').innerHTML=h;
-  $('teacher').querySelectorAll('[data-acprof2]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof2));
+  $('teacher').querySelectorAll('[data-acprof2]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof2, b.dataset.al2||null));
 }
 
 // ---- Vista de grupo (Premium · varias academias bajo una misma dirección) ----
@@ -10506,6 +10570,7 @@ async function grCargarResumen(){
   try{ return await call('/rest/v1/rpc/gr_resumen',{method:'POST',body:{}})||[]; }
   catch(e){ return []; }
 }
+function notaColor(v){ return v==null?'#8890a6':(v<=2?'#b4232a':(v<5?'#c77800':'#15803d')); }
 function grVal(r,m){
   if(m==='todos') return r.media_todos!=null?Number(r.media_todos):null;
   if(m==='final') return r.media_final!=null?Number(r.media_final):null;
@@ -10539,7 +10604,7 @@ function grRender(){
   h+=card("grAcademias()",'🏫','Academias','Medias por centro y base de la media');
   h+=card("grDocs()",'📄','Generar documentos','Listados, calificaciones y estados');
   h+=card("caCliChat('openGrupo()')",'💬','Chat con Aptuvia','Soporte, administración y comercial',' <span id="gr-cli-badge"></span>');
-  h+=card("docManualPremium()",'📘','Manual de usuario','Guía del área paso a paso');
+  h+=card("acCuenta('grupo')",'📘','Manual y contraseña','Guía del área y tu clave de acceso');
   $('teacher').innerHTML=h;
   call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('gr-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{});
 }
@@ -10565,11 +10630,11 @@ function grAcademias(){
   const pctAct=tot.al?Math.round(tot.act/tot.al*100):0;
   h+=`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">${rows.length} centro${rows.length===1?'':'s'} · datos consolidados de todo el grupo.</p>`;
   h+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:-8px 2px 14px;line-height:1.5">ℹ️ Elige la <b>base de la media</b> (mejor intento, todos o solo las pruebas finales) y toca un centro para ver el detalle de su profesorado.</p>`;
-  const seg=(k,t)=>`<button onclick="grMedia('${k}')" style="flex:1;padding:9px 5px;border-radius:11px;font-family:inherit;font-weight:800;font-size:.75rem;line-height:1.15;cursor:pointer;border:1.5px solid var(--navy);${modo===k?'background:var(--navy);color:#fff;box-shadow:0 5px 12px -5px rgba(20,30,70,.55)':'background:#fff;color:var(--navy)'}">${t}</button>`;
+  const seg=(k,t)=>{const on=modo===k;return `<button onclick="grMedia('${k}')" style="flex:1;padding:9px 5px;border-radius:11px;font-family:inherit;font-weight:800;font-size:.75rem;line-height:1.15;cursor:pointer;border:1.5px solid ${on?'#0f5f2d':'#bfe3cd'};${on?'background:linear-gradient(180deg,#1f9a51,#136c34);color:#fff;box-shadow:inset 0 2px 6px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.08)':'background:#fff;color:#15803d'}">${t}</button>`;};
   h+=`<div style="font-size:.68rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.6px;margin:2px 2px 6px">Base de la media</div>
     <div style="display:flex;gap:7px;margin-bottom:12px">${seg('mejor','🥇 Mejor<br>intento')}${seg('todos','📚 Todos los<br>intentos')}${seg('final','🎓 Pruebas<br>finales')}</div>`;
   const kpi=(lab,val)=>`<div style="flex:1;min-width:118px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:11px 12px"><div style="font-size:.66rem;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.4px">${lab}</div><div style="font-size:1.12rem;font-weight:800;color:var(--navy);margin-top:2px">${val}</div></div>`;
-  const mediaCol = mediaGrupo==null?'#8890a6':(mediaGrupo<5?'#b4232a':(mediaGrupo<7?'#a5620a':'#1c7a44'));
+  const mediaCol = notaColor(mediaGrupo);
   h+=`<div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:9px">
     ${kpi('Centros',rows.length)}
     ${kpi('Profesorado',tot.prof)}
@@ -10587,7 +10652,7 @@ function grAcademias(){
     const act=num(r.n_activos),al=num(r.n_alumnos);
     const pct=al?Math.round(act/al*100):0;
     const ancho=m!=null?Math.max(3,Math.round(m/maxMedia*100)):0;
-    const color=(m==null)?'#c9ccd6':(m<5?'#b4232a':(m<7?'#a5620a':'#1c7a44'));
+    const color=(m==null)?'#c9ccd6':notaColor(m);
     h+=`<button class="t-card gr-centro" onclick="grEntrarAcademia(${num(r.academia_id)})" style="margin-bottom:9px;width:100%;text-align:left;border:none;font-family:inherit;cursor:pointer;display:block">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
         <b style="font-size:.92rem">${escHtml(r.academia||('Academia '+r.academia_id))}</b>
@@ -10600,7 +10665,7 @@ function grAcademias(){
         ${num(r.n_profesores)} profesor${num(r.n_profesores)===1?'':'es'} · ${al} alumno${al===1?'':'s'} · ${act} con actividad (${pct} %)<br>
         ${num(r.n_intentos)} examen${num(r.n_intentos)===1?'':'es'} realizado${num(r.n_intentos)===1?'':'s'}
       </div>
-      <div style="font-size:.74rem;font-weight:700;color:var(--honey-deep);margin-top:8px">Ver este centro ›</div>
+      <div style="font-size:.74rem;font-weight:700;color:#15803d;margin-top:8px">Ver este centro ›</div>
     </button>`;
   });
   const MODO_TXT={
@@ -10804,7 +10869,7 @@ async function pdfInformeCentro(){
       doc.text(doc.splitTextToSize(pdfSafe(a.nombre),cMc-cAl-3)[0],cAl,y);
       doc.setFont('helvetica','normal');doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
       doc.text(mc,cMc,y); doc.text(mf,cMf,y); doc.text(String(a.intentos),cIn,y);
-      const est=(a.intentos===0)?'Sin actividad':(a.mc!=null&&a.mc<5?'Por debajo':'Al dia');
+      const est=riesgo?'No apto':'Apto';
       doc.setTextColor(riesgo?RED[0]:GREEN[0],riesgo?RED[1]:GREEN[1],riesgo?RED[2]:GREEN[2]);
       doc.text(est,cEs,y);
       y+=5; doc.setDrawColor(245,243,236);doc.setLineWidth(0.2);doc.line(M,y-1.5,PW-M,y-1.5);
@@ -10982,7 +11047,7 @@ function grDocRender(){
   if(tipoSub) h+=`<p style="font-size:.72rem;color:var(--ink-soft);margin:-3px 2px 10px;line-height:1.5">ℹ️ ${escHtml(tipoSub)}. Filtra por centro o certificado, elige la base de la media y descárgalo en PDF o CSV.</p>`;
   h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">${chip('centro','Centro',centroLbl)}${chip('cert','Certificado',certLbl)}${chip('base','Base de la media',GD_BASE[st.base])}</div>`;
   if(st.tipo==='estado'){
-    h+=`<button onclick="grDocUmbral()" style="width:100%;text-align:left;background:var(--honey-tint,#fff7e6);border:1.5px solid var(--honey,#e6b866);border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer;margin-bottom:9px"><div style="font-size:.62rem;font-weight:800;color:#a5620a;text-transform:uppercase;letter-spacing:.5px">Umbral de riesgo</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">Por debajo de ${Number(st.umbral).toFixed(1)} = en riesgo ✎</div></button>`;
+    h+=`<button onclick="grDocUmbral()" style="width:100%;text-align:left;background:#eaf6ee;border:1.5px solid #15803d;border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer;margin-bottom:9px"><div style="font-size:.62rem;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.5px">Umbral de riesgo</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">Por debajo de ${Number(st.umbral).toFixed(1)} = en riesgo ✎</div></button>`;
     const efLbl={todos:'Todos los estados',activo:'Solo activos',riesgo:'Solo en riesgo',inactivo:'Solo inactivos'}[st.estadof||'todos'];
     h+=`<button onclick="grDocPick('estadof')" style="width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-family:inherit;cursor:pointer;margin-bottom:9px"><div style="font-size:.62rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px">Mostrar</div><div style="font-size:.86rem;font-weight:700;color:var(--navy);margin-top:2px">${efLbl} ▾</div></button>`;
   }
@@ -11001,7 +11066,7 @@ function grDocRender(){
     const tonoCol=t=> t==='rojo'?'#b4232a':(t==='ambar'?'#a5620a':'inherit');
     h+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;background:#fff">
       <table style="border-collapse:collapse;width:100%;font-size:.76rem;white-space:nowrap">
-      <thead><tr>${ds.cols.map((c,i)=>{const act=window._gdSort&&window._gdSort.i===i;const ar=act?(window._gdSort.dir<0?'▼':'▲'):'↕';return `<th onclick="grDocSort(${i})" style="text-align:${c.a==='r'?'right':'left'};padding:9px 11px;color:${act?'var(--navy)':'var(--ink-soft)'};font-weight:800;border-bottom:1px solid var(--line);font-size:.66rem;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none">${escHtml(c.h)} <span style="opacity:${act?'.9':'.35'};font-size:.85em">${ar}</span></th>`;}).join('')}</tr></thead>
+      <thead><tr>${ds.cols.map((c,i)=>{const act=window._gdSort&&window._gdSort.i===i;const ar=act?(window._gdSort.dir<0?'▼':'▲'):'⇅';return `<th onclick="grDocSort(${i})" style="text-align:${c.a==='r'?'right':'left'};padding:9px 11px;color:${act?'var(--navy)':'var(--ink-soft)'};font-weight:800;border-bottom:1px solid var(--line);font-size:.66rem;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none">${escHtml(c.h)} <span style="color:${act?'#15803d':'#9aa2b4'};font-size:.95em;font-weight:900">${ar}</span></th>`;}).join('')}</tr></thead>
       <tbody>${ds.filas.slice(0,300).map(f=>`<tr>${f.c.map((v,i)=>`<td style="text-align:${ds.cols[i].a==='r'?'right':'left'};padding:8px 11px;border-bottom:1px solid #f1f3f7;${i===f.c.length-1&&ds.tipo==='estado'?'font-weight:700;color:'+tonoCol(f.tono):'color:var(--navy)'}">${escHtml(String(v))}</td>`).join('')}</tr>`).join('')}</tbody>
       </table></div>`;
     if(ds.filas.length>300) h+=`<p style="font-size:.7rem;color:var(--ink-soft);margin:8px 2px 0">Se muestran las primeras 300 filas. El PDF y el CSV incluyen todas (${ds.filas.length}).</p>`;
@@ -11095,13 +11160,15 @@ function grDocCSV(){
 
 // La propia cuenta de academia o dirección gestiona su contraseña (Supabase Auth).
 // Menú de cuenta de la academia/dirección: manual + cambio de contraseña.
-function acCuenta(){
+function acCuenta(ctx){
+  ctx=ctx||window._acCuentaCtx||'academia'; window._acCuentaCtx=ctx;
+  const esGrupo=(ctx==='grupo');
   showView('teacher'); window.scrollTo(0,0);
   const card=(onclick,tit,sub)=>`<button onclick="${onclick}" class="t-card" style="width:100%;text-align:left;cursor:pointer;font:inherit;display:block;margin-top:10px"><b style="font-size:.95rem;color:var(--navy)">${tit}</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">${sub}</div></button>`;
-  let h=`<button class="backbtn" onclick="openAcademiaCentro()" style="margin-bottom:10px">← Volver</button>`;
+  let h=`<button class="backbtn" onclick="${esGrupo?'openGrupo()':'openAcademiaCentro()'}" style="margin-bottom:10px">← Volver</button>`;
   h+=`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 4px;color:var(--navy)">📘 Manual y contraseña</h1>`;
   h+=`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:6px">Cuenta: <b>${escHtml(userEmail||'')}</b></p>`;
-  h+=card('docManualPremium()','📘 Manual de usuario','Guía de tu área paso a paso');
+  h+=card(esGrupo?'docManualPremium()':'docManualAcademia()','📘 Manual de usuario','Guía de tu área paso a paso');
   h+=card('acCambiarPass()','🔑 Cambiar contraseña','Tu clave de acceso');
   $('teacher').innerHTML=h;
 }
@@ -11118,7 +11185,7 @@ function acCambiarPass(okMsg, errMsg){
     <span class="pwwrap"><input id="pw-1" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><button type="button" class="pweye" id="pw1Eye" aria-label="Mostrar contraseña">👁</button></span>
     <label>Repite la contraseña</label>
     <span class="pwwrap"><input id="pw-2" type="password" placeholder="Vuelve a escribirla" autocomplete="new-password"><button type="button" class="pweye" id="pw2Eye" aria-label="Mostrar contraseña">👁</button></span>
-    <button class="btn btn-honey" id="pw-btn" style="margin-top:16px">Guardar contraseña</button>
+    <button class="btn btn-verde" id="pw-btn" style="margin-top:16px">Guardar contraseña</button>
   </div>`);
   $('teacher').innerHTML=h.join('');
   $('pw-btn').onclick=acGuardarPass; wireEye('pw1Eye','pw-1'); wireEye('pw2Eye','pw-2');
@@ -11151,10 +11218,10 @@ async function openAcademiaCentro(msg, academiaId){
   if(prev){
     if(window._acadDesdeGrupo){
       h+=`<button class="backbtn" onclick="grVolver()" style="margin-bottom:10px">← Vista de grupo</button>
-      <div class="t-note" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:8px 11px;font-size:.73rem;margin-bottom:10px">👁 Estás viendo este centro tal y como lo ve su dirección. Todo es de solo lectura.</div>`;
+      <div class="t-note" style="background:#eaf6ee;border:1px solid #15803d;border-radius:10px;padding:8px 11px;font-size:.73rem;margin-bottom:10px">👁 Estás viendo este centro tal y como lo ve su dirección. Todo es de solo lectura.</div>`;
     }else{
-      h+=`<button class="backbtn" onclick="acSalirVista()" style="margin-bottom:10px;background:var(--honey-tint);border-color:var(--honey)">← Volver a Soporte</button>
-      <div class="t-note" style="background:var(--honey-tint);border:1px solid var(--honey);border-radius:10px;padding:8px 11px;font-size:.73rem;margin-bottom:10px">👁 Estás viendo la pantalla tal y como la ve la dirección de esta academia. Todo es de solo lectura.</div>`;
+      h+=`<button class="backbtn" onclick="acSalirVista()" style="margin-bottom:10px;background:#eaf6ee;border-color:#15803d">← Volver a Soporte</button>
+      <div class="t-note" style="background:#eaf6ee;border:1px solid #15803d;border-radius:10px;padding:8px 11px;font-size:.73rem;margin-bottom:10px">👁 Estás viendo la pantalla tal y como la ve la dirección de esta academia. Todo es de solo lectura.</div>`;
     }
   }
   if(msg) h+=`<div class="t-note ok">${escHtml(msg)}</div>`;
@@ -11178,9 +11245,9 @@ async function openAcademiaCentro(msg, academiaId){
     });
   }
   if(!prev) h+=`<button class="btn btn-ghost" id="ac-cuenta" style="width:100%;margin-top:10px">📘 Manual y contraseña</button>`;
-  else h+=manualTab('docManualPremium()','Manual de usuario');
+  else h+=manualTab('docManualAcademia()','Manual de usuario');
   $('teacher').innerHTML=h;
-  if($('ac-cuenta')) $('ac-cuenta').onclick=()=>acCuenta();
+  if($('ac-cuenta')) $('ac-cuenta').onclick=()=>acCuenta('academia');
   $('teacher').querySelectorAll('[data-acprof]').forEach(b=> b.onclick=()=>acVerProfesor(b.dataset.acprof));
   if(!prev){ const cb=$('ca-cli-chat'); if(cb) cb.onclick=()=>caCliChat('openAcademiaCentro()'); call('/rest/v1/rpc/ca_cli_no_leidos',{method:'POST',body:{}}).then(n=>{ const el=$('ca-cli-badge'); if(el && +n>0){ el.className='tile-badge'; el.style.position='static'; el.style.marginLeft='6px'; el.textContent=String(n); } }).catch(()=>{}); }
   // El acceso a la vista de grupo solo se pinta en la cuenta raíz de grupo,
@@ -11198,7 +11265,7 @@ async function openAcademiaCentro(msg, academiaId){
   if($('ac-informe')) $('ac-informe').onclick=pdfInformeCentro;
   if($('ac-riesgo')) $('ac-riesgo').onclick=acAlertasRiesgo;
   if($('ac-actividad')) $('ac-actividad').onclick=acActividadProfesorado;
-  if($('ac-manual')) $('ac-manual').onclick=docManualPremium;
+  if($('ac-manual')) $('ac-manual').onclick=docManualAcademia;
 }
 // Vista previa desde Soporte: el superadmin ve exactamente la pantalla de la dirección.
 function acVerComoAcademia(academiaId){
@@ -11211,7 +11278,7 @@ async function acSalirVista(){
   teacherRows=[]; resumenRows=null; teacherAl=null; teacherView='panel';
   await saAbrirAcademia(id);
 }
-async function acVerProfesor(profId){
+async function acVerProfesor(profId, alTarget){
   const p=(window._acadProfes||[]).find(x=>String(x.id)===String(profId));
   if(!p){ return openAcademiaCentro(); }
   showView('teacher'); window.scrollTo(0,0);
@@ -11255,7 +11322,7 @@ async function acVerProfesor(profId){
   }));
   teacherUnidadSel=null; teacherMode='best'; teacherAl=null; alumnosTab='listado';
   applyTema(window._activeCertId);
-  openAlumnos();
+  if(alTarget){ openAlumnoDetalle(String(alTarget).toLowerCase()); } else { openAlumnos(); }
 }
 // CSV de notas en modo academia: se construye en cliente desde los datos ya
 // cargados (la RPC export_notas filtra por el profesor autenticado y aquí no aplica).
