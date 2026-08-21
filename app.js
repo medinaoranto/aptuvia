@@ -14114,7 +14114,7 @@ async function crearDesdeTexto(){
       const pRes=await fetch(SUPABASE_URL+'/rest/v1/preguntas',{
         method:'POST',
         headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=representation'},
-        body:JSON.stringify(Object.assign({tema:examId,enunciado:q.enunciado,opciones:q.opciones,respuesta_correcta:q.respuesta_correcta,explicacion:q.explicacion,nivel:q.nivel,tipo:q.tipo}, window._saImpersona&&window._saImpersonaAcademia?{academia_id:window._saImpersonaAcademia}:{}))
+        body:JSON.stringify(Object.assign({tema:examId,unidad:unidad,enunciado:q.enunciado,opciones:q.opciones,respuesta_correcta:q.respuesta_correcta,explicacion:q.explicacion,nivel:q.nivel,tipo:q.tipo}, window._saImpersona&&window._saImpersonaAcademia?{academia_id:window._saImpersonaAcademia}:{}))
       });
       const pData=await pRes.json();
       if(pData&&pData[0]&&pData[0].id){
