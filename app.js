@@ -528,13 +528,16 @@ async function call(path, {method='GET', body=null, auth=true}={}){
 }
 // Renueva la sesión con el refresh_token de Supabase. Devuelve true si lo consigue.
 async function renovarSesion(){
+  // _renovaFalloDuro = true  -> el servidor RECHAZÓ el refresh_token (caducado/usado): hay que cerrar sesión.
+  // _renovaFalloDuro = false -> fallo de red/temporal: se puede reintentar sin cerrar sesión.
+  window._renovaFalloDuro=false;
   try{
     const r = await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
       method:'POST',
       headers:{ 'apikey':SUPABASE_KEY, 'Content-Type':'application/json' },
       body: JSON.stringify({refresh_token: refreshToken})
     });
-    if(!r.ok) return false;
+    if(!r.ok){ if(r.status===400||r.status===401) window._renovaFalloDuro=true; return false; }
     const d = await r.json();
     if(d && d.access_token){ token=d.access_token; if(d.refresh_token) refreshToken=d.refresh_token; guardarSesion(); return true; }
     return false;
@@ -554,7 +557,7 @@ function pdfCabeceraMarca(doc, y, opts){
   const lh=w/APTUVIA_LOGO_RATIO;
   const hueco=(o.hueco==null?6:o.hueco);
   const esAA=(window._activeCertId==='__aula_abierta');
-  const acad=esAA?'':(window._brandAcademia||'');
+  const acad=esAA?'':(o.acad!=null?o.acad:(window._brandAcademia||''));
   if(esAA){
     // Aula Abierta: SIN logo de Aptuvia. Solo se menciona al profesor (bajo el título).
     return y+hueco;
@@ -569,8 +572,9 @@ function pdfCabeceraMarca(doc, y, opts){
   return y+hueco;
 }
 // Línea de datos: profesor + lo que se le pase
-function pdfLineaDatos(extra){
-  const p=window._brandProfesor?('Profesor: '+window._brandProfesor):'';
+function pdfLineaDatos(extra, profe){
+  const _pp=(profe!=null?profe:window._brandProfesor);
+  const p=_pp?('Profesor: '+_pp):'';
   return [p,extra].filter(Boolean).join('   ·   ');
 }
 
@@ -606,21 +610,48 @@ async function restaurarSesion(){
   refreshToken=s.rt; userEmail=s.email||'';
   window._activeCertId=s.cert||null; window._certCodigo=s.cod||''; window._certNombre=s.nom||'';
   if(window._activeCertId==='__aula_abierta'){ $('login').classList.add('aula-celeste'); }
-  const ok=await renovarSesion();
-  if(!ok){ refreshToken=null; limpiarSesion(); return false; }
-  try{
-    await gateAccess();
-    $('portal').classList.add('hidden');
-    $('login').classList.add('hidden');
-    $('app').classList.remove('hidden');
-    sbRender();
-    // Para el profesorado, la pantalla exacta del panel la restaura openTeacher()
-    // (que carga sus datos) leyendo esta instantánea; así no rebota al panel.
-    window._restoreSess = s;
-    await loadData();
-    try{ restaurarVista(s); }catch(e){}
+  // Renovar el token, reintentando ante fallos de red. Solo se cierra la sesión
+  // si el servidor RECHAZA el refresh_token (caducado/usado); un fallo de red o
+  // de carga de datos NO debe desloguear (antes borraba la sesión y rebotaba al login).
+  let ok=false;
+  for(let i=0;i<3;i++){
+    ok=await renovarSesion();
+    if(ok) break;
+    if(window._renovaFalloDuro){ refreshToken=null; limpiarSesion(); return false; }
+    await new Promise(r=>setTimeout(r,600*(i+1)));
+  }
+  if(!ok){
+    // Token válido pero red caída tras varios intentos: NO se cierra sesión.
+    // Se muestra un reintento manual manteniendo el login.
+    $('portal').classList.add('hidden'); $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+    showView('home');
+    $('home').innerHTML=`<div class="center-msg">No hay conexión ahora mismo.<br><small>Tu sesión sigue activa.</small><br><br><button class="btn btn-primary" onclick="restaurarSesion()" style="background:var(--navy);border:none;padding:10px 24px;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">🔄 Reintentar</button></div>`;
     return true;
-  }catch(e){ token=null; refreshToken=null; limpiarSesion(); return false; }
+  }
+  // gateAccess puede fallar por un RPC lento/puntual: se reintenta un par de veces.
+  let gateOk=false, gateErr=null;
+  for(let i=0;i<3;i++){
+    try{ await gateAccess(); gateOk=true; break; }
+    catch(e){ gateErr=e; await new Promise(r=>setTimeout(r,600*(i+1))); }
+  }
+  // Con el token renovado, la sesión es válida: mostramos la app pase lo que pase.
+  $('portal').classList.add('hidden');
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  try{ sbRender(); }catch(e){}
+  if(!gateOk){
+    // El acceso puede estar realmente desactivado (cuenta bloqueada): se avisa,
+    // pero NO se borra la sesión; el usuario puede reintentar o salir a mano.
+    showView('home');
+    $('home').innerHTML=`<div class="center-msg">No se pudo verificar tu acceso ahora mismo.<br><small>${(gateErr&&gateErr.message)||''}</small><br><br><button class="btn btn-primary" onclick="restaurarSesion()" style="background:var(--navy);border:none;padding:10px 24px;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">🔄 Reintentar</button> <button class="btn btn-ghost" style="margin-left:8px" onclick="logout()">Salir</button></div>`;
+    return true;
+  }
+  // Para el profesorado, la pantalla exacta del panel la restaura openTeacher()
+  // (que carga sus datos) leyendo esta instantánea; así no rebota al panel.
+  window._restoreSess = s;
+  try{ await loadData(); }catch(e){}   // loadData ya pinta su propio reintento
+  try{ restaurarVista(s); }catch(e){}
+  return true;
 }
 // Vuelve a abrir la pantalla en la que estaba el usuario antes de refrescar.
 function restaurarVista(s){
@@ -2179,12 +2210,18 @@ function docPDFBase(titulo, subtitulo, secciones, pieTexto){
   doc.setFillColor(...NAVY); doc.rect(0,0,210,62,'F');
   // Logo Aptuvia sobre chip blanco (el logo es navy y no se vería sobre el banner)
   const _lw=52, _lh=_lw/APTUVIA_LOGO_RATIO;
-  doc.setFillColor(255,255,255); doc.roundedRect(ML, 11, _lw+8, _lh+6, 3, 3, 'F');
-  pdfLogo(doc, ML+4, 14, _lw);
+  const _chipX=ML, _chipY=11, _chipW=_lw+8, _chipH=_lh+6;
+  doc.setFillColor(255,255,255); doc.roundedRect(_chipX, _chipY, _chipW, _chipH, 3, 3, 'F');
+  pdfLogo(doc, _chipX+4, _chipY+3, _lw);
+  // Título y subtítulo a la derecha del logo, centrados con el chip y a mayor tamaño
+  const _tx=_chipX+_chipW+9, _cy=_chipY+_chipH/2;
   doc.setTextColor(255,255,255); doc.setFont(undefined,'bold');
-  doc.setFontSize(15); doc.text(pdfSafe(titulo), ML, 42);
-  doc.setFont(undefined,'normal'); doc.setFontSize(9.5);
-  doc.text(pdfSafe(subtitulo), ML, 51);
+  let _ts=21; doc.setFontSize(_ts);
+  while(_ts>13 && doc.getTextWidth(pdfSafe(titulo))>(MR-_tx)){ _ts-=1; doc.setFontSize(_ts); }
+  doc.text(pdfSafe(titulo), _tx, _cy-1);
+  doc.setFont(undefined,'normal'); doc.setFontSize(11);
+  const _subL=doc.splitTextToSize(pdfSafe(subtitulo), MR-_tx);
+  doc.text(_subL, _tx, _cy+6.5);
   doc.setTextColor(...GRIS); doc.setFontSize(8.5);
   doc.text('Generado el '+new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}), ML, 74);
   const yIndice=100;
@@ -13592,6 +13629,8 @@ function pdfNotasGeneral(){
   const PW=210,PH=297,M=16;
   const NAVY=[46,49,99],MUTED=[96,84,70],DARK=[30,26,16],HONEY=(window._activeCertId==='__aula_abierta'?[0,119,182]:[180,89,5]),LIGHT=[224,224,216];
   const fecha=new Date(); let y=M;
+  const _ac = window._acadModo ? (window._acadNombre||'') : null;
+  const _pr = window._acadModo ? ((window._acadProf&&window._acadProf.nombre)||'') : null;
   const cAl=M, cCl=M+96, cFi=M+126, cIn=M+158;
   function colHeaders(){
     doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
@@ -13599,10 +13638,10 @@ function pdfNotasGeneral(){
     y+=2;doc.setDrawColor(LIGHT[0],LIGHT[1],LIGHT[2]);doc.setLineWidth(0.3);doc.line(M,y,PW-M,y);y+=4;
   }
   function header(){
-    y=pdfCabeceraMarca(doc,y,{hueco:5});
+    y=pdfCabeceraMarca(doc,y,{hueco:5,acad:_ac});
     doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
     doc.text('Listado de notas del alumnado',M,y); y+=4.5;
-    const _dat=pdfLineaDatos(fmtFechaES(fecha));
+    const _dat=pdfLineaDatos(fmtFechaES(fecha),_pr);
     if(_dat){ doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);doc.text(pdfSafe(_dat),M,y); y+=3; }
     doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=6;
     colHeaders();
@@ -13635,12 +13674,14 @@ function pdfNotasAlumno(email){
   const PW=210,PH=297,M=16;
   const NAVY=[46,49,99],MUTED=[96,84,70],DARK=[30,26,16],HONEY=(window._activeCertId==='__aula_abierta'?[0,119,182]:[180,89,5]),GREEN=[21,128,61],RED=[192,57,43],LIGHT=[224,224,216];
   const fecha=new Date(); let y=M;
-  y=pdfCabeceraMarca(doc,y,{hueco:5});
+  const _ac = window._acadModo ? (window._acadNombre||'') : null;
+  const _pr = window._acadModo ? ((window._acadProf&&window._acadProf.nombre)||'') : null;
+  y=pdfCabeceraMarca(doc,y,{hueco:5,acad:_ac});
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(DARK[0],DARK[1],DARK[2]);
   doc.text(pdfSafe(meta.nombre||email),M,y); y+=4.5;
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
   doc.text(pdfSafe(email),M,y); y+=4;
-  const _dat=pdfLineaDatos(fmtFechaES(fecha));
+  const _dat=pdfLineaDatos(fmtFechaES(fecha),_pr);
   if(_dat){ doc.text(pdfSafe(_dat),M,y); y+=4; }
   doc.setDrawColor(HONEY[0],HONEY[1],HONEY[2]);doc.setLineWidth(0.6);doc.line(M,y,PW-M,y); y+=7;
   const mc=(meta.media_clase!=null)?(+meta.media_clase).toFixed(1):'-';
@@ -13782,6 +13823,7 @@ function showView(v){
   if(v!=='exam') limpiarGuardiasExamen();
   ['home','module','unit','exam','result','teacher'].forEach(id=>$(id).classList.toggle('hidden',id!==v));
   document.body.classList.toggle('teacherview', v==='teacher');
+  document.body.classList.toggle('acadmodo', !!window._acadModo);
   sbUpdateActive(v);
   window._curView=v; guardarSesion();
 }

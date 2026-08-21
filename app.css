@@ -1635,13 +1635,11 @@ body.tema-aula-abierta .chip.eye, body.tema-aula-abierta .mod .chip.eye, body.te
 .est-b.proximamente.on{ background:linear-gradient(135deg,#38BDF8,#0284C7) !important; color:#fff !important; border-color:#0284C7 !important; text-shadow:0 1px 1px rgba(0,0,0,.28) !important; box-shadow:inset 0 3px 6px rgba(0,0,0,.30) !important; }
 .est-b.activo.on{ background:linear-gradient(135deg,#22C55E,#15803D) !important; color:#fff !important; border-color:#0f5c2c !important; text-shadow:0 1px 1px rgba(0,0,0,.28) !important; box-shadow:inset 0 3px 6px rgba(0,0,0,.30) !important; }
 
-/* Ca7 · "Ordenar por" en verde corporativo hundido (como las pestañas de base de la media) */
-.al-sort select{
-  background:linear-gradient(180deg,#1f9a51,#136c34) !important;
-  color:#fff !important;
-  border:1.5px solid #0f5f2d !important;
-  font-weight:800 !important;
-  text-shadow:0 1px 1px rgba(0,0,0,.25) !important;
-  box-shadow:inset 0 2px 6px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.28), 0 1px 2px rgba(0,0,0,.08) !important;
+/* Ca4 · en la vista de dirección (academia/premium) las píldoras de unidad activas
+   van en verde hundido, estilo ACTIVO de ca5 (no afecta al profesor: scope body.acadmodo) */
+body.acadmodo .uf-chip.on{
+  background:linear-gradient(135deg,#22C55E,#15803D) !important;
+  border-color:#0f5c2c !important; color:#fff !important;
+  text-shadow:0 1px 1px rgba(0,0,0,.28) !important;
+  box-shadow:inset 0 3px 6px rgba(0,0,0,.32), inset 0 -1px 2px rgba(255,255,255,.22) !important;
 }
-.al-sort select:focus{ box-shadow:inset 0 2px 6px rgba(0,0,0,.32), 0 0 0 2px rgba(21,128,61,.45) !important; }
