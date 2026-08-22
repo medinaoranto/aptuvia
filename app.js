@@ -1705,7 +1705,7 @@ function renderHomeAlumno(headerHtml){
   let h=headerHtml;
   h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${repOn?'10px':'16px'}">
     ${tbtn('aula','📚 Mi aula')}
-    ${tbtn('chat','💬 Chat')}
+    ${tbtn('chat','🧰 Herramientas')}
     ${tbtn('pend','📝 Pendientes'+(d.pend.length?' <span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 6px;font-size:.7rem">'+d.pend.length+'</span>':''))}
     ${tbtn('hist','📊 Historial')}
   </div>`;
@@ -1782,10 +1782,38 @@ function alumTabHist(d){
 }
 function alumTabChat(){
   const card='display:block;width:100%;text-align:left;cursor:pointer;font:inherit;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:15px 17px;margin-bottom:11px;box-shadow:0 4px 10px -6px rgba(70,95,125,.35)';
-  return `<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">💬 Chat y manual</h2>
+  return `<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🧰 Herramientas</h2>
     <p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px">Elige qué quieres abrir.</p>
     <button onclick="caAlumChat()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">💬 Chat con tu profesor<span id="alum-chat-badge"></span></b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Dudas, entregas y avisos con tu profesor</div></button>
-    <button onclick="docManualAlumno()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">📖 Manual de usuario</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Guía de uso de la plataforma</div></button>`;
+    <button onclick="docManualAlumno()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">📖 Manual de usuario</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Guía de uso de la plataforma</div></button>
+    <button onclick="alumPassOpen()" style="${card}"><b style="font-size:.95rem;color:var(--navy)">🔑 Cambiar contraseña</b><div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Tu clave de acceso a la plataforma</div></button>`;
+}
+// Cambio de contraseña del alumno (misma vía que profesor: /auth/v1/user).
+function alumPassOpen(okMsg,errMsg){
+  let h=`<button class="backbtn" onclick="window._alumTab='chat';showView('home');renderHome()">← Herramientas</button>
+    <div class="unit-head"><div class="c">🔑</div><div class="n">Cambiar contraseña</div></div>
+    <div class="section" style="margin-top:8px">
+      <p style="font-size:.8rem;color:var(--ink-soft);margin:0 2px 12px">Cuenta: <b>${escHtml(userEmail||'')}</b>. Mínimo 6 caracteres.</p>`;
+  if(okMsg) h+=`<div class="t-note ok">${escHtml(okMsg)}</div>`;
+  if(errMsg) h+=`<div class="t-note err">${escHtml(errMsg)}</div>`;
+  h+=`<label>Nueva contraseña</label>
+      <span class="pwwrap"><input id="al-pw1" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><button type="button" class="pweye" id="alPw1Eye" aria-label="Mostrar contraseña">👁</button></span>
+      <label>Repite la contraseña</label>
+      <span class="pwwrap"><input id="al-pw2" type="password" placeholder="Vuelve a escribirla" autocomplete="new-password"><button type="button" class="pweye" id="alPw2Eye" aria-label="Mostrar contraseña">👁</button></span>
+      <button class="btn btn-primary" id="al-pw-btn" style="margin-top:16px;background:linear-gradient(135deg,#22c55e,#15803d);border:none">Guardar contraseña</button>
+    </div>`;
+  showView('unit'); window.scrollTo(0,0); $('unit').innerHTML=h;
+  $('al-pw-btn').onclick=alumPassGuardar; wireEye('alPw1Eye','al-pw1'); wireEye('alPw2Eye','al-pw2');
+}
+async function alumPassGuardar(){
+  const a=$('al-pw1').value, b=$('al-pw2').value;
+  if(a.length<6){ alumPassOpen(null,'La contraseña debe tener al menos 6 caracteres.'); return; }
+  if(a!==b){ alumPassOpen(null,'Las dos contraseñas no coinciden.'); return; }
+  const btn=$('al-pw-btn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  try{
+    await call('/auth/v1/user',{method:'PUT',body:{password:a}});
+    alumPassOpen('✅ Contraseña actualizada. Úsala la próxima vez que entres.',null);
+  }catch(err){ alumPassOpen(null,'No se pudo cambiar: '+(err.message||'')); }
 }
 function alumAbrirPendiente(examId, tipo){
   window._alumRetornoPend=true;
@@ -1807,25 +1835,27 @@ async function alumVerCorregido(examId, unidad){
   appAlert('Este ejercicio no tiene detalle para revisar.');
 }
 
-// ============ REPASO DEL ALUMNO (solo Aula Abierta / oposiciones) ============
+// ============ REPASO DEL ALUMNO (solo Aula Abierta) ============
 // El alumno monta sus propios exámenes tipo test con el banco de su unidad.
 // Se guardan en su tabla privada (repaso_examenes) y solo los ve él. No cuentan
-// para medias ni aparecen al profesor (intentos con prefijo 'alrep-').
-let repBuilder={unidad:'',modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false};
-// Unidades asignadas al alumno (id + título) para los selectores del repaso.
-function repasoUnidadesAlumno(){
+// para su nota ni aparecen al profesor (intentos con prefijo 'alrep-').
+// La creación la HABILITA el profesor por materia (aa_crea_examenes).
+let repBuilder={unidad:'',modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false,temaSel:'',temas:[],temaTit:{}};
+// Unidades del alumno (id + título). onlyEnabled = solo donde el profesor permitió crear.
+function repasoUnidadesAlumno(onlyEnabled){
   const set = aaAsigna[userId] || aaAsigna[_authUid()] || new Set();
-  const ids = set.size ? [...set] : Object.keys(examsByUnit);
+  let ids = set.size ? [...set] : Object.keys(examsByUnit);
+  if(onlyEnabled){ const en=window._creaUnits||new Set(); ids=ids.filter(id=>en.has(id)); }
   return ids.map(id=>{ const u=unidadesById[id]; return {id, cod:(u&&u.codigo)||id.toUpperCase(), tit:(u&&u.titulo)?tituloMateria(u):(id.toUpperCase())}; })
     .sort((a,b)=> String(a.cod).localeCompare(String(b.cod),'es',{numeric:true}));
 }
-// Pestaña Repaso: botón crear + lista de mis exámenes + megatest/falladas por unidad.
+// Pestaña Repaso: info + crear (si habilitado) + mis exámenes + megatest/falladas por unidad.
 function alumTabRepaso(){
-  let h='<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🎯 Repaso · crea tus propios exámenes</h2>';
-  h+='<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px;line-height:1.5">Monta tus propios exámenes tipo test con el banco de preguntas de tu unidad. Son privados: solo los ves tú y no cuentan para tu nota.</p>';
-  h+=`<button onclick="repasoBuilderOpen()" style="width:100%;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;border-radius:16px;padding:15px 17px;cursor:pointer;font:inherit;font-weight:800;font-size:.95rem;box-shadow:0 6px 14px -6px rgba(21,128,61,.6);margin-bottom:16px">➕ Crear examen de repaso</button>`;
+  let h='<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🎯 Repaso</h2>';
+  h+='<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px;line-height:1.5">Tu zona de repaso personal. Nada de lo que hagas aquí cuenta para tu nota: es solo para practicar.</p>';
+  h+='<div id="rep-info"></div>';
+  h+='<div id="rep-crear"></div>';
   h+='<div id="rep-lista"><div class="loader"><span class="spin"></span></div></div>';
-  // Megatest y preguntas falladas, agrupados por unidad (movidos aquí desde cada tema).
   const units=repasoUnidadesAlumno();
   let hz='';
   units.forEach(({id,cod,tit})=>{
@@ -1857,10 +1887,20 @@ function alumTabRepaso(){
 }
 async function repasoCargarLista(){
   const box=$('rep-lista'); if(!box) return;
+  try{ const en=await call('/rest/v1/rpc/crea_examenes_mis',{method:'POST',body:{}})||[]; window._creaUnits=new Set(en.map(r=>r.unidad_id)); }
+  catch(e){ window._creaUnits=new Set(); }
+  const puedeCrear=(window._creaUnits&&window._creaUnits.size>0);
+  const crearBox=$('rep-crear');
+  if(crearBox){
+    crearBox.innerHTML = puedeCrear
+      ? `<button onclick="repasoBuilderOpen()" style="width:100%;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;border-radius:16px;padding:15px 17px;cursor:pointer;font:inherit;font-weight:800;font-size:.95rem;box-shadow:0 6px 14px -6px rgba(21,128,61,.6);margin-bottom:16px">➕ Crear examen de repaso</button>`
+      : `<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:.78rem;color:var(--ink-soft);margin-bottom:16px;line-height:1.5">✍️ La opción de crear tus propios exámenes la activa tu profesor. Cuando la habilite, aparecerá aquí el botón para montarlos.</div>`;
+  }
   let rows=[];
   try{ rows=await call('/rest/v1/rpc/repaso_listar',{method:'POST',body:{}})||[]; }
-  catch(e){ box.innerHTML=`<div style="background:#fff4e2;border:1px solid #f0d9b3;border-radius:12px;padding:12px 14px;font-size:.8rem;color:#92400e">No se pudieron cargar tus exámenes de repaso.</div>`; return; }
-  if(!rows.length){ box.innerHTML=`<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:16px;padding:20px 16px;text-align:center;color:var(--ink-soft);font-size:.85rem">Aún no has creado ningún examen de repaso. Pulsa «➕ Crear examen de repaso».</div>`; return; }
+  catch(e){ box.innerHTML=`<div style="background:#fff4e2;border:1px solid #f0d9b3;border-radius:12px;padding:12px 14px;font-size:.8rem;color:#92400e">No se pudieron cargar tus exámenes de repaso.</div>`; repasoInfoBox([]); return; }
+  repasoInfoBox(rows);
+  if(!rows.length){ box.innerHTML = puedeCrear ? `<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:16px;padding:20px 16px;text-align:center;color:var(--ink-soft);font-size:.85rem">Aún no has creado ningún examen de repaso. Pulsa «➕ Crear examen de repaso».</div>` : ''; return; }
   let h='<h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:2px 2px 8px">📝 Mis exámenes de repaso</h3>';
   rows.forEach(r=>{
     const u=unidadesById[r.unidad_id]; const cod=(u&&u.codigo)||r.unidad_id.toUpperCase();
@@ -1876,6 +1916,30 @@ async function repasoCargarLista(){
       </div>`;
   });
   box.innerHTML=h;
+}
+// Cuadro con resumen (creados/realizados/pendientes) y medias del repaso. No afecta a la nota.
+function repasoInfoBox(rows){
+  const box=$('rep-info'); if(!box) return;
+  const creados=rows.length; let hechos=0; const notasRep=[];
+  rows.forEach(r=>{ const at=attemptsByExam['alrep-'+r.id]; if(at&&at.total){ hechos++; notasRep.push(at.mejor/at.total*10); } });
+  const pend=creados-hechos;
+  const units=repasoUnidadesAlumno(); const notasMT=[];
+  units.forEach(({id})=>{ ['repaso-'+id,'repaso-'+id+'-b'].forEach(k=>{ const m=attemptsByExam[k]; if(m&&m.total) notasMT.push(m.mejor/m.total*10); }); });
+  const med=arr=> arr.length? (arr.reduce((s,x)=>s+x,0)/arr.length).toFixed(1) : '—';
+  const col=v=>{const n=parseFloat(v);return isNaN(n)?'var(--navy)':(n>=5?'#15803d':'#b4232a');};
+  const mRep=med(notasRep), mMT=med(notasMT);
+  box.innerHTML=`<div style="background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:14px;box-shadow:0 4px 10px -6px rgba(70,95,125,.35)">
+      <div style="display:flex;gap:8px;text-align:center;margin-bottom:10px">
+        <div style="flex:1"><div style="font-size:1.25rem;font-weight:800;color:var(--navy)">${creados}</div><div style="font-size:.68rem;color:var(--ink-soft)">creados</div></div>
+        <div style="flex:1"><div style="font-size:1.25rem;font-weight:800;color:#15803d">${hechos}</div><div style="font-size:.68rem;color:var(--ink-soft)">realizados</div></div>
+        <div style="flex:1"><div style="font-size:1.25rem;font-weight:800;color:var(--honey)">${pend}</div><div style="font-size:.68rem;color:var(--ink-soft)">pendientes</div></div>
+      </div>
+      <div style="display:flex;gap:8px;text-align:center;border-top:1px solid var(--line);padding-top:10px">
+        <div style="flex:1"><div style="font-size:1.15rem;font-weight:800;color:${col(mRep)}">${mRep}</div><div style="font-size:.68rem;color:var(--ink-soft)">½ tus exámenes</div></div>
+        <div style="flex:1"><div style="font-size:1.15rem;font-weight:800;color:${col(mMT)}">${mMT}</div><div style="font-size:.68rem;color:var(--ink-soft)">½ megatests</div></div>
+      </div>
+      <div style="font-size:.68rem;color:var(--ink-soft);text-align:center;margin-top:8px">Estas medias son solo tuyas y no afectan a tu nota.</div>
+    </div>`;
 }
 // Lanzadores que marcan el retorno a la pestaña Repaso.
 function repasoMega(u,p){ window._repasoRetorno=true; openMegatest(u,p); }
@@ -1902,28 +1966,45 @@ async function repasoCorrer(id){
 }
 // ── Constructor de examen de repaso (pantalla propia, solo tipo test) ──
 function repasoBuilderOpen(){
-  const units=repasoUnidadesAlumno();
-  if(!units.length){ appAlert('Aún no tienes ninguna unidad asignada.'); return; }
-  repBuilder={unidad:units[0].id,modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false};
+  const units=repasoUnidadesAlumno(true);
+  if(!units.length){ appAlert('Tu profesor aún no ha habilitado crear exámenes en ninguna de tus materias.'); return; }
+  repBuilder={unidad:units[0].id,modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false,temaSel:'',temas:[],temaTit:{}};
   showView('unit'); window.scrollTo(0,0);
   repasoBuilderRender();
+  repasoTemasLoad();
 }
 function repasoBuilderSet(){
-  const u=$('rb-unidad'); if(u && u.value!==repBuilder.unidad){ repBuilder.unidad=u.value; repBuilder.sel=new Set(); repBuilder.bank=[]; repBuilder.bankUnidad=''; }
+  const u=$('rb-unidad'); if(u && u.value!==repBuilder.unidad){ repBuilder.unidad=u.value; repBuilder.sel=new Set(); repBuilder.bank=[]; repBuilder.bankUnidad=''; repBuilder.temaSel=''; repBuilder.temas=[]; repBuilder.temaTit={}; }
   const t=$('rb-titulo'); if(t) repBuilder.titulo=t.value;
   const n=$('rb-n'); if(n) repBuilder.n=Math.max(1,Math.min(100,parseInt(n.value,10)||15));
 }
 function repasoBuilderModo(m){ repasoBuilderSet(); repBuilder.modo=m; repasoBuilderRender(); if(m==='medida') repasoBankLoad(); }
+function repasoBuilderUnidad(){ repasoBuilderSet(); repasoBuilderRender(); repasoTemasLoad(); if(repBuilder.modo==='medida') repasoBankLoad(); }
+function repasoTemaSel(v){ repasoBuilderSet(); repBuilder.temaSel=v; const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); }
+// Carga los temas de la materia (Aula Abierta) para el selector y las etiquetas.
+async function repasoTemasLoad(){
+  const uni=repBuilder.unidad;
+  try{
+    const temas=await call('/rest/v1/rpc/aa_temas_listar',{method:'POST',body:{p_unidad:uni}})||[];
+    if(repBuilder.unidad!==uni) return;
+    repBuilder.temas=temas; repBuilder.temaTit={}; temas.forEach(t=>{ repBuilder.temaTit[String(t.id)]=t.titulo||'Tema'; });
+  }catch(e){ repBuilder.temas=[]; }
+  repasoBuilderRender();
+  if(repBuilder.modo==='medida'){ const box=$('rb-bank'); if(box && !repBuilder.loading) box.innerHTML=repasoBankHtml(); }
+}
 function repasoBuilderRender(){
-  const units=repasoUnidadesAlumno();
+  const units=repasoUnidadesAlumno(true);
   const b=repBuilder;
   const opU=units.map(x=>`<option value="${escAttr(x.id)}"${x.id===b.unidad?' selected':''}>${escHtml(x.cod)} · ${escHtml(x.tit)}</option>`).join('');
+  const opT=`<option value="">Todos los temas</option>`+(b.temas||[]).map(t=>`<option value="${escAttr(t.id)}"${String(b.temaSel)===String(t.id)?' selected':''}>${escHtml(t.titulo||'Tema')}</option>`).join('');
   const modoBtn=(k,txt)=>`<button onclick="repasoBuilderModo('${k}')" style="flex:1;border-radius:12px;padding:11px 8px;cursor:pointer;font:inherit;font-weight:800;font-size:.82rem;${b.modo===k?'background:#15803d;color:#fff;border:2px solid #15803d':'background:#fff;color:#15803d;border:1.5px solid #9ecbb0'}">${txt}</button>`;
   let h=`<button class="backbtn" onclick="window._alumTab='rep';showView('home');renderHome()">← Repaso</button>
     <div class="unit-head"><div class="c">🎯</div><div class="n">Crear examen de repaso</div></div>
     <div class="section" style="margin-top:8px">
       <label>Unidad</label>
-      <select id="rb-unidad" onchange="repasoBuilderSet();repasoBuilderRender();if(repBuilder.modo==='medida')repasoBankLoad()">${opU}</select>
+      <select id="rb-unidad" onchange="repasoBuilderUnidad()">${opU}</select>
+      <label style="margin-top:12px">Tema</label>
+      <select id="rb-tema" onchange="repasoTemaSel(this.value)">${opT}</select>
       <label style="margin-top:12px">Título del examen</label>
       <input id="rb-titulo" type="text" placeholder="Repaso tema 5" value="${escAttr(b.titulo)}" oninput="repBuilder.titulo=this.value">
       <label style="margin-top:14px">¿Cómo lo montas?</label>
@@ -1931,7 +2012,7 @@ function repasoBuilderRender(){
   if(b.modo==='auto'){
     h+=`<label style="margin-top:14px">Nº de preguntas (al azar del banco)</label>
       <input id="rb-n" type="number" min="1" max="100" value="${b.n}" oninput="repBuilder.n=Math.max(1,Math.min(100,parseInt(this.value,10)||15))">
-      <p style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0;line-height:1.5">La plataforma elige ${b.n} preguntas al azar del banco de esta unidad.</p>`;
+      <p style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0;line-height:1.5">La plataforma elige ${b.n} preguntas al azar del banco${b.temaSel?' de este tema':' de toda la unidad'}.</p>`;
   }else{
     h+=`<div id="rb-bank" style="margin-top:12px">${b.loading?'<div class="loader"><span class="spin"></span></div>':repasoBankHtml()}</div>`;
   }
@@ -1939,22 +2020,48 @@ function repasoBuilderRender(){
     </div>`;
   $('unit').innerHTML=h;
 }
+// Preguntas del banco filtradas por el tema elegido.
+function repasoBankFiltradas(){
+  const b=repBuilder;
+  if(!b.temaSel) return b.bank;
+  return b.bank.filter(q=>String(q.tema_id||'')===String(b.temaSel));
+}
 function repasoBankHtml(){
   const b=repBuilder;
+  const list=repasoBankFiltradas();
   if(!b.bank.length) return '<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--ink-soft);font-size:.82rem">No hay preguntas en el banco de esta unidad.</div>';
-  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 2px 8px"><span style="font-size:.78rem;font-weight:800;color:var(--navy)">Selecciona preguntas (${b.sel.size}/${b.bank.length})</span><span style="font-size:.72rem"><button onclick="repasoBankAll(true)" style="background:none;border:none;color:#15803d;font-weight:700;cursor:pointer">Todas</button> · <button onclick="repasoBankAll(false)" style="background:none;border:none;color:#b4232a;font-weight:700;cursor:pointer">Ninguna</button></span></div>`;
-  b.bank.forEach((q,i)=>{
-    const on=b.sel.has(q.id);
-    h+=`<button onclick="repasoToggleSel(${q.id})" style="display:flex;gap:9px;align-items:flex-start;width:100%;text-align:left;background:${on?'#eafaf0':'#fff'};border:1.5px solid ${on?'#15803d':'var(--line)'};border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:pointer;font:inherit">
-        <span style="flex:0 0 auto;width:22px;height:22px;border-radius:6px;border:2px solid ${on?'#15803d':'#c9d3cf'};background:${on?'#15803d':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;margin-top:1px">${on?'✓':''}</span>
-        <span style="flex:1;min-width:0;font-size:.82rem;color:var(--navy);line-height:1.4">${escHtml(q.enunciado||'')}</span>
-      </button>`;
-  });
+  if(!list.length) return '<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--ink-soft);font-size:.82rem">No hay preguntas en este tema. Elige otro tema o «Todos los temas».</div>';
+  const selVis=list.filter(q=>b.sel.has(q.id)).length;
+  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 2px 8px"><span style="font-size:.78rem;font-weight:800;color:var(--navy)">Selecciona preguntas (${selVis}/${list.length})</span><span style="font-size:.72rem"><button onclick="repasoBankAll(true)" style="background:none;border:none;color:#15803d;font-weight:700;cursor:pointer">Todas</button> · <button onclick="repasoBankAll(false)" style="background:none;border:none;color:#b4232a;font-weight:700;cursor:pointer">Ninguna</button></span></div>`;
+  // Agrupar por tema (colapsable) cuando se ven todos los temas.
+  const grupos={}; const orden=[];
+  list.forEach(q=>{ const k=String(q.tema_id||'__sin'); if(!grupos[k]){ grupos[k]=[]; orden.push(k); } grupos[k].push(q); });
+  const qHtml=q=>{ const on=b.sel.has(q.id);
+    return `<button onclick="repasoToggleSel(${q.id})" style="display:flex;gap:9px;align-items:flex-start;width:100%;text-align:left;background:${on?'#eafaf0':'#fff'};border:1.5px solid ${on?'#15803d':'var(--line)'};border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:pointer;font:inherit">
+      <span style="flex:0 0 auto;width:22px;height:22px;border-radius:6px;border:2px solid ${on?'#15803d':'#c9d3cf'};background:${on?'#15803d':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;margin-top:1px">${on?'✓':''}</span>
+      <span style="flex:1;min-width:0;font-size:.82rem;color:var(--navy);line-height:1.4">${escHtml(q.enunciado||'')}</span>
+    </button>`; };
+  if(b.temaSel || orden.length<=1){
+    list.forEach(q=>{ h+=qHtml(q); });
+  }else{
+    orden.forEach((k,gi)=>{
+      const tit = k==='__sin' ? 'Sin tema' : (b.temaTit[k]||'Tema');
+      const nSel=grupos[k].filter(q=>b.sel.has(q.id)).length;
+      const gid='rbg-'+gi;
+      h+=`<div style="margin:4px 0 6px">
+        <button onclick="var l=document.getElementById('${gid}');l.style.display=l.style.display==='none'?'block':'none';this.querySelector('span:last-child').textContent=l.style.display==='none'?'▾':'▴'" style="width:100%;display:flex;align-items:center;gap:8px;background:#eef4f2;border:1.5px solid #cfe0d8;border-radius:12px;padding:9px 12px;cursor:pointer;font:inherit">
+          <b style="flex:1;text-align:left;font-size:.8rem;color:var(--navy)">${escHtml(tit)} <span style="color:var(--ink-soft);font-weight:600">(${grupos[k].length})</span>${nSel?` · <span style="color:#15803d">${nSel} sel.</span>`:''}</b>
+          <span style="color:var(--navy)">▴</span>
+        </button>
+        <div id="${gid}" style="margin-top:7px">${grupos[k].map(qHtml).join('')}</div>
+      </div>`;
+    });
+  }
   return h;
 }
 async function repasoBankLoad(){
   const b=repBuilder;
-  if(b.bankUnidad===b.unidad && b.bank.length){ return; }
+  if(b.bankUnidad===b.unidad && b.bank.length){ const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); return; }
   b.loading=true; repasoBuilderRender();
   try{ b.bank=await call('/rest/v1/rpc/repaso_banco_alumno',{method:'POST',body:{p_unidad:b.unidad}})||[]; b.bankUnidad=b.unidad; }
   catch(e){ b.bank=[]; }
@@ -1962,14 +2069,14 @@ async function repasoBankLoad(){
   const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); else repasoBuilderRender();
 }
 function repasoToggleSel(id){ const b=repBuilder; if(b.sel.has(id)) b.sel.delete(id); else b.sel.add(id); const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); }
-function repasoBankAll(on){ const b=repBuilder; b.sel=new Set(on?b.bank.map(q=>q.id):[]); const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); }
+function repasoBankAll(on){ const b=repBuilder; const list=repasoBankFiltradas(); if(on){ list.forEach(q=>b.sel.add(q.id)); } else { list.forEach(q=>b.sel.delete(q.id)); } const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); }
 async function repasoCrearUI(){
   repasoBuilderSet();
   const b=repBuilder;
   if(b.modo==='medida' && b.sel.size===0){ appAlert('Elige al menos una pregunta.'); return; }
   const cert = (window._activeCertId==='__aula_abierta') ? '__aula_abierta' : (window._activeCertId||null);
   try{
-    await call('/rest/v1/rpc/repaso_crear',{method:'POST',body:{p_unidad:b.unidad,p_certificado_id:cert,p_titulo:(b.titulo||'').trim(),p_nivel:b.nivel,p_modo:b.modo,p_n:b.n,p_pregunta_ids:b.modo==='medida'?[...b.sel]:[]}});
+    await call('/rest/v1/rpc/repaso_crear',{method:'POST',body:{p_unidad:b.unidad,p_certificado_id:cert,p_titulo:(b.titulo||'').trim(),p_nivel:b.nivel,p_modo:b.modo,p_n:b.n,p_pregunta_ids:b.modo==='medida'?[...b.sel]:[],p_tema:b.temaSel||null}});
   }catch(e){ appAlert('No se pudo crear: '+(e.message||'')); return; }
   window._alumTab='rep'; showView('home'); renderHome();
 }
@@ -8916,6 +9023,8 @@ async function openPublicar(okMsg){
   showView('teacher'); window.scrollTo(0,0);
   try{ await cargarTemario(); }catch(e){}
   const esAula = window._activeCertId==='__aula_abierta';
+  window._creaFlags={};
+  if(esAula){ try{ (await call('/rest/v1/rpc/crea_examenes_estado',{method:'POST',body:{}})||[]).forEach(r=>{ window._creaFlags[r.unidad_id]=!!r.activo; }); }catch(e){} }
   const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
   h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Exámenes y estados</h1>`);
   h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Marca la situación de cada ${esAula?'materia':'unidad'} y activa lo que quieres que vea el alumno. <b>Próximamente</b> queda bloqueado; lo apagado no le aparece.</p>`);
@@ -8969,6 +9078,13 @@ async function openPublicar(okMsg){
           <span class="pub-info"><b>🎯 Preguntas falladas</b><span>Repaso de fallos del alumno</span></span>
           <button class="switch${vFA?' on':''}" data-extra="${uid}" data-campo="fa" data-on="${vFA?1:0}" aria-label="${vFA?'Visible':'Oculto'}"><span class="knob"></span></button>
         </div>`);
+      if(esAula){
+        const vCR=!!(window._creaFlags&&window._creaFlags[uid]);
+        h.push(`<div class="pub-row pub-extra">
+          <span class="pub-info"><b>✍️ El alumno crea sus exámenes</b><span>Le abre el banco de esta materia para montar tests de repaso</span></span>
+          <button class="switch${vCR?' on':''}" data-crea="${uid}" data-on="${vCR?1:0}" aria-label="${vCR?'Activado':'Desactivado'}"><span class="knob"></span></button>
+        </div>`);
+      }
       }
       h.push(`</div>`);
     });
@@ -8979,6 +9095,7 @@ async function openPublicar(okMsg){
   $('teacher').querySelectorAll('[data-pub]').forEach(b=> b.onclick=()=>togglePublicado(b));
   $('teacher').querySelectorAll('[data-tem]').forEach(b=> b.onclick=()=>toggleTemarioVisible(b));
   $('teacher').querySelectorAll('[data-extra]').forEach(b=> b.onclick=()=>toggleExtra(b));
+  $('teacher').querySelectorAll('[data-crea]').forEach(b=> b.onclick=()=>toggleCrea(b));
   $('teacher').querySelectorAll('[data-all]').forEach(b=> b.onclick=()=>togglePublicadoTodos(b.dataset.all, b.dataset.val==='1'));
   $('teacher').querySelectorAll('.pub-tema-toggle').forEach(b=> b.onclick=()=>{ const l=$(b.dataset.target); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=b.querySelector('span:last-child'); if(cap){ const n=cap.textContent.replace(/[^0-9]/g,''); cap.textContent=n+(abre?' ▴':' ▾'); } } });
   $('teacher').querySelectorAll('.unit-toggle').forEach(b=> b.onclick=()=>{ const l=$(b.dataset.target); if(l){ const abre=l.classList.contains('hidden'); l.classList.toggle('hidden'); const cap=b.querySelector('span:last-child'); if(cap){ const n=cap.textContent.replace(/[^0-9]/g,''); cap.textContent=(n?n+' ':'')+(abre?'▴':'▾'); } } });
@@ -8996,6 +9113,15 @@ async function togglePublicadoTodos(unitId, nuevo){
   try{
     await call('/rest/v1/rpc/set_examenes_publicado_unidad',{method:'POST',body:impProf({p_unidad:unitId, p_publicado:nuevo})});
     (examsByUnit[unitId]||[]).forEach(e=>{ e.publicado=nuevo; const sw=$('teacher').querySelector('[data-pub="'+e.id+'"]'); setSwitch(sw, nuevo); });
+  }catch(err){ appAlert('No se pudo cambiar: '+(err.message||'')); }
+}
+async function toggleCrea(btn){
+  const unitId=btn.dataset.crea, nuevo=btn.dataset.on==='0';
+  try{
+    await call('/rest/v1/rpc/set_crea_examenes',{method:'POST',body:{p_unidad:unitId, p_activo:nuevo}});
+    if(!window._creaFlags) window._creaFlags={};
+    window._creaFlags[unitId]=nuevo;
+    setSwitch(btn, nuevo);
   }catch(err){ appAlert('No se pudo cambiar: '+(err.message||'')); }
 }
 async function toggleExtra(btn){
