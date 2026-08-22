@@ -1703,16 +1703,12 @@ function renderHomeAlumno(headerHtml){
   const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
   const repOn = esAulaAbierta() && aaEsAlumno();
   let h=headerHtml;
-  h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${repOn?'10px':'16px'}">
+  h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
     ${tbtn('aula','📚 Mi aula')}
     ${tbtn('chat','🧰 Herramientas')}
     ${tbtn('pend','📝 Pendientes'+(d.pend.length?' <span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 6px;font-size:.7rem">'+d.pend.length+'</span>':''))}
     ${tbtn('hist','📊 Historial')}
   </div>`;
-  if(repOn){
-    const rOn='background:#fff;border:2px solid #15803d;color:#15803d', rBase='background:#fff;border:1.5px solid #9ecbb0;color:#15803d';
-    h+=`<button onclick="alumTab('rep')" style="${tab==='rep'?rOn:rBase};width:100%;border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;margin-bottom:16px">🎯 Repaso · crea tus exámenes</button>`;
-  }
   if(!repOn && tab==='rep') tab='aula';
   if(tab==='aula') h+=alumTabAula(d);
   else if(tab==='pend') h+=alumTabPend(d);
@@ -1728,15 +1724,19 @@ function renderHomeAlumno(headerHtml){
 function alumTab(k){ window._alumTab=k; renderHome(); }
 function alumTabAula(d){
   const nombre = window._activeCertId==='__aula_abierta' ? (window._aulaNombre||'tu aula') : (window._certNombre||'tu certificado');
+  const repOn = esAulaAbierta() && aaEsAlumno();
   let h='';
-  h+=`<div style="background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:15px 17px;margin-bottom:14px;box-shadow:0 6px 14px -8px rgba(70,95,125,.4)">
+  h+=`<p style="font-size:.8rem;color:var(--ink-soft);margin:0 2px 12px;line-height:1.5">Aquí tienes todo tu temario, tus exámenes y tu material. Entra en cada unidad y practica a tu ritmo.</p>`;
+  h+=renderModulosCardsHtml();
+  h+=`<div style="background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:15px 17px;margin-top:16px;margin-bottom:14px;box-shadow:0 6px 14px -8px rgba(70,95,125,.4)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px"><b style="color:var(--navy);font-size:.95rem">Tu progreso</b><span style="font-weight:800;color:#15803d;font-size:1.1rem">${d.pct}%</span></div>
     <div style="height:13px;background:#e6eef0;border-radius:99px;overflow:hidden"><div style="height:100%;width:${d.pct}%;background:linear-gradient(90deg,#22c55e,#15803d);border-radius:99px;transition:width .5s"></div></div>
     <div style="font-size:.74rem;color:var(--ink-soft);margin-top:7px">${d.hechos} de ${d.total} ejercicios realizados · objetivo: llegar al 100% 🎯</div>
   </div>`;
-  h+=`<p style="font-size:.8rem;color:var(--ink-soft);margin:0 2px 12px;line-height:1.5">Aquí tienes todo tu temario, tus exámenes y tu material. Entra en cada unidad y practica a tu ritmo.</p>`;
-  h+=renderModulosCardsHtml();
-  h+=`<div style="background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:16px;padding:14px 16px;margin-top:16px;font-size:.83rem;color:var(--navy);line-height:1.6">
+  if(repOn){
+    h+=`<button onclick="alumTab('rep')" style="width:100%;background:#fff;border:2px solid #15803d;color:#15803d;border-radius:16px;padding:14px 17px;cursor:pointer;font:inherit;font-weight:800;font-size:.92rem;margin-bottom:14px;box-shadow:0 4px 10px -6px rgba(21,128,61,.4)">🎯 Repaso · crea tus exámenes</button>`;
+  }
+  h+=`<div style="background:var(--honey-tint);border:1.5px solid var(--honey);border-radius:16px;padding:14px 16px;font-size:.83rem;color:var(--navy);line-height:1.6">
     <b>Cada ejercicio suma. 💪</b> Aptuvia no es solo "hacer un examen": es tu herramienta de estudio. Todo lo que practicas queda registrado y tu profesor valora tu esfuerzo. Nadie te vigila mientras respondes; podrías copiar y sacar buena nota, pero solo te engañarías a ti. Hazlos con honestidad y verás tu evolución de verdad: así sabrás si llegas preparado al examen final. Ánimo, ¡a por ese 100%!
   </div>`;
   return h;
@@ -1893,14 +1893,14 @@ async function repasoCargarLista(){
   const crearBox=$('rep-crear');
   if(crearBox){
     crearBox.innerHTML = puedeCrear
-      ? `<button onclick="repasoBuilderOpen()" style="width:100%;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;border-radius:16px;padding:15px 17px;cursor:pointer;font:inherit;font-weight:800;font-size:.95rem;box-shadow:0 6px 14px -6px rgba(21,128,61,.6);margin-bottom:16px">➕ Crear examen de repaso</button>`
+      ? `<button onclick="repasoBuilderOpen()" style="width:100%;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;border-radius:16px;padding:15px 17px;cursor:pointer;font:inherit;font-weight:800;font-size:.95rem;box-shadow:0 6px 14px -6px rgba(21,128,61,.6);margin-bottom:16px">Crear examen de repaso</button>`
       : `<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:.78rem;color:var(--ink-soft);margin-bottom:16px;line-height:1.5">✍️ La opción de crear tus propios exámenes la activa tu profesor. Cuando la habilite, aparecerá aquí el botón para montarlos.</div>`;
   }
   let rows=[];
   try{ rows=await call('/rest/v1/rpc/repaso_listar',{method:'POST',body:{}})||[]; }
   catch(e){ box.innerHTML=`<div style="background:#fff4e2;border:1px solid #f0d9b3;border-radius:12px;padding:12px 14px;font-size:.8rem;color:#92400e">No se pudieron cargar tus exámenes de repaso.</div>`; repasoInfoBox([]); return; }
   repasoInfoBox(rows);
-  if(!rows.length){ box.innerHTML = puedeCrear ? `<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:16px;padding:20px 16px;text-align:center;color:var(--ink-soft);font-size:.85rem">Aún no has creado ningún examen de repaso. Pulsa «➕ Crear examen de repaso».</div>` : ''; return; }
+  if(!rows.length){ box.innerHTML = puedeCrear ? `<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:16px;padding:20px 16px;text-align:center;color:var(--ink-soft);font-size:.85rem">Aún no has creado ningún examen de repaso. Pulsa «Crear examen de repaso».</div>` : ''; return; }
   let h='<h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:2px 2px 8px">📝 Mis exámenes de repaso</h3>';
   rows.forEach(r=>{
     const u=unidadesById[r.unidad_id]; const cod=(u&&u.codigo)||r.unidad_id.toUpperCase();
@@ -2033,31 +2033,38 @@ function repasoBankHtml(){
   if(!list.length) return '<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--ink-soft);font-size:.82rem">No hay preguntas en este tema. Elige otro tema o «Todos los temas».</div>';
   const selVis=list.filter(q=>b.sel.has(q.id)).length;
   let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 2px 8px"><span style="font-size:.78rem;font-weight:800;color:var(--navy)">Selecciona preguntas (${selVis}/${list.length})</span><span style="font-size:.72rem"><button onclick="repasoBankAll(true)" style="background:none;border:none;color:#15803d;font-weight:700;cursor:pointer">Todas</button> · <button onclick="repasoBankAll(false)" style="background:none;border:none;color:#b4232a;font-weight:700;cursor:pointer">Ninguna</button></span></div>`;
-  // Agrupar por tema (colapsable) cuando se ven todos los temas.
-  const grupos={}; const orden=[];
-  list.forEach(q=>{ const k=String(q.tema_id||'__sin'); if(!grupos[k]){ grupos[k]=[]; orden.push(k); } grupos[k].push(q); });
   const qHtml=q=>{ const on=b.sel.has(q.id);
     return `<button onclick="repasoToggleSel(${q.id})" style="display:flex;gap:9px;align-items:flex-start;width:100%;text-align:left;background:${on?'#eafaf0':'#fff'};border:1.5px solid ${on?'#15803d':'var(--line)'};border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:pointer;font:inherit">
       <span style="flex:0 0 auto;width:22px;height:22px;border-radius:6px;border:2px solid ${on?'#15803d':'#c9d3cf'};background:${on?'#15803d':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;margin-top:1px">${on?'✓':''}</span>
       <span style="flex:1;min-width:0;font-size:.82rem;color:var(--navy);line-height:1.4">${escHtml(q.enunciado||'')}</span>
     </button>`; };
-  if(b.temaSel || orden.length<=1){
-    list.forEach(q=>{ h+=qHtml(q); });
-  }else{
-    orden.forEach((k,gi)=>{
-      const tit = k==='__sin' ? 'Sin tema' : (b.temaTit[k]||'Tema');
-      const nSel=grupos[k].filter(q=>b.sel.has(q.id)).length;
-      const gid='rbg-'+gi;
-      h+=`<div style="margin:4px 0 6px">
-        <button onclick="var l=document.getElementById('${gid}');l.style.display=l.style.display==='none'?'block':'none';this.querySelector('span:last-child').textContent=l.style.display==='none'?'▾':'▴'" style="width:100%;display:flex;align-items:center;gap:8px;background:#eef4f2;border:1.5px solid #cfe0d8;border-radius:12px;padding:9px 12px;cursor:pointer;font:inherit">
-          <b style="flex:1;text-align:left;font-size:.8rem;color:var(--navy)">${escHtml(tit)} <span style="color:var(--ink-soft);font-weight:600">(${grupos[k].length})</span>${nSel?` · <span style="color:#15803d">${nSel} sel.</span>`:''}</b>
-          <span style="color:var(--navy)">▴</span>
-        </button>
-        <div id="${gid}" style="margin-top:7px">${grupos[k].map(qHtml).join('')}</div>
-      </div>`;
-    });
-  }
+  if(b.temaSel){ list.forEach(q=>{ h+=qHtml(q); }); return h; }
+  // Agrupar por tema, en el orden de los temas de la materia.
+  const grupos={};
+  list.forEach(q=>{ const k=String(q.tema_id||'__sin'); (grupos[k]=grupos[k]||[]).push(q); });
+  const orden=[];
+  (b.temas||[]).forEach(t=>{ const k=String(t.id); if(grupos[k]) orden.push(k); });
+  Object.keys(grupos).forEach(k=>{ if(orden.indexOf(k)<0) orden.push(k); });
+  if(orden.length<=1){ list.forEach(q=>{ h+=qHtml(q); }); return h; }
+  orden.forEach((k,gi)=>{
+    const tit = k==='__sin' ? 'Sin tema' : (b.temaTit[k]||'Tema');
+    const nSel=grupos[k].filter(q=>b.sel.has(q.id)).length;
+    const gid='rbg-'+gi;
+    h+=`<div style="margin:4px 0 6px">
+      <div style="display:flex;align-items:center;gap:8px;background:#eef4f2;border:1.5px solid #cfe0d8;border-radius:12px;padding:9px 12px">
+        <b onclick="var l=document.getElementById('${gid}');l.style.display=l.style.display==='none'?'block':'none';var c=document.getElementById('${gid}c');if(c)c.textContent=l.style.display==='none'?'▾':'▴'" style="flex:1;text-align:left;font-size:.8rem;color:var(--navy);cursor:pointer">${escHtml(tit)} <span style="color:var(--ink-soft);font-weight:600">(${grupos[k].length})</span>${nSel?` · <span style="color:#15803d">${nSel} sel.</span>`:''} <span id="${gid}c">▴</span></b>
+        <span style="font-size:.72rem;white-space:nowrap"><button onclick="repasoGrupoAll('${k}',true)" style="background:none;border:none;color:#15803d;font-weight:700;cursor:pointer">Todas</button> · <button onclick="repasoGrupoAll('${k}',false)" style="background:none;border:none;color:#b4232a;font-weight:700;cursor:pointer">Ninguna</button></span>
+      </div>
+      <div id="${gid}" style="margin-top:7px">${grupos[k].map(qHtml).join('')}</div>
+    </div>`;
+  });
   return h;
+}
+function repasoGrupoAll(k, on){
+  const b=repBuilder;
+  const ids=repasoBankFiltradas().filter(q=>String(q.tema_id||'__sin')===String(k)).map(q=>q.id);
+  if(on) ids.forEach(i=>b.sel.add(i)); else ids.forEach(i=>b.sel.delete(i));
+  const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml();
 }
 async function repasoBankLoad(){
   const b=repBuilder;
