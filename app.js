@@ -9545,7 +9545,8 @@ async function pdfExamenPapel(examId){
 
 function listaProfHtml(units, kind){
   let any=false, list='';
-  units.forEach(u=>{
+  const _nom=u=>(unidadesById[u]&&(unidadesById[u].codigo||unidadesById[u].nombre))||String(u);
+  [...units].sort((a,b)=>_nom(a).localeCompare(_nom(b),'es',{numeric:true})).forEach(u=>{
     const prof=(examsByUnit[u]||[]).filter(e=>{
       const id=String(e.id);
       const esProf=id.startsWith('prof-')||id.startsWith('imp-')||id.startsWith('aula-imp-');
@@ -9558,6 +9559,7 @@ function listaProfHtml(units, kind){
       if(kind==='test')      return e.tipo!=='redaccion' && id.startsWith('prof-') && !_exImp(e);
       return true;
     });
+    prof.sort((a,b)=>String(a.titulo||'').localeCompare(String(b.titulo||''),'es',{numeric:true}));
     if(!prof.length) return; any=true;
     list+=`<div class="t-name" style="margin-top:4px">${unidadesById[u]?unidadesById[u].codigo:u}</div>`;
     prof.forEach(e=>{ const badge=e.tipo==='redaccion'?'<span class="rbadge">Redacción</span> ':''; list+=`<div class="ce-row"><span class="ce-info"><b>${badge}${escHtml(e.titulo)}</b><span>${e.cuenta_final?'Nota final':'Práctica'}</span></span><button class="ce-del" data-pdf="${e.id}" aria-label="Descargar en PDF" title="Descargar para hacerlo en papel" style="background:#eef7ee;border-color:#bfe3cd;margin-right:6px">🖨</button><button class="ce-del" data-edit="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Editar" style="background:#eef2ff;border-color:#c7d2fe;margin-right:6px">✏️</button><button class="ce-del" data-del="${e.id}" data-acad="${e.academia_id==null?'':e.academia_id}" aria-label="Borrar">🗑</button></div>`; });
@@ -14103,7 +14105,7 @@ async function crearDesdeTexto(){
     const examRes=await fetch(SUPABASE_URL+'/rest/v1/examenes',{
       method:'POST',
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=representation'},
-      body:JSON.stringify(Object.assign({id:examId,titulo:titulo,tema:'Examen importado por el profesor',unidad:unidad,nivel:nivel2,publicado:true,cuenta_final:cuentaFinal,orden:999,barajar:true,numero:null,tema_id:temaId}, window._saImpersona?{profesor_id:window._saImpersonaProf,academia_id:window._saImpersonaAcademia}:{}))
+      body:JSON.stringify(Object.assign({id:examId,titulo:titulo,tema:'Examen importado por el profesor',unidad:unidad,nivel:nivel2,publicado:false,cuenta_final:cuentaFinal,orden:999,barajar:true,numero:null,tema_id:temaId}, window._saImpersona?{profesor_id:window._saImpersonaProf,academia_id:window._saImpersonaAcademia}:{}))
     });
     if(!examRes.ok){ const e=await examRes.json(); throw new Error(JSON.stringify(e)); }
 
@@ -14128,7 +14130,7 @@ async function crearDesdeTexto(){
     }
 
     status.className='pdf-status ok';
-    status.textContent='✅ Examen «'+titulo+'» creado con '+ok+' preguntas.'+(err>0?' ('+err+' errores)':'')+' ¡Ya visible para los alumnos!';
+    status.textContent='✅ Examen «'+titulo+'» creado con '+ok+' preguntas.'+(err>0?' ('+err+' errores)':'')+' Aún NO es visible: márcalo como visible para los alumnos cuando quieras.';
     setTimeout(()=>{ openExamMgmt(); },2500);
   }catch(e){
     status.className='pdf-status err';
