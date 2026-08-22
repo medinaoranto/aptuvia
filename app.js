@@ -1499,7 +1499,7 @@ async function loadData(){
     examenes.forEach(e=>{ e.tipo=tipoMap[e.id]||'test'; e.publicado=(pubMap[e.id]===true); });
     entregasByExam={}; if(entregas) entregas.forEach(en=>{ if(!userId||en.user_id===userId) entregasByExam[en.examen_id]={estado:en.estado,nota:en.nota,creado_en:en.creado_en,corregido_en:en.corregido_en}; });
     attemptsByExam={}; (intentos||[]).forEach(a=>registrarIntento(a.examen_id,a.correctas,a.total,a.id,a.creado_en));
-    window._misIntentos=(intentos||[]).filter(a=>!/^(repaso-|falladas-)/.test(String(a.examen_id)));
+    window._misIntentos=(intentos||[]).filter(a=>!/^(repaso-|falladas-|alrep-)/.test(String(a.examen_id)));
     falladasByUnit={}; (falladas||[]).forEach(r=>{ falladasByUnit[r.unidad]=r.n; });
     await cargarTemario();
     // Para alumnos, repintar Home con datos completos. Para profesores, NO repintar
@@ -1696,26 +1696,34 @@ function alumFechaHecho(e){
 }
 function alumFmtFecha(d){ if(!d) return '—'; try{ const x=new Date(d); const p=n=>String(n).padStart(2,'0'); return p(x.getDate())+'/'+p(x.getMonth()+1)+'/'+x.getFullYear(); }catch(e){ return '—'; } }
 function renderHomeAlumno(headerHtml){
-  const tab = window._alumTab || 'aula';
+  let tab = window._alumTab || 'aula';
   const d = alumHomeData();
   const on='background:#fff;border:2px solid #15803d;color:#15803d';
   const base='background:#fff;border:1.5px solid #9ecbb0;color:#15803d';
   const tbtn=(k,txt)=>`<button onclick="alumTab('${k}')" style="${tab===k?on:base};border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;line-height:1.15">${txt}</button>`;
+  const repOn = esAulaAbierta() && aaEsAlumno();
   let h=headerHtml;
-  h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+  h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${repOn?'10px':'16px'}">
     ${tbtn('aula','📚 Mi aula')}
     ${tbtn('chat','💬 Chat')}
     ${tbtn('pend','📝 Pendientes'+(d.pend.length?' <span style="background:var(--honey);color:#fff;border-radius:9px;padding:0 6px;font-size:.7rem">'+d.pend.length+'</span>':''))}
     ${tbtn('hist','📊 Historial')}
   </div>`;
+  if(repOn){
+    const rOn='background:#fff;border:2px solid #15803d;color:#15803d', rBase='background:#fff;border:1.5px solid #9ecbb0;color:#15803d';
+    h+=`<button onclick="alumTab('rep')" style="${tab==='rep'?rOn:rBase};width:100%;border-radius:14px;padding:12px 8px;cursor:pointer;font-family:inherit;font-weight:800;font-size:.82rem;margin-bottom:16px">🎯 Repaso · crea tus exámenes</button>`;
+  }
+  if(!repOn && tab==='rep') tab='aula';
   if(tab==='aula') h+=alumTabAula(d);
   else if(tab==='pend') h+=alumTabPend(d);
   else if(tab==='hist') h+=alumTabHist(d);
+  else if(tab==='rep') h+=alumTabRepaso();
   else h+=alumTabChat();
   $('home').innerHTML=h;
   if(!window._demoMode){ call('/rest/v1/rpc/av_al_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-bell-badge'); if(bd && +n>0){ bd.style.display='block'; bd.textContent=String(n); } }).catch(()=>{}); }
   if(tab==='chat' && !window._demoMode){ call('/rest/v1/rpc/ca_alum_no_leidos',{method:'POST',body:{}}).then(n=>{ const bd=$('alum-chat-badge'); if(bd && +n>0){ bd.textContent=' '+n; bd.style.color='#e11d1d'; bd.style.fontWeight='800'; } }).catch(()=>{}); }
   document.querySelectorAll('.mod[data-mod]').forEach(b=> b.onclick=()=>openModule(b.dataset.mod));
+  if(tab==='rep') repasoCargarLista();
 }
 function alumTab(k){ window._alumTab=k; renderHome(); }
 function alumTabAula(d){
@@ -1797,6 +1805,173 @@ async function alumVerCorregido(examId, unidad){
   }catch(e){}
   window._alumRetornoHist=false;
   appAlert('Este ejercicio no tiene detalle para revisar.');
+}
+
+// ============ REPASO DEL ALUMNO (solo Aula Abierta / oposiciones) ============
+// El alumno monta sus propios exámenes tipo test con el banco de su unidad.
+// Se guardan en su tabla privada (repaso_examenes) y solo los ve él. No cuentan
+// para medias ni aparecen al profesor (intentos con prefijo 'alrep-').
+let repBuilder={unidad:'',modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false};
+// Unidades asignadas al alumno (id + título) para los selectores del repaso.
+function repasoUnidadesAlumno(){
+  const set = aaAsigna[userId] || aaAsigna[_authUid()] || new Set();
+  const ids = set.size ? [...set] : Object.keys(examsByUnit);
+  return ids.map(id=>{ const u=unidadesById[id]; return {id, cod:(u&&u.codigo)||id.toUpperCase(), tit:(u&&u.titulo)?tituloMateria(u):(id.toUpperCase())}; })
+    .sort((a,b)=> String(a.cod).localeCompare(String(b.cod),'es',{numeric:true}));
+}
+// Pestaña Repaso: botón crear + lista de mis exámenes + megatest/falladas por unidad.
+function alumTabRepaso(){
+  let h='<h2 style="font-size:1.05rem;font-weight:800;color:var(--navy);margin:2px 2px 4px">🎯 Repaso · crea tus propios exámenes</h2>';
+  h+='<p style="font-size:.78rem;color:var(--ink-soft);margin:0 2px 14px;line-height:1.5">Monta tus propios exámenes tipo test con el banco de preguntas de tu unidad. Son privados: solo los ves tú y no cuentan para tu nota.</p>';
+  h+=`<button onclick="repasoBuilderOpen()" style="width:100%;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;border-radius:16px;padding:15px 17px;cursor:pointer;font:inherit;font-weight:800;font-size:.95rem;box-shadow:0 6px 14px -6px rgba(21,128,61,.6);margin-bottom:16px">➕ Crear examen de repaso</button>`;
+  h+='<div id="rep-lista"><div class="loader"><span class="spin"></span></div></div>';
+  // Megatest y preguntas falladas, agrupados por unidad (movidos aquí desde cada tema).
+  const units=repasoUnidadesAlumno();
+  let hz='';
+  units.forEach(({id,cod,tit})=>{
+    const u=unidadesById[id];
+    const verMT=(u? u.ver_megatest!==false : true), verFA=(u? u.ver_falladas!==false : true);
+    const est=unitEstado(id); if(est==='terminado'||est==='proximamente') return;
+    if(!verMT && !verFA) return;
+    const mtScore=(key)=>{ const m=attemptsByExam[key]; if(!m) return '';
+      const p=Math.round(m.mejor/m.total*100), ok=p>=50;
+      return `<span class="rc-score ${ok?'ok':'no'}">Mejor: ${m.mejor}/${m.total} · ${p}% · ${ok?'✓ Apto':'✗ No apto'}</span>`; };
+    const mt1=attemptsByExam['repaso-'+id], mt2=attemptsByExam['repaso-'+id+'-b'];
+    const nf=falladasByUnit[id]||0;
+    hz+=`<div style="margin:6px 2px 4px;font-size:.8rem;font-weight:800;color:var(--navy)">${escHtml(cod)} · <span style="font-weight:600;color:var(--ink-soft)">${escHtml(tit)}</span></div><div class="repaso-zone">`;
+    if(verMT) hz+=`<button class="repaso-card${mt1?' done':''}" onclick="repasoMega('${escAttr(id)}',1)">
+        <span class="rc-badge">🔁 Mega test 1 · 50 preguntas</span>
+        <span class="rc-title">Examen de repaso · Parte 1</span>
+        <span class="rc-sub">50 preguntas al azar de toda la unidad.</span>${mtScore('repaso-'+id)}</button>
+      <button class="repaso-card${mt2?' done':''}" onclick="repasoMega('${escAttr(id)}',2)">
+        <span class="rc-badge">🔁 Mega test 2 · 50 preguntas</span>
+        <span class="rc-title">Examen de repaso · Parte 2</span>
+        <span class="rc-sub">Otras 50 preguntas al azar.</span>${mtScore('repaso-'+id+'-b')}</button>`;
+    if(verFA) hz+=`<button class="failed-card${nf===0?' empty':''}" onclick="repasoFall('${escAttr(id)}')">
+        <span class="fc-title">🎯 Test de preguntas falladas${nf>0?` (${nf})`:''}</span>
+        <span class="fc-sub">${nf>0?`Repasa las ${nf} ${nf===1?'pregunta':'preguntas'} que has fallado o dejado en blanco en esta unidad.`:'Aún no tienes preguntas falladas en esta unidad.'}</span></button>`;
+    hz+=`</div>`;
+  });
+  if(hz) h+=`<h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:20px 2px 8px">🔁 Repaso guiado por unidad</h3>${hz}`;
+  return h;
+}
+async function repasoCargarLista(){
+  const box=$('rep-lista'); if(!box) return;
+  let rows=[];
+  try{ rows=await call('/rest/v1/rpc/repaso_listar',{method:'POST',body:{}})||[]; }
+  catch(e){ box.innerHTML=`<div style="background:#fff4e2;border:1px solid #f0d9b3;border-radius:12px;padding:12px 14px;font-size:.8rem;color:#92400e">No se pudieron cargar tus exámenes de repaso.</div>`; return; }
+  if(!rows.length){ box.innerHTML=`<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:16px;padding:20px 16px;text-align:center;color:var(--ink-soft);font-size:.85rem">Aún no has creado ningún examen de repaso. Pulsa «➕ Crear examen de repaso».</div>`; return; }
+  let h='<h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:2px 2px 8px">📝 Mis exámenes de repaso</h3>';
+  rows.forEach(r=>{
+    const u=unidadesById[r.unidad_id]; const cod=(u&&u.codigo)||r.unidad_id.toUpperCase();
+    const at=attemptsByExam['alrep-'+r.id];
+    const nota = at ? `<span style="font-weight:800;color:${at.mejor/at.total>=0.5?'#15803d':'#b4232a'};font-size:1.05rem">${at.mejor}/${at.total}</span>` : '<span style="color:var(--ink-soft);font-size:.72rem">Sin hacer</span>';
+    h+=`<div style="background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 10px -6px rgba(70,95,125,.35);display:flex;align-items:center;gap:10px">
+        <button onclick="repasoCorrer('${r.id}')" style="flex:1;min-width:0;text-align:left;background:none;border:none;cursor:pointer;font:inherit">
+          <b style="color:var(--navy);font-size:.9rem">${escHtml(r.titulo||'Repaso')}</b>
+          <div style="font-size:.72rem;color:var(--ink-soft);margin-top:3px">${escHtml(cod)} · ${r.n} preguntas · ${r.modo==='auto'?'al azar':'a medida'}</div>
+        </button>
+        ${nota}
+        <button onclick="repasoBorrar('${r.id}','${escAttr((r.titulo||'este examen').replace(/'/g,''))}')" title="Borrar" style="flex:0 0 auto;background:#fef2f2;border:1px solid #fecaca;color:#b4232a;border-radius:9px;padding:6px 9px;cursor:pointer;font-size:.9rem">🗑</button>
+      </div>`;
+  });
+  box.innerHTML=h;
+}
+// Lanzadores que marcan el retorno a la pestaña Repaso.
+function repasoMega(u,p){ window._repasoRetorno=true; openMegatest(u,p); }
+function repasoFall(u){ window._repasoRetorno=true; openFalladas(u); }
+async function repasoBorrar(id, nombre){
+  if(!await appConfirm('¿Borrar «'+nombre+'»? No se puede deshacer.')) return;
+  try{ await call('/rest/v1/rpc/repaso_borrar',{method:'POST',body:{p_examen:id}}); }catch(e){ appAlert('No se pudo borrar.'); return; }
+  repasoCargarLista();
+}
+// Correr un examen de repaso guardado (motor de examen, modo 'alrepaso').
+async function repasoCorrer(id){
+  window._repasoRetorno=true;
+  current.unit=null; current.repasoId=id; current.respuestas={}; current.preguntas=[]; current.qIndex=0; current.mode='alrepaso'; current.exam={titulo:'Examen de repaso', tema:'Repaso personal'};
+  showView('exam'); window.scrollTo(0,0);
+  $('exam').innerHTML='<div class="loader"><span class="spin"></span></div>';
+  try{
+    const qs=await call('/rest/v1/rpc/repaso_correr',{method:'POST',body:{p_examen:id}});
+    if(!qs||!qs.length) throw new Error('Este examen no tiene preguntas (quizá se borraron del banco).');
+    current.preguntas=qs; prepararOpciones(); renderExam();
+  }catch(err){
+    $('exam').innerHTML=`<div class="center-msg">No se pudo abrir el repaso.<br><small>${err.message}</small></div>
+      <div class="bar"><button class="btn btn-ghost" onclick="backToUnit()">← Volver</button></div>`;
+  }
+}
+// ── Constructor de examen de repaso (pantalla propia, solo tipo test) ──
+function repasoBuilderOpen(){
+  const units=repasoUnidadesAlumno();
+  if(!units.length){ appAlert('Aún no tienes ninguna unidad asignada.'); return; }
+  repBuilder={unidad:units[0].id,modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false};
+  showView('unit'); window.scrollTo(0,0);
+  repasoBuilderRender();
+}
+function repasoBuilderSet(){
+  const u=$('rb-unidad'); if(u && u.value!==repBuilder.unidad){ repBuilder.unidad=u.value; repBuilder.sel=new Set(); repBuilder.bank=[]; repBuilder.bankUnidad=''; }
+  const t=$('rb-titulo'); if(t) repBuilder.titulo=t.value;
+  const n=$('rb-n'); if(n) repBuilder.n=Math.max(1,Math.min(100,parseInt(n.value,10)||15));
+}
+function repasoBuilderModo(m){ repasoBuilderSet(); repBuilder.modo=m; repasoBuilderRender(); if(m==='medida') repasoBankLoad(); }
+function repasoBuilderRender(){
+  const units=repasoUnidadesAlumno();
+  const b=repBuilder;
+  const opU=units.map(x=>`<option value="${escAttr(x.id)}"${x.id===b.unidad?' selected':''}>${escHtml(x.cod)} · ${escHtml(x.tit)}</option>`).join('');
+  const modoBtn=(k,txt)=>`<button onclick="repasoBuilderModo('${k}')" style="flex:1;border-radius:12px;padding:11px 8px;cursor:pointer;font:inherit;font-weight:800;font-size:.82rem;${b.modo===k?'background:#15803d;color:#fff;border:2px solid #15803d':'background:#fff;color:#15803d;border:1.5px solid #9ecbb0'}">${txt}</button>`;
+  let h=`<button class="backbtn" onclick="window._alumTab='rep';showView('home');renderHome()">← Repaso</button>
+    <div class="unit-head"><div class="c">🎯</div><div class="n">Crear examen de repaso</div></div>
+    <div class="section" style="margin-top:8px">
+      <label>Unidad</label>
+      <select id="rb-unidad" onchange="repasoBuilderSet();repasoBuilderRender();if(repBuilder.modo==='medida')repasoBankLoad()">${opU}</select>
+      <label style="margin-top:12px">Título del examen</label>
+      <input id="rb-titulo" type="text" placeholder="Repaso tema 5" value="${escAttr(b.titulo)}" oninput="repBuilder.titulo=this.value">
+      <label style="margin-top:14px">¿Cómo lo montas?</label>
+      <div style="display:flex;gap:8px;margin-top:4px">${modoBtn('auto','⚡ Automático')}${modoBtn('medida','✍️ A medida')}</div>`;
+  if(b.modo==='auto'){
+    h+=`<label style="margin-top:14px">Nº de preguntas (al azar del banco)</label>
+      <input id="rb-n" type="number" min="1" max="100" value="${b.n}" oninput="repBuilder.n=Math.max(1,Math.min(100,parseInt(this.value,10)||15))">
+      <p style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0;line-height:1.5">La plataforma elige ${b.n} preguntas al azar del banco de esta unidad.</p>`;
+  }else{
+    h+=`<div id="rb-bank" style="margin-top:12px">${b.loading?'<div class="loader"><span class="spin"></span></div>':repasoBankHtml()}</div>`;
+  }
+  h+=`<button class="btn btn-primary" style="margin-top:18px;background:linear-gradient(135deg,#22c55e,#15803d);border:none" onclick="repasoCrearUI()">✅ Crear examen</button>
+    </div>`;
+  $('unit').innerHTML=h;
+}
+function repasoBankHtml(){
+  const b=repBuilder;
+  if(!b.bank.length) return '<div style="background:#f4f6fb;border:1.5px solid var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--ink-soft);font-size:.82rem">No hay preguntas en el banco de esta unidad.</div>';
+  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 2px 8px"><span style="font-size:.78rem;font-weight:800;color:var(--navy)">Selecciona preguntas (${b.sel.size}/${b.bank.length})</span><span style="font-size:.72rem"><button onclick="repasoBankAll(true)" style="background:none;border:none;color:#15803d;font-weight:700;cursor:pointer">Todas</button> · <button onclick="repasoBankAll(false)" style="background:none;border:none;color:#b4232a;font-weight:700;cursor:pointer">Ninguna</button></span></div>`;
+  b.bank.forEach((q,i)=>{
+    const on=b.sel.has(q.id);
+    h+=`<button onclick="repasoToggleSel(${q.id})" style="display:flex;gap:9px;align-items:flex-start;width:100%;text-align:left;background:${on?'#eafaf0':'#fff'};border:1.5px solid ${on?'#15803d':'var(--line)'};border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:pointer;font:inherit">
+        <span style="flex:0 0 auto;width:22px;height:22px;border-radius:6px;border:2px solid ${on?'#15803d':'#c9d3cf'};background:${on?'#15803d':'#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;margin-top:1px">${on?'✓':''}</span>
+        <span style="flex:1;min-width:0;font-size:.82rem;color:var(--navy);line-height:1.4">${escHtml(q.enunciado||'')}</span>
+      </button>`;
+  });
+  return h;
+}
+async function repasoBankLoad(){
+  const b=repBuilder;
+  if(b.bankUnidad===b.unidad && b.bank.length){ return; }
+  b.loading=true; repasoBuilderRender();
+  try{ b.bank=await call('/rest/v1/rpc/repaso_banco_alumno',{method:'POST',body:{p_unidad:b.unidad}})||[]; b.bankUnidad=b.unidad; }
+  catch(e){ b.bank=[]; }
+  b.loading=false;
+  const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); else repasoBuilderRender();
+}
+function repasoToggleSel(id){ const b=repBuilder; if(b.sel.has(id)) b.sel.delete(id); else b.sel.add(id); const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); }
+function repasoBankAll(on){ const b=repBuilder; b.sel=new Set(on?b.bank.map(q=>q.id):[]); const box=$('rb-bank'); if(box) box.innerHTML=repasoBankHtml(); }
+async function repasoCrearUI(){
+  repasoBuilderSet();
+  const b=repBuilder;
+  if(b.modo==='medida' && b.sel.size===0){ appAlert('Elige al menos una pregunta.'); return; }
+  const cert = (window._activeCertId==='__aula_abierta') ? '__aula_abierta' : (window._activeCertId||null);
+  try{
+    await call('/rest/v1/rpc/repaso_crear',{method:'POST',body:{p_unidad:b.unidad,p_certificado_id:cert,p_titulo:(b.titulo||'').trim(),p_nivel:b.nivel,p_modo:b.modo,p_n:b.n,p_pregunta_ids:b.modo==='medida'?[...b.sel]:[]}});
+  }catch(e){ appAlert('No se pudo crear: '+(e.message||'')); return; }
+  window._alumTab='rep'; showView('home'); renderHome();
 }
 
 let teacherRows=[], teacherMode='best', teacherById={};
@@ -1971,7 +2146,7 @@ function esIntentoFantasma(r){
   // Se detectan por id (repaso-*/falladas-*, cubre las 2 partes del megatest)
   // y, como red de seguridad, por prefijo del título.
   const id=((r&&r.examen_id)||'')+'';
-  if(id.startsWith('repaso-')||id.startsWith('falladas-')) return true;
+  if(id.startsWith('repaso-')||id.startsWith('falladas-')||id.startsWith('alrep-')) return true;
   const t=((r&&r.examen)||'')+'';
   return t.startsWith('Mega test de repaso') || t.startsWith('Preguntas falladas');
 }
@@ -12427,7 +12602,10 @@ function openUnit(unitId){
       return `<span class="rc-score ${ok?'ok':'no'}">Mejor: ${m.mejor}/${m.total} · ${p}% · ${ok?'✓ Apto':'✗ No apto'} · ${m.count} ${m.count===1?'intento':'intentos'}</span>`; };
     const mt1=attemptsByExam['repaso-'+unitId], mt2=attemptsByExam['repaso-'+unitId+'-b'];
     const nf=falladasByUnit[unitId]||0;
-    if((verMT||verFA) && !terminada){
+    // En Aula Abierta el alumno tiene el megatest/falladas en la pestaña «Repaso»,
+    // no repetidos en cada tema. En EV siguen dentro de la unidad como hasta ahora.
+    const repEnPestana = esAulaAbierta() && !staff;
+    if((verMT||verFA) && !terminada && !repEnPestana){
       html+=`<div class="repaso-zone">`;
       if(verMT) html+=`<button class="repaso-card${mt1?' done':''}" id="btn-megatest">
           <span class="rc-badge">🔁 Mega test 1 · 50 preguntas</span>
@@ -13510,6 +13688,10 @@ async function gradeExam(auto){
       // fallo original, y la lógica de "último intento gana" lo saca del contador.
       const fid='falladas-'+current.unit;
       r=await call('/rest/v1/rpc/corregir_preguntas',{method:'POST',body:{p_respuestas:respuestas,p_examen_id:fid}});
+    }else if(current.mode==='alrepaso'){
+      const rid='alrep-'+current.repasoId;
+      r=await call('/rest/v1/rpc/corregir_preguntas',{method:'POST',body:{p_respuestas:respuestas,p_examen_id:rid}});
+      registrarIntento(rid, r.correctas, r.total);
     }else{
       r=await call('/rest/v1/rpc/corregir_preguntas',{method:'POST',body:{p_respuestas:respuestas}});
     }
@@ -13575,6 +13757,7 @@ function renderResult(r){
   });
   const repeatFn = current.mode==='megatest' ? `openMegatest('${current.unit}',${current.mtParte===2?2:1})`
                  : current.mode==='falladas' ? `openFalladas('${current.unit}')`
+                 : current.mode==='alrepaso' ? `repasoCorrer('${current.repasoId}')`
                  : `openExam('${current.exam.id}')`;
   const repeatLabel = current.mode==='examen' ? 'Repetir examen' : 'Repetir repaso';
   html+=`<div class="bar">
@@ -13872,6 +14055,7 @@ function backToUnit(){
     window._redHideHandler = null;
   }
   window._redVigilando = false;
+  if(window._repasoRetorno){ window._repasoRetorno=false; window._alumTab='rep'; showView('home'); renderHome(); return; }
   if(window._alumRetornoHist){ window._alumRetornoHist=false; window._alumRetornoPend=false; alumVolverHist(); return; }
   if(window._alumRetornoPend){ window._alumRetornoPend=false; window._alumTab='pend'; showView('home'); renderHome(); return; }
   if(current.unit){ openUnit(current.unit); } else { goHome(); }
