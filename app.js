@@ -9548,14 +9548,14 @@ function listaProfHtml(units, kind){
   units.forEach(u=>{
     const prof=(examsByUnit[u]||[]).filter(e=>{
       const id=String(e.id);
-      const esProf=id.startsWith('prof-')||id.startsWith('imp-');
+      const esProf=id.startsWith('prof-')||id.startsWith('imp-')||id.startsWith('aula-imp-');
       if(!esProf) return false;
       // Solo los visibles para este profesor (academia + profesor propietario)
       if(!examVisible(e)) return false;
       // Ca3/Ca4: cada modalidad muestra solo sus propios exámenes
       if(kind==='redaccion') return e.tipo==='redaccion';
-      if(kind==='importar')  return id.startsWith('imp-');
-      if(kind==='test')      return e.tipo!=='redaccion' && id.startsWith('prof-');
+      if(kind==='importar')  return _exImp(e);
+      if(kind==='test')      return e.tipo!=='redaccion' && id.startsWith('prof-') && !_exImp(e);
       return true;
     });
     if(!prof.length) return; any=true;
