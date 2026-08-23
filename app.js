@@ -2646,6 +2646,7 @@ function manualProfeSecciones(esAula){
   s.push({ t:'7. Qué ve el alumno y situación de la unidad', p:[
     'DÓNDE: Área Docente → Exámenes y estados. La visibilidad y la situación de cada unidad'+(aa?' o materia':'')+' están juntas en la misma pantalla.',
     'Encima de cada unidad está su selector de situación: ACTIVO (el alumno trabaja con normalidad), PRÓXIMAMENTE (la ve en la lista pero no puede entrar, para anunciar lo que viene) y TERMINADO (se cierra: no puede hacer más intentos, pero conserva sus notas). En la misma pantalla se activan dos extras: el repaso largo de la unidad y el repaso de preguntas falladas.',
+    ...(aa ? ['EL ALUMNO CREA SUS EXÁMENES: en cada materia hay un interruptor «✍️ El alumno crea sus exámenes». Al encenderlo, tus alumnos de esa materia pueden montarse sus propios exámenes tipo test de repaso desde su pestaña 🎯 Repaso, usando el banco de preguntas de la materia. Nace apagado; enciéndelo solo si no te importa que el alumno vea las preguntas antes de tiempo. Esos exámenes son privados del alumno, solo para practicar: no cuentan para su nota ni te aparecen a ti.'] : []),
     'Debajo, cada examen tiene su interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
     'IMPORTANTE: el alumno solo ve un examen —y por tanto la nota que sacó en él— si su interruptor está encendido. Poner la unidad en TERMINADO cierra los intentos nuevos, pero por sí solo NO muestra las notas: si un examen está apagado, desaparece de la pantalla del alumno y su nota con él. Para que el alumno conserve y pueda ver sus notas de una unidad ya terminada, deja encendidos los interruptores de esos exámenes.',
     'También aparece el temario subido con su propio interruptor, así decides qué materiales ve y cuáles no. El material recién subido nace apagado.',
@@ -2726,11 +2727,12 @@ function manualAlumnoSecciones(esAula){
     'Si pierdes la contraseña, pídesela a tu profesor: él puede generarte una nueva.'
   ]});
   s.push({ t:'2. Tu pantalla de inicio', p:[
-    'Tu inicio tiene cuatro pestañas verdes: MI AULA, CHAT, PENDIENTES e HISTORIAL. Arriba del todo están la campanita de avisos (🔔) y el calendario (📅), y el manual de usuario está en su propio botón, más abajo.',
-    'MI AULA: aquí tienes todo tu temario, exámenes y material para practicar a tu ritmo. Arriba hay una BARRA VERDE DE PROGRESO con el porcentaje de ejercicios que has hecho sobre el total que ha colgado tu profesor. El objetivo es llegar al 100 %.',
+    'Tu inicio tiene cuatro pestañas verdes: MI AULA, HERRAMIENTAS, PENDIENTES e HISTORIAL. Arriba del todo están la campanita de avisos (🔔) y el calendario (📅).',
+    'MI AULA: aquí tienes todo tu temario, exámenes y material para practicar a tu ritmo. Arriba hay una BARRA VERDE DE PROGRESO con el porcentaje de ejercicios que has hecho sobre el total que ha colgado tu profesor. El objetivo es llegar al 100 %.'
+      + (esAula ? ' Debajo del progreso, si tu profesor lo ha activado, tienes el botón 🎯 REPASO para practicar con exámenes que montas tú (ver más abajo).' : ''),
     'PENDIENTES: la lista de exámenes y ejercicios que tu profesor ha subido y aún no has hecho. Cada uno indica el tipo, el tema, cuándo se colgó y su fecha de entrega, y si cuenta o no para la nota final. Toca la flecha verde para empezarlo directamente; al completarlo desaparece de esta lista.',
     'HISTORIAL Y CALIFICACIONES: lo que ya has realizado, con tu nota (verde si es 5 o más, roja si es menos). Tócalo para ver tu examen corregido; es solo de lectura.',
-    'CHAT: la conversación con tu profesor, si la ha activado.',
+    'HERRAMIENTAS: reúne tres cosas en un solo sitio: el CHAT con tu profesor (si lo ha activado), el MANUAL DE USUARIO y CAMBIAR CONTRASEÑA para poner una clave nueva cuando quieras.',
     'IMPORTANTE — hazlo con honestidad: nadie te vigila cuando haces un examen; podrías copiar y sacar buena nota, pero solo te engañarías a ti. Si haces los ejercicios de verdad verás tu evolución real y sabrás si llegas preparado al examen final. Cada ejercicio que completas suma y tu profesor valora tu esfuerzo.'
   ]});
   s.push({ t:esAula?'2. Tus materias':'2. Módulos y unidades formativas', p:[
@@ -2755,15 +2757,25 @@ function manualAlumnoSecciones(esAula){
   ]});
   s.push({ t:'5. Tus notas y tu progreso', p:[
     'En cada unidad puedes ver tus intentos y la nota de cada uno.',
-    'También tienes el repaso de falladas: reúne las preguntas que has fallado para volver a intentarlas.',
-    'Cuando tu profesor lo activa, aparecen los megatests: exámenes largos de repaso de toda la unidad.'
+    esAula
+      ? 'En Aula Abierta, el repaso está reunido en la pestaña 🎯 REPASO (cuando tu profesor la activa): allí tienes el repaso de preguntas falladas, los megatests de cada unidad y, si lo permite, la opción de crear tus propios exámenes. Ver el punto siguiente.'
+      : 'También tienes el repaso de falladas: reúne las preguntas que has fallado para volver a intentarlas. Y cuando tu profesor lo activa, aparecen los megatests: exámenes largos de repaso de toda la unidad.'
   ]});
+  if(esAula){
+    s.push({ t:'Repaso: practica a tu ritmo', p:[
+      'DÓNDE: pestaña 🎯 REPASO (aparece cuando tu profesor la activa). Todo lo de aquí es SOLO PARA PRACTICAR: no cuenta para tu nota ni lo ve tu profesor como calificación.',
+      'CUADRO DE RESUMEN: arriba ves cuántos exámenes de repaso has CREADO, cuántos has REALIZADO y cuántos te quedan PENDIENTES, más dos medias tuyas (la de tus exámenes de repaso y la de los megatests). Son solo para que veas tu evolución.',
+      'CREAR TUS PROPIOS EXÁMENES: si tu profesor lo ha habilitado, con «Crear examen de repaso» montas un test a tu gusto. Eliges la unidad, el tema (o «Todos los temas»), le pones un título y decides cómo montarlo: AUTOMÁTICO (la plataforma coge preguntas al azar del banco; tú dices cuántas) o A MEDIDA (eliges tú las preguntas una a una; cada tema tiene su «Todas · Ninguna» para seleccionarlas rápido). Los exámenes que creas son privados: solo los ves tú, en la lista «Mis exámenes de repaso», y puedes repetirlos o borrarlos cuando quieras.',
+      'REPASO GUIADO POR UNIDAD: más abajo tienes, por unidad, los MEGATESTS (exámenes largos de repaso al azar de toda la unidad) y el TEST DE PREGUNTAS FALLADAS (reúne lo que has fallado o dejado en blanco para volver a intentarlo). Aparecen si tu profesor los ha activado.',
+      'Si tu profesor no ha activado la creación de exámenes, verás igualmente el repaso guiado por unidad, pero no el botón de crear.'
+    ]});
+  }
   s.push({ t:'6. Temario', p:[
     'Si tu profesor ha subido apuntes, los tienes en el apartado de temario de la unidad. Se descargan y se pueden leer fuera de la plataforma.'
   ]});
   s.push({ t:'7. Avisos, chat y calendario', p:[
     'CAMPANITA (🔔): arriba tienes una campana con los avisos que te manda tu profesor (un examen, una entrega, un recordatorio). El número indica los que no has leído.',
-    'CHAT CON TU PROFESOR (💬): si tu profesor lo ha activado, tienes un chat para escribirle. Puedes archivar una conversación con «🗂 Archivar» y recuperarla en «Ver archivados»; con «🗑 Borrar» la quitas de tu vista (tu profesor conserva su copia). Un mensaje nuevo la devuelve al chat.',
+    'CHAT CON TU PROFESOR (💬): dentro de la pestaña HERRAMIENTAS, si tu profesor lo ha activado, tienes un chat para escribirle. Puedes archivar una conversación con «🗂 Archivar» y recuperarla en «Ver archivados»; con «🗑 Borrar» la quitas de tu vista (tu profesor conserva su copia). Un mensaje nuevo la devuelve al chat.',
     'CALENDARIO (📅): muestra las tareas y fechas que ha puesto tu profesor. Es solo de consulta: tú no lo editas. Cuando tu profesor añade una fecha importante (un examen, una entrega), además de aparecer en el calendario te llega el aviso en la campanita.'
   ]});
   s.push({ t:'8. Qué NO es Aptuvia', p:[
