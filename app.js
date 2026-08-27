@@ -1414,16 +1414,20 @@ async function loadData(){
     };
 
     // ── FASE 1: datos mínimos para mostrar la UI ──
-    const [unidades, examenes, perfil] = await Promise.all([
+    const [unidades, examenes, _pp] = await Promise.all([
       fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id,profesor_id&order=orden.asc').catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden,certificado_id&order=orden.asc')).catch(()=>fetchR('/rest/v1/unidades?select=id,codigo,titulo,modulo,orden&order=orden.asc')),
       fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id,fecha_entrega,creado_en&order=orden.asc').catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,profesor_id,material_url,material_modo,tema_id&order=orden.asc')).catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id,material_url,material_modo&order=orden.asc')).catch(()=>fetchR('/rest/v1/examenes?select=id,unidad,numero,titulo,tema,nivel,orden,cuenta_final,academia_id&order=orden.asc')),
-      fetchR(_perfilPath()).catch(()=>fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id')),
+      cargarPerfilPropio(),
     ]);
 
-    // Si el filtro por uid no devolvió nada (token raro, RLS), se reintenta sin filtro.
-    let perfilFila = (perfil&&perfil[0]) ? perfil[0] : null;
-    if(!perfilFila){
-      try{ const p2=await fetchR('/rest/v1/perfiles?select=id,nombre,rol,academia_id,profesor_id'); perfilFila=(p2&&p2[0])?p2[0]:null; }catch(e){}
+    // El perfil viene SIEMPRE filtrado por el uid del token y verificado. Si no se
+    // pudo obtener el perfil propio, NO adoptamos una fila ajena (evita arrancar
+    // con el rol equivocado); mostramos reintentar.
+    let perfilFila = _pp ? _pp.fila : null;
+    if(!perfilFila && !window._saImpersona){
+      showView('home');
+      $('home').innerHTML=`<div class="center-msg" style="padding:24px">No se pudo cargar tu perfil.<br><small>Comprueba tu conexión e inténtalo de nuevo.</small><br><br><button class="btn btn-primary" style="margin-top:12px;background:var(--navy);border:none;color:#fff;padding:10px 22px;border-radius:10px;cursor:pointer;font-weight:700" onclick="loadData()">🔄 Reintentar</button></div>`;
+      return;
     }
 
     userId=(perfilFila&&perfilFila.id)?perfilFila.id:'';
@@ -1545,7 +1549,24 @@ function _authUid(){
 function _perfilPath(){
   const uid=_authUid();
   const cols='select=id,nombre,rol,academia_id,profesor_id';
-  return uid ? ('/rest/v1/perfiles?id=eq.'+encodeURIComponent(uid)+'&'+cols) : ('/rest/v1/perfiles?'+cols);
+  return uid ? ('/rest/v1/perfiles?id=eq.'+encodeURIComponent(uid)+'&'+cols) : null;
+}
+// Carga el perfil PROPIO: siempre filtrado por el uid del token y comprobando que
+// la fila devuelta es la de ese uid. Nunca lee perfiles sin filtro (RLS podría
+// devolver la fila de otro usuario y la app arrancaría con el rol equivocado).
+async function cargarPerfilPropio(){
+  if(window._demoMode){ try{ const r=await call('/rest/v1/perfiles?select=id,nombre,rol,academia_id,profesor_id'); return {uid:(r&&r[0]&&r[0].id)||'', fila:(r&&r[0])||null}; }catch(e){ return {uid:'',fila:null}; } }
+  let uid=_authUid();
+  for(let i=0;i<4 && !uid;i++){ await new Promise(r=>setTimeout(r,300)); uid=_authUid(); }
+  if(!uid) return {uid:'', fila:null};
+  const cols='select=id,nombre,rol,academia_id,profesor_id';
+  for(let i=0;i<3;i++){
+    try{ const r=await call('/rest/v1/perfiles?id=eq.'+encodeURIComponent(uid)+'&'+cols);
+      if(r && r[0] && String(r[0].id)===String(uid)) return {uid, fila:r[0]};
+    }catch(e){}
+    if(i<2) await new Promise(r=>setTimeout(r,600*(i+1)));
+  }
+  return {uid, fila:null};
 }
 function mediaMisTodos(unitId){
   const ids=new Set((examsByUnit[unitId]||[]).map(e=>String(e.id)));
@@ -1965,13 +1986,63 @@ async function repasoCorrer(id){
   }
 }
 // ── Constructor de examen de repaso (pantalla propia, solo tipo test) ──
-function repasoBuilderOpen(){
+function repasoBuilderOpen(unidadFija){
+  if(unidadFija){
+    window._repasoUnitEV=unidadFija;
+    repBuilder={unidad:unidadFija,modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false,temaSel:'',temas:[],temaTit:{},ev:true};
+    showView('unit'); window.scrollTo(0,0);
+    repasoBuilderRender();
+    return;
+  }
+  window._repasoUnitEV=null;
   const units=repasoUnidadesAlumno(true);
   if(!units.length){ appAlert('Tu profesor aún no ha habilitado crear exámenes en ninguna de tus materias.'); return; }
-  repBuilder={unidad:units[0].id,modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false,temaSel:'',temas:[],temaTit:{}};
+  repBuilder={unidad:units[0].id,modo:'auto',titulo:'',nivel:'medio',n:15,bank:[],bankUnidad:'',sel:new Set(),loading:false,temaSel:'',temas:[],temaTit:{},ev:false};
   showView('unit'); window.scrollTo(0,0);
   repasoBuilderRender();
   repasoTemasLoad();
+}
+// ── Repaso dentro de la unidad (EV): entrada desde openUnit ──
+function ensureCreaUnits(cb){
+  if(window._creaUnits){ cb&&cb(); return; }
+  call('/rest/v1/rpc/crea_examenes_mis',{method:'POST',body:{}}).then(en=>{ window._creaUnits=new Set((en||[]).map(r=>r.unidad_id)); }).catch(()=>{ window._creaUnits=new Set(); }).then(()=>{ cb&&cb(); });
+}
+function evRepasoZona(unitId){
+  const box=$('ev-rep-zona'); if(!box) return;
+  const puede=!!(window._creaUnits&&window._creaUnits.has(unitId));
+  let h='';
+  if(puede){
+    h+=`<h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:18px 2px 8px">✍️ Crea tu examen de repaso</h3>`;
+    h+=`<button onclick="repasoBuilderOpen('${escAttr(unitId)}')" style="width:100%;background:linear-gradient(135deg,#22c55e,#15803d);border:none;color:#fff;border-radius:16px;padding:14px 16px;cursor:pointer;font:inherit;font-weight:800;font-size:.92rem;box-shadow:0 6px 14px -6px rgba(21,128,61,.6);margin-bottom:12px">Crear examen de repaso</button>`;
+  }
+  h+=`<div id="ev-rep-lista"></div>`;
+  box.innerHTML=h;
+  evRepasoLista(unitId);
+}
+async function evRepasoLista(unitId){
+  const box=$('ev-rep-lista'); if(!box) return;
+  let rows=[];
+  try{ rows=await call('/rest/v1/rpc/repaso_listar',{method:'POST',body:{p_unidad:unitId}})||[]; }catch(e){ box.innerHTML=''; return; }
+  if(!rows.length){ box.innerHTML=''; return; }
+  let h='<h3 class="sec-h" style="font-size:.82rem;font-weight:800;color:var(--navy);margin:14px 2px 8px">📝 Mis exámenes de repaso</h3>';
+  rows.forEach(r=>{
+    const at=attemptsByExam['alrep-'+r.id];
+    const nota= at ? `<span style="font-weight:800;color:${at.mejor/at.total>=0.5?'#15803d':'#b4232a'};font-size:1.05rem">${at.mejor}/${at.total}</span>` : '<span style="color:var(--ink-soft);font-size:.72rem">Sin hacer</span>';
+    h+=`<div style="background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 10px -6px rgba(70,95,125,.35);display:flex;align-items:center;gap:10px">
+        <button onclick="repasoCorrerEV('${r.id}','${escAttr(unitId)}')" style="flex:1;min-width:0;text-align:left;background:none;border:none;cursor:pointer;font:inherit">
+          <b style="color:var(--navy);font-size:.9rem">${escHtml(r.titulo||'Repaso')}</b>
+          <div style="font-size:.72rem;color:var(--ink-soft);margin-top:3px">${r.n} preguntas · ${r.modo==='auto'?'al azar':'a medida'}</div>
+        </button>${nota}
+        <button onclick="repasoBorrarEV('${r.id}','${escAttr((r.titulo||'este examen').replace(/'/g,''))}','${escAttr(unitId)}')" title="Borrar" style="flex:0 0 auto;background:#fef2f2;border:1px solid #fecaca;color:#b4232a;border-radius:9px;padding:6px 9px;cursor:pointer;font-size:.9rem">🗑</button>
+      </div>`;
+  });
+  box.innerHTML=h;
+}
+function repasoCorrerEV(id,unitId){ window._repasoUnitEV=unitId; repasoCorrer(id); }
+async function repasoBorrarEV(id,nombre,unitId){
+  if(!await appConfirm('¿Borrar «'+nombre+'»? No se puede deshacer.')) return;
+  try{ await call('/rest/v1/rpc/repaso_borrar',{method:'POST',body:{p_examen:id}}); }catch(e){ appAlert('No se pudo borrar.'); return; }
+  evRepasoLista(unitId);
 }
 function repasoBuilderSet(){
   const u=$('rb-unidad'); if(u && u.value!==repBuilder.unidad){ repBuilder.unidad=u.value; repBuilder.sel=new Set(); repBuilder.bank=[]; repBuilder.bankUnidad=''; repBuilder.temaSel=''; repBuilder.temas=[]; repBuilder.temaTit={}; }
@@ -1998,21 +2069,28 @@ function repasoBuilderRender(){
   const opU=units.map(x=>`<option value="${escAttr(x.id)}"${x.id===b.unidad?' selected':''}>${escHtml(x.cod)} · ${escHtml(x.tit)}</option>`).join('');
   const opT=`<option value="">Todos los temas</option>`+(b.temas||[]).map(t=>`<option value="${escAttr(t.id)}"${String(b.temaSel)===String(t.id)?' selected':''}>${escHtml(t.titulo||'Tema')}</option>`).join('');
   const modoBtn=(k,txt)=>`<button onclick="repasoBuilderModo('${k}')" style="flex:1;border-radius:12px;padding:11px 8px;cursor:pointer;font:inherit;font-weight:800;font-size:.82rem;${b.modo===k?'background:#15803d;color:#fff;border:2px solid #15803d':'background:#fff;color:#15803d;border:1.5px solid #9ecbb0'}">${txt}</button>`;
-  let h=`<button class="backbtn" onclick="window._alumTab='rep';showView('home');renderHome()">← Repaso</button>
+  let h=`<button class="backbtn" onclick="${b.ev?`openUnit('${escAttr(b.unidad)}')`:`window._alumTab='rep';showView('home');renderHome()`}">← ${b.ev?'Unidad':'Repaso'}</button>
     <div class="unit-head"><div class="c">🎯</div><div class="n">Crear examen de repaso</div></div>
-    <div class="section" style="margin-top:8px">
-      <label>Unidad</label>
+    <div class="section" style="margin-top:8px">`;
+  if(b.ev){
+    const uu=unidadesById[b.unidad]; const cod=(uu&&uu.codigo)||b.unidad.toUpperCase(); const tit=(uu&&uu.titulo)?tituloMateria(uu):'';
+    h+=`<div style="font-size:.82rem;font-weight:800;color:var(--navy);margin:0 2px 12px">${escHtml(cod)}${tit?' · <span style="font-weight:600;color:var(--ink-soft)">'+escHtml(tit)+'</span>':''}</div>`;
+  }else{
+    h+=`<label>Unidad</label>
       <select id="rb-unidad" onchange="repasoBuilderUnidad()">${opU}</select>
       <label style="margin-top:12px">Tema</label>
-      <select id="rb-tema" onchange="repasoTemaSel(this.value)">${opT}</select>
-      <label style="margin-top:12px">Título del examen</label>
-      <input id="rb-titulo" type="text" placeholder="Repaso tema 5" value="${escAttr(b.titulo)}" oninput="repBuilder.titulo=this.value">
-      <label style="margin-top:14px">¿Cómo lo montas?</label>
+      <select id="rb-tema" onchange="repasoTemaSel(this.value)">${opT}</select>`;
+  }
+  h+=`<label${b.ev?'':' style="margin-top:12px"'}>Título del examen</label>
+      <input id="rb-titulo" type="text" placeholder="Repaso tema 5" value="${escAttr(b.titulo)}" oninput="repBuilder.titulo=this.value">`;
+  if(!b.ev){
+    h+=`<label style="margin-top:14px">¿Cómo lo montas?</label>
       <div style="display:flex;gap:8px;margin-top:4px">${modoBtn('auto','⚡ Automático')}${modoBtn('medida','✍️ A medida')}</div>`;
+  }
   if(b.modo==='auto'){
     h+=`<label style="margin-top:14px">Nº de preguntas (al azar del banco)</label>
       <input id="rb-n" type="number" min="1" max="100" value="${b.n}" oninput="repBuilder.n=Math.max(1,Math.min(100,parseInt(this.value,10)||15))">
-      <p style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0;line-height:1.5">La plataforma elige ${b.n} preguntas al azar del banco${b.temaSel?' de este tema':' de toda la unidad'}.</p>`;
+      <p style="font-size:.74rem;color:var(--ink-soft);margin:8px 2px 0;line-height:1.5">La plataforma elige ${b.n} preguntas al azar del banco${(!b.ev&&b.temaSel)?' de este tema':' de toda la unidad'}.</p>`;
   }else{
     h+=`<div id="rb-bank" style="margin-top:12px">${b.loading?'<div class="loader"><span class="spin"></span></div>':repasoBankHtml()}</div>`;
   }
@@ -2085,6 +2163,7 @@ async function repasoCrearUI(){
   try{
     await call('/rest/v1/rpc/repaso_crear',{method:'POST',body:{p_unidad:b.unidad,p_certificado_id:cert,p_titulo:(b.titulo||'').trim(),p_nivel:b.nivel,p_modo:b.modo,p_n:b.n,p_pregunta_ids:b.modo==='medida'?[...b.sel]:[],p_tema:b.temaSel||null}});
   }catch(e){ appAlert('No se pudo crear: '+(e.message||'')); return; }
+  if(window._repasoUnitEV){ const un=window._repasoUnitEV; window._repasoUnitEV=null; openUnit(un); return; }
   window._alumTab='rep'; showView('home'); renderHome();
 }
 
@@ -2219,13 +2298,14 @@ function setTeacherMode(m){ teacherMode=m; if(teacherView==='alumno'&&teacherAl)
 function tRow(r, exLabel, sub){
   const pass=!!r.apto;
   if(r._red){
-    // Redacción: se muestra la nota (0-10), no es un intento pinchable.
+    // Redacción: nota 0-10. Pinchable → abre la entrega corregida del alumno.
     const nota=(r.total? (r.correctas/r.total*10):0);
-    return `<div class="t-row t-row--red">
+    return `<button class="t-row t-row--red" data-red-al="${escAttr(r.alumno_email||r.alumno||'')}" data-red-ex="${escAttr(r.examen||'')}">
       <span class="t-cell ${pass?'ok':'no'}">${nota.toFixed(1)}</span>
       <span class="t-meta"><span class="t-ex">✍️ ${exLabel}</span><span class="t-date">${sub}</span></span>
       <span class="t-badge ${pass?'ok':'no'}">Redacción</span>
-    </div>`;
+      <span class="arrow">›</span>
+    </button>`;
   }
   teacherById[r.id]={alumno:r.alumno,alumno_email:r.alumno_email||r.alumno,nombre:r._nombre||r.nombre||'',label:exLabel,porcentaje:r.porcentaje,apto:r.apto};
   return `<button class="t-row" data-int="${r.id}">
@@ -9043,7 +9123,7 @@ async function openPublicar(okMsg){
   try{ await cargarTemario(); }catch(e){}
   const esAula = window._activeCertId==='__aula_abierta';
   window._creaFlags={};
-  if(esAula){ try{ (await call('/rest/v1/rpc/crea_examenes_estado',{method:'POST',body:{}})||[]).forEach(r=>{ window._creaFlags[r.unidad_id]=!!r.activo; }); }catch(e){} }
+  try{ (await call('/rest/v1/rpc/crea_examenes_estado',{method:'POST',body:{}})||[]).forEach(r=>{ window._creaFlags[r.unidad_id]=!!r.activo; }); }catch(e){}
   const h=[`<button class="backbtn" onclick="pintarTeacher()">← Panel</button>`];
   h.push(`<h1 style="font-size:1.25rem;font-weight:800;letter-spacing:-.4px;margin:6px 0 2px;color:var(--navy)">Exámenes y estados</h1>`);
   h.push(`<p style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Marca la situación de cada ${esAula?'materia':'unidad'} y activa lo que quieres que vea el alumno. <b>Próximamente</b> queda bloqueado; lo apagado no le aparece.</p>`);
@@ -9097,10 +9177,10 @@ async function openPublicar(okMsg){
           <span class="pub-info"><b>🎯 Preguntas falladas</b><span>Repaso de fallos del alumno</span></span>
           <button class="switch${vFA?' on':''}" data-extra="${uid}" data-campo="fa" data-on="${vFA?1:0}" aria-label="${vFA?'Visible':'Oculto'}"><span class="knob"></span></button>
         </div>`);
-      if(esAula){
+      {
         const vCR=!!(window._creaFlags&&window._creaFlags[uid]);
         h.push(`<div class="pub-row pub-extra">
-          <span class="pub-info"><b>✍️ El alumno crea sus exámenes</b><span>Le abre el banco de esta materia para montar tests de repaso</span></span>
+          <span class="pub-info"><b>✍️ El alumno crea sus exámenes</b><span>Le abre el banco de esta ${esAula?'materia':'unidad'} para montar tests de repaso</span></span>
           <button class="switch${vCR?' on':''}" data-crea="${uid}" data-on="${vCR?1:0}" aria-label="${vCR?'Activado':'Desactivado'}"><span class="knob"></span></button>
         </div>`);
       }
@@ -9239,6 +9319,23 @@ function _openAlumnoDetalle(email){
   }
   $('teacher').innerHTML=html;
   $('teacher').querySelectorAll('.t-row[data-int]').forEach(b=> b.onclick=()=>abrirIntento(b.dataset.int));
+  $('teacher').querySelectorAll('.t-row[data-red-al]').forEach(b=> b.onclick=()=>abrirRedaccionAlumno(b.dataset.redAl, b.dataset.redEx));
+}
+// Abre la entrega de redacción de un alumno desde su ficha (busca por correo + examen).
+async function abrirRedaccionAlumno(email, examen){
+  showView('teacher'); window.scrollTo(0,0);
+  const back = `openAlumnoDetalle('${email}')`;
+  $('teacher').innerHTML=`<button class="backbtn" onclick="${back}">← Atrás</button><div class="loader"><span class="spin"></span></div>`;
+  try{
+    const rows=await call('/rest/v1/rpc/listar_entregas',{method:'POST',body:{}})||[];
+    const em=(email||'').toLowerCase().trim(), ex=(examen||'').trim();
+    const r = rows.find(x=> String(x.alumno||'').toLowerCase().trim()===em && String(x.examen||'').trim()===ex)
+           || rows.find(x=> String(x.examen||'').trim()===ex);
+    if(r && r.id){ openEntrega(r.id); return; }
+    $('teacher').innerHTML=`<button class="backbtn" onclick="${back}">← Atrás</button><div class="center-msg">No se encontró la entrega de esta redacción.</div>`;
+  }catch(e){
+    $('teacher').innerHTML=`<button class="backbtn" onclick="${back}">← Atrás</button><div class="center-msg">No se pudo abrir la redacción.<br><small>${e.message||''}</small></div>`;
+  }
 }
 function setTeacherUnidad(u){ teacherUnidadSel = u||null; if(teacherAl) openAlumnoDetalle(teacherAl); }
 // Detalle de un intento (qué falló el alumno)
@@ -12785,6 +12882,9 @@ function openUnit(unitId){
     });
     html+=`</div>`;
   }
+  // Repaso del alumno dentro de la unidad (solo EV; en AA vive en la pestaña Repaso).
+  const evRep = !staff && !esAulaAbierta() && !terminada && !window._demoMode;
+  if(evRep){ html+=`<div id="ev-rep-zona"></div>`; }
   $('unit').innerHTML=html;
   document.querySelectorAll('.exam-row[data-id]').forEach(b=> b.onclick=()=>{
     if(b.dataset.done==='1') return verIntentoAlumno(b.dataset.id, unitId);
@@ -12796,6 +12896,7 @@ function openUnit(unitId){
   if($('btn-megatest2')) $('btn-megatest2').onclick=()=>openMegatest(unitId,2);
   if($('btn-falladas')) $('btn-falladas').onclick=()=>openFalladas(unitId);
   document.querySelectorAll('.exam-row[data-mat]').forEach(b=> b.onclick=()=>temarioDescargar(b.dataset.path, b.dataset.nom));
+  if(evRep && $('ev-rep-zona')){ ensureCreaUnits(()=>evRepasoZona(unitId)); }
 }
 
 // ============ VISTA PROFESOR: alumnos por examen ============
@@ -14200,6 +14301,7 @@ function backToUnit(){
     window._redHideHandler = null;
   }
   window._redVigilando = false;
+  if(window._repasoUnitEV){ const un=window._repasoUnitEV; window._repasoUnitEV=null; window._repasoRetorno=false; openUnit(un); return; }
   if(window._repasoRetorno){ window._repasoRetorno=false; window._alumTab='rep'; showView('home'); renderHome(); return; }
   if(window._alumRetornoHist){ window._alumRetornoHist=false; window._alumRetornoPend=false; alumVolverHist(); return; }
   if(window._alumRetornoPend){ window._alumRetornoPend=false; window._alumTab='pend'; showView('home'); renderHome(); return; }
