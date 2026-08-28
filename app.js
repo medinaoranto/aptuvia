@@ -2726,7 +2726,9 @@ function manualProfeSecciones(esAula){
   s.push({ t:'7. Qué ve el alumno y situación de la unidad', p:[
     'DÓNDE: Área Docente → Exámenes y estados. La visibilidad y la situación de cada unidad'+(aa?' o materia':'')+' están juntas en la misma pantalla.',
     'Encima de cada unidad está su selector de situación: ACTIVO (el alumno trabaja con normalidad), PRÓXIMAMENTE (la ve en la lista pero no puede entrar, para anunciar lo que viene) y TERMINADO (se cierra: no puede hacer más intentos, pero conserva sus notas). En la misma pantalla se activan dos extras: el repaso largo de la unidad y el repaso de preguntas falladas.',
-    ...(aa ? ['EL ALUMNO CREA SUS EXÁMENES: en cada materia hay un interruptor «✍️ El alumno crea sus exámenes». Al encenderlo, tus alumnos de esa materia pueden montarse sus propios exámenes tipo test de repaso desde su pestaña 🎯 Repaso, usando el banco de preguntas de la materia. Nace apagado; enciéndelo solo si no te importa que el alumno vea las preguntas antes de tiempo. Esos exámenes son privados del alumno, solo para practicar: no cuentan para su nota ni te aparecen a ti.'] : []),
+    (aa
+      ? 'EL ALUMNO CREA SUS EXÁMENES: en cada materia hay un interruptor «✍️ El alumno crea sus exámenes». Al encenderlo, tus alumnos de esa materia pueden montarse sus propios exámenes tipo test de repaso desde su pestaña 🎯 Repaso, usando el banco de preguntas de la materia. Pueden elegir un tema y montarlos automáticos (al azar) o a medida (eligiendo ellos las preguntas). Nace apagado; enciéndelo solo si no te importa que el alumno vea las preguntas antes de tiempo. Esos exámenes son privados del alumno, solo para practicar: no cuentan para su nota ni te aparecen a ti.'
+      : 'EL ALUMNO CREA SUS EXÁMENES: en cada unidad hay un interruptor «✍️ El alumno crea sus exámenes». Al encenderlo, tus alumnos pueden montarse sus propios exámenes tipo test de repaso desde dentro de la propia unidad, junto a los megatests, usando el banco de preguntas de esa unidad. Se montan automáticos: el alumno dice cuántas preguntas quiere y la plataforma las coge al azar del banco. Nace apagado; enciéndelo solo si no te importa que el alumno vea las preguntas antes de tiempo. Esos exámenes son privados del alumno, solo para practicar: no cuentan para su nota ni te aparecen a ti.'),
     'Debajo, cada examen tiene su interruptor. Mientras esté apagado, el alumno no lo ve, aunque esté creado y terminado.',
     'IMPORTANTE: el alumno solo ve un examen —y por tanto la nota que sacó en él— si su interruptor está encendido. Poner la unidad en TERMINADO cierra los intentos nuevos, pero por sí solo NO muestra las notas: si un examen está apagado, desaparece de la pantalla del alumno y su nota con él. Para que el alumno conserve y pueda ver sus notas de una unidad ya terminada, deja encendidos los interruptores de esos exámenes.',
     'También aparece el temario subido con su propio interruptor, así decides qué materiales ve y cuáles no. El material recién subido nace apagado.',
@@ -2839,7 +2841,7 @@ function manualAlumnoSecciones(esAula){
     'En cada unidad puedes ver tus intentos y la nota de cada uno.',
     esAula
       ? 'En Aula Abierta, el repaso está reunido en la pestaña 🎯 REPASO (cuando tu profesor la activa): allí tienes el repaso de preguntas falladas, los megatests de cada unidad y, si lo permite, la opción de crear tus propios exámenes. Ver el punto siguiente.'
-      : 'También tienes el repaso de falladas: reúne las preguntas que has fallado para volver a intentarlas. Y cuando tu profesor lo activa, aparecen los megatests: exámenes largos de repaso de toda la unidad.'
+      : 'También tienes el repaso de falladas: reúne las preguntas que has fallado para volver a intentarlas. Y cuando tu profesor lo activa, aparecen los megatests: exámenes largos de repaso de toda la unidad. Además, si tu profesor lo permite, dentro de la unidad puedes crear tus propios exámenes de repaso (ver más abajo).'
   ]});
   if(esAula){
     s.push({ t:'Repaso: practica a tu ritmo', p:[
@@ -2848,6 +2850,12 @@ function manualAlumnoSecciones(esAula){
       'CREAR TUS PROPIOS EXÁMENES: si tu profesor lo ha habilitado, con «Crear examen de repaso» montas un test a tu gusto. Eliges la unidad, el tema (o «Todos los temas»), le pones un título y decides cómo montarlo: AUTOMÁTICO (la plataforma coge preguntas al azar del banco; tú dices cuántas) o A MEDIDA (eliges tú las preguntas una a una; cada tema tiene su «Todas · Ninguna» para seleccionarlas rápido). Los exámenes que creas son privados: solo los ves tú, en la lista «Mis exámenes de repaso», y puedes repetirlos o borrarlos cuando quieras.',
       'REPASO GUIADO POR UNIDAD: más abajo tienes, por unidad, los MEGATESTS (exámenes largos de repaso al azar de toda la unidad) y el TEST DE PREGUNTAS FALLADAS (reúne lo que has fallado o dejado en blanco para volver a intentarlo). Aparecen si tu profesor los ha activado.',
       'Si tu profesor no ha activado la creación de exámenes, verás igualmente el repaso guiado por unidad, pero no el botón de crear.'
+    ]});
+  } else {
+    s.push({ t:'Crea tus propios exámenes de repaso', p:[
+      'DÓNDE: dentro de cada unidad, debajo de sus exámenes. Aparece solo cuando tu profesor lo activa en esa unidad. Todo esto es SOLO PARA PRACTICAR: no cuenta para tu nota ni lo ve tu profesor como calificación.',
+      'CÓMO: pulsa «Crear examen de repaso», ponle un título y di cuántas preguntas quieres. La plataforma las coge al azar del banco de esa unidad y te monta el test al momento.',
+      'DÓNDE QUEDAN: en la misma unidad, en la lista «Mis exámenes de repaso». Son privados, solo los ves tú, y puedes repetirlos o borrarlos cuando quieras.'
     ]});
   }
   s.push({ t:'6. Temario', p:[
