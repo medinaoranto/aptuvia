@@ -11119,7 +11119,7 @@ function grAcademias(){
     const color=(m==null)?'#c9ccd6':notaColor(m);
     h+=`<button class="t-card gr-centro" onclick="grEntrarAcademia(${num(r.academia_id)})" style="margin-bottom:9px;width:100%;text-align:left;border:none;font-family:inherit;cursor:pointer;display:block">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
-        <b style="font-size:.92rem">${escHtml(r.academia||('Academia '+r.academia_id))}</b>
+        <b style="font-size:.92rem">${escHtml(r.academia||('Academia '+r.academia_id))}${r.activa===false?' <span style="color:#b4232a;font-size:.68rem;font-weight:800">🔒 REVOCADA</span>':''}</b>
         <span style="font-size:.95rem;font-weight:800;color:${color}">${m!=null?m.toFixed(1):'—'}</span>
       </div>
       <div style="height:7px;background:#eef0f4;border-radius:99px;margin:7px 0 8px;overflow:hidden">
