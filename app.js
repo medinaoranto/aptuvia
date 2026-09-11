@@ -476,6 +476,10 @@ const CERT_TEMA = {
 
 let token=null, refreshToken=null, userEmail='', userName='', userRol='', userAcademia=null, userProfesorId=null;
 let unidadesById={}, examsByUnit={}, attemptsByExam={}, falladasByUnit={}, entregasByExam={}, userId='';
+// Nº de preguntas por parte del megatest. Por defecto 50; algunas unidades con
+// banco más pequeño usan menos para no repetir demasiado ni hacerlo pesado.
+const MEGATEST_N_OVERRIDE={'aula-formacion-y-orientacion--oam5':25};
+function megatestN(unitId){ return MEGATEST_N_OVERRIDE[unitId]||50; }
 let estadosLocales={};
 let current={ module:null, unit:null, exam:null, preguntas:[], respuestas:{}, qIndex:0, mode:'examen', optOrder:{} };
 const $ = id => document.getElementById(id);
@@ -1953,15 +1957,16 @@ function alumTabRepaso(){
       return `<span class="rc-score ${ok?'ok':'no'}">Mejor: ${m.mejor}/${m.total} · ${p}% · ${ok?'✓ Apto':'✗ No apto'}</span>`; };
     const mt1=attemptsByExam['repaso-'+id], mt2=attemptsByExam['repaso-'+id+'-b'];
     const nf=falladasByUnit[id]||0;
+    const mtN=megatestN(id);
     hz+=`<div style="margin:6px 2px 4px;font-size:.8rem;font-weight:800;color:var(--navy)">${escHtml(cod)} · <span style="font-weight:600;color:var(--ink-soft)">${escHtml(tit)}</span></div><div class="repaso-zone">`;
     if(verMT) hz+=`<button class="repaso-card${mt1?' done':''}" onclick="repasoMega('${escAttr(id)}',1)">
-        <span class="rc-badge">🔁 Mega test 1 · 50 preguntas</span>
+        <span class="rc-badge">🔁 Mega test 1 · ${mtN} preguntas</span>
         <span class="rc-title">Examen de repaso · Parte 1</span>
-        <span class="rc-sub">50 preguntas al azar de toda la unidad.</span>${mtScore('repaso-'+id)}</button>
+        <span class="rc-sub">${mtN} preguntas al azar de toda la unidad.</span>${mtScore('repaso-'+id)}</button>
       <button class="repaso-card${mt2?' done':''}" onclick="repasoMega('${escAttr(id)}',2)">
-        <span class="rc-badge">🔁 Mega test 2 · 50 preguntas</span>
+        <span class="rc-badge">🔁 Mega test 2 · ${mtN} preguntas</span>
         <span class="rc-title">Examen de repaso · Parte 2</span>
-        <span class="rc-sub">Otras 50 preguntas al azar.</span>${mtScore('repaso-'+id+'-b')}</button>`;
+        <span class="rc-sub">Otras ${mtN} preguntas al azar.</span>${mtScore('repaso-'+id+'-b')}</button>`;
     if(verFA) hz+=`<button class="failed-card${nf===0?' empty':''}" onclick="repasoFall('${escAttr(id)}')">
         <span class="fc-title">🎯 Test de preguntas falladas${nf>0?` (${nf})`:''}</span>
         <span class="fc-sub">${nf>0?`Repasa las ${nf} ${nf===1?'pregunta':'preguntas'} que has fallado o dejado en blanco en esta unidad.`:'Aún no tienes preguntas falladas en esta unidad.'}</span></button>`;
@@ -12916,21 +12921,22 @@ function openUnit(unitId){
       return `<span class="rc-score ${ok?'ok':'no'}">Mejor: ${m.mejor}/${m.total} · ${p}% · ${ok?'✓ Apto':'✗ No apto'} · ${m.count} ${m.count===1?'intento':'intentos'}</span>`; };
     const mt1=attemptsByExam['repaso-'+unitId], mt2=attemptsByExam['repaso-'+unitId+'-b'];
     const nf=falladasByUnit[unitId]||0;
+    const mtN=megatestN(unitId);
     // En Aula Abierta el alumno tiene el megatest/falladas en la pestaña «Repaso»,
     // no repetidos en cada tema. En EV siguen dentro de la unidad como hasta ahora.
     const repEnPestana = esAulaAbierta() && !staff;
     if((verMT||verFA) && !terminada && !repEnPestana){
       html+=`<div class="repaso-zone">`;
       if(verMT) html+=`<button class="repaso-card${mt1?' done':''}" id="btn-megatest">
-          <span class="rc-badge">🔁 Mega test 1 · 50 preguntas</span>
+          <span class="rc-badge">🔁 Mega test 1 · ${mtN} preguntas</span>
           <span class="rc-title">Examen de repaso · Parte 1</span>
-          <span class="rc-sub">50 preguntas al azar de toda la unidad para practicar.</span>
+          <span class="rc-sub">${mtN} preguntas al azar de toda la unidad para practicar.</span>
           ${mtScore('repaso-'+unitId)}
         </button>
         <button class="repaso-card${mt2?' done':''}" id="btn-megatest2">
-          <span class="rc-badge">🔁 Mega test 2 · 50 preguntas</span>
+          <span class="rc-badge">🔁 Mega test 2 · ${mtN} preguntas</span>
           <span class="rc-title">Examen de repaso · Parte 2</span>
-          <span class="rc-sub">Otras 50 preguntas al azar.</span>
+          <span class="rc-sub">Otras ${mtN} preguntas al azar.</span>
           ${mtScore('repaso-'+unitId+'-b')}
         </button>`;
       if(verFA) html+=`<button class="failed-card${nf===0?' empty':''}" id="btn-falladas">
@@ -13885,11 +13891,12 @@ async function openMegatest(unitId, parte){
   parte = parte===2 ? 2 : 1;
   current.unit=unitId; current.respuestas={}; current.preguntas=[]; current.qIndex=0; current.mode='megatest'; current.mtParte=parte;
   const u=unidadesById[unitId];
-  current.exam={titulo:'Mega test de repaso · Parte '+parte, tema:(u?u.codigo:'')+' · 50 preguntas', unit:unitId};
+  const mtN=megatestN(unitId);
+  current.exam={titulo:'Mega test de repaso · Parte '+parte, tema:(u?u.codigo:'')+' · '+mtN+' preguntas', unit:unitId};
   showView('exam'); window.scrollTo(0,0);
   $('exam').innerHTML='<div class="loader"><span class="spin"></span></div>';
   try{
-    current.preguntas=await call('/rest/v1/rpc/obtener_megatest',{method:'POST',body:{p_unidad:unitId,p_n:50}});
+    current.preguntas=await call('/rest/v1/rpc/obtener_megatest',{method:'POST',body:{p_unidad:unitId,p_n:mtN}});
     if(!current.preguntas.length){ throw new Error('No hay preguntas para el repaso.'); }
     prepararOpciones();
     renderExam();
