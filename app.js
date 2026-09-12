@@ -9714,14 +9714,14 @@ function bancoVer(id){
   const box='background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;white-space:pre-wrap;word-break:break-word;font-size:.86rem;line-height:1.55;color:var(--ink)';
   const okm=String(q.explicacion||'').trim();
   showView('teacher'); window.scrollTo(0,0);
-  $('teacher').innerHTML=saShell(`<button class="backbtn" onclick="renderExamMgmt()" style="margin-bottom:10px">← Volver</button>
+  $('teacher').innerHTML=`<button class="backbtn" onclick="renderExamMgmt()" style="margin-bottom:10px">← Volver</button>
     <h1 style="font-size:1.15rem;font-weight:800;color:var(--navy);margin:4px 0 2px">Actividad del banco</h1>
     ${q.codigo?`<p style="font-size:.78rem;color:var(--ink-soft);margin:0 0 12px"><b>Código:</b> ${escHtml(q.codigo)}</p>`:'<div style="height:8px"></div>'}
     <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:0 2px 6px">Enunciado</div>
     <div style="${box}">${escHtml(String(q.enunciado||'').trim())||'(vacío)'}</div>
     <div style="font-size:.72rem;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;margin:14px 2px 6px">Respuesta modelo</div>
     <div style="${box}">${okm?escHtml(okm):'(sin respuesta modelo)'}</div>
-    ${q.material_url?`<button class="btn btn-ghost" onclick="window.open('${escAttr(q.material_url)}','_blank')" style="width:100%;margin-top:14px">📎 Ver PDF adjunto</button>`:''}`,{noChat:true});
+    ${q.material_url?`<button class="btn btn-ghost" onclick="window.open('${escAttr(q.material_url)}','_blank')" style="width:100%;margin-top:14px">📎 Ver PDF adjunto</button>`:''}`;
 }
 function wireBanco(){
   const s=$('bq-save'); if(s) s.onclick=bancoGuardar;
